@@ -1,0 +1,19 @@
+Intellectual Property Notice
+------------------------------
+
+YGM uses the MIT license, (LICENSE-MIT or http://opensource.org/licenses/MIT).
+
+Copyrights and patents in the YGM project are retained by contributors.
+No copyright assignment is required to contribute to YGM.
+
+
+SPDX usage
+------------
+
+Individual files contain SPDX tags instead of the full license text.
+This enables machine processing of license information based on the SPDX
+License Identifiers that are available here: https://spdx.org/licenses/
+
+Files that MIT contain the following text in the license header:
+
+    SPDX-License-Identifier: MIT
