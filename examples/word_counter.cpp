@@ -3,16 +3,16 @@
 //
 // SPDX-License-Identifier: MIT
 
+#include <map>
+#include <sstream>
 #include <ygm/comm.hpp>
 #include <ygm/container/counting_set.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
-#include <map>
-#include <sstream>
 
 // President Abraham Lincoln's Gettysburg Address,
 // with punctuation and capitalization removed.
 // Ref:  https://en.wikipedia.org/wiki/Gettysburg_Address
-const char* gettysburg =
+const char *gettysburg =
     "four score and seven years ago our fathers brought forth on this "
     "continent a new nation conceived in liberty and dedicated to the "
     "proposition that all men are created equal now we are engaged in a great "
@@ -35,7 +35,7 @@ const char* gettysburg =
     "that government of the people by the people for the people shall not "
     "perish from the earth";
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
 
   auto iss = std::istringstream{gettysburg};
@@ -44,19 +44,27 @@ int main(int argc, char** argv) {
   ygm::container::counting_set<std::string> word_counter(world);
 
   // pragma parallel
-  while (iss >> word) { word_counter.async_insert(word); }
+  while (iss >> word) {
+    word_counter.async_insert(word);
+  }
 
   //
   // Setup gather lists, each rank can gather independently
   std::vector<std::string> to_gather;
-  if (world.rank() == 0) { to_gather = {"government"}; }
-  if (world.rank() == 1) { to_gather = {"people"}; }
-  if (world.rank() == 2) { to_gather = {"freedom"}; }
+  if (world.rank() == 0) {
+    to_gather = {"government"};
+  }
+  if (world.rank() == 1) {
+    to_gather = {"people"};
+  }
+  if (world.rank() == 2) {
+    to_gather = {"freedom"};
+  }
 
   auto counts = word_counter.all_gather(to_gather);
 
-  for (size_t i = 0; i < to_gather.size(); ++i) {
-    std::cout << to_gather[i] << " -> " << counts[i] << std::endl;
+  for (auto &word_count : counts) {
+    std::cout << word_count.first << " -> " << word_count.second << std::endl;
   }
 
   return 0;
