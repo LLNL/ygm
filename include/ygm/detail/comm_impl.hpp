@@ -14,6 +14,7 @@
 
 #include <ygm/detail/mpi.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
+#include <ygm/meta/functional.hpp>
 
 namespace ygm {
 
@@ -429,7 +430,8 @@ class comm::impl {
   int32_t local_receive(Lambda l, const Args &... args) {
     ASSERT_DEBUG(sizeof(Lambda) == 1);
     // Question: should this be std::forward(...)
-    (l)(this, m_comm_rank, args...);
+    // \pp was: (l)(this, m_comm_rank, args...);
+    ygm::meta::apply_optional(l, std::make_tuple(this, m_comm_rank), std::make_tuple(args...));
     return 1;
   }
 
@@ -446,7 +448,9 @@ class comm::impl {
           bia(ta);
           Lambda *pl;
           auto t1 = std::make_tuple((impl *)t, from);
-          std::apply(*pl, std::tuple_cat(t1, ta));
+          
+          // \pp was: std::apply(*pl, std::tuple_cat(t1, ta));
+          ygm::meta::apply_optional(*pl, std::move(t1), std::move(ta));
         };
 
     cereal::YGMOutputArchive oarchive(to_return);  // Create an output archive
