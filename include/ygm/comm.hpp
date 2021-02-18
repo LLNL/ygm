@@ -10,13 +10,19 @@
 
 namespace ygm {
 
+class locking_send_buffer_manager;
+
+template <typename SendBufferManagerType = locking_send_buffer_manager>
 class comm {
- public:
-  comm(int *argc, char ***argv, int buffer_capacity);
+public:
+  friend SendBufferManagerType;
+
+  comm(int *argc, char ***argv, int num_listeners = -1,
+       int buffer_capacity = 1048576);
 
   // TODO:  Add way to detect if this MPI_Comm is already open. E.g., static
   // map<MPI_Comm, impl*>
-  comm(MPI_Comm comm, int buffer_capacity);
+  comm(MPI_Comm comm, int num_listeners = -1, int buffer_capacity = 1048576);
 
   ~comm();
 
@@ -30,8 +36,7 @@ class comm {
   template <typename... SendArgs>
   void async_preempt(int dest, const SendArgs &... args);
 
-  template <typename... SendArgs>
-  void async_bcast(const SendArgs &... args);
+  template <typename... SendArgs> void async_bcast(const SendArgs &... args);
 
   template <typename... SendArgs>
   void async_bcast_preempt(const SendArgs &... args);
@@ -48,14 +53,11 @@ class comm {
 
   void barrier();
 
-  template <typename T>
-  T all_reduce_sum(const T &t) const;
+  template <typename T> T all_reduce_sum(const T &t) const;
 
-  template <typename T>
-  T all_reduce_min(const T &t) const;
+  template <typename T> T all_reduce_min(const T &t) const;
 
-  template <typename T>
-  T all_reduce_max(const T &t) const;
+  template <typename T> T all_reduce_max(const T &t) const;
 
   template <typename T, typename MergeFunction>
   inline T all_reduce(const T &t, MergeFunction merge);
@@ -69,14 +71,18 @@ class comm {
   std::ostream &cout0() {
     static std::ostringstream dummy;
     dummy.clear();
-    if (rank() == 0) { return std::cout; }
+    if (rank() == 0) {
+      return std::cout;
+    }
     return dummy;
   }
 
   std::ostream &cerr0() {
     static std::ostringstream dummy;
     dummy.clear();
-    if (rank() == 0) { return std::cerr; }
+    if (rank() == 0) {
+      return std::cerr;
+    }
     return dummy;
   }
 
@@ -92,27 +98,27 @@ class comm {
 
   bool rank0() const { return rank() == 0; }
 
-  template <typename... Args>
-  void cout(Args &&... args) {
+  template <typename... Args> void cout(Args &&... args) {
     (cout() << ... << args) << std::endl;
   }
 
-  template <typename... Args>
-  void cerr(Args &&... args) {
+  template <typename... Args> void cerr(Args &&... args) {
     (cerr() << ... << args) << std::endl;
   }
 
-  template <typename... Args>
-  void cout0(Args &&... args) {
-    if (rank0()) { (std::cout << ... << args) << std::endl; }
+  template <typename... Args> void cout0(Args &&... args) {
+    if (rank0()) {
+      (std::cout << ... << args) << std::endl;
+    }
   }
 
-  template <typename... Args>
-  void cerr0(Args &&... args) {
-    if (rank0()) { (std::cerr << ... << args) << std::endl; }
+  template <typename... Args> void cerr0(Args &&... args) {
+    if (rank0()) {
+      (std::cerr << ... << args) << std::endl;
+    }
   }
 
- private:
+private:
   comm() = delete;
 
   class impl;
@@ -120,6 +126,7 @@ class comm {
   std::shared_ptr<detail::mpi_init_finalize> pimpl_if;
 };
 
-}  // end namespace ygm
+} // end namespace ygm
 
 #include <ygm/detail/comm_impl.hpp>
+#include <ygm/detail/send_buffer_manager.hpp>

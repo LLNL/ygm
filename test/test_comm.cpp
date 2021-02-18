@@ -7,19 +7,22 @@
 #include <ygm/comm.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
 
   //
   // Test Rank 0 async to all others
   {
-    size_t counter{};
-    ygm::ygm_ptr<size_t> pcounter(&counter);
+    std::atomic<size_t> counter{};
+    ygm::ygm_ptr<std::atomic<size_t>> pcounter(&counter);
+
+    world.barrier(); // Needs a barrier to prevent a worker incrementing a
+                     // counter before it exists
     if (world.rank() == 0) {
       for (int dest = 0; dest < world.size(); ++dest) {
-        world.async(
-            dest, [](auto pcomm, int from, auto pcounter) { (*pcounter)++; },
-            pcounter);
+        world.async(dest,
+                    [](auto pcomm, int from, auto pcounter) { (*pcounter)++; },
+                    pcounter);
       }
     }
     world.barrier();
@@ -29,13 +32,14 @@ int main(int argc, char** argv) {
   //
   // Test all ranks async to all others
   {
-    size_t counter{};
-    ygm::ygm_ptr<size_t> pcounter(&counter);
+    std::atomic<size_t> counter{};
+    ygm::ygm_ptr<std::atomic<size_t>> pcounter(&counter);
 
+    world.barrier();
     for (int dest = 0; dest < world.size(); ++dest) {
-      world.async(
-          dest, [](auto pcomm, int from, auto pcounter) { (*pcounter)++; },
-          pcounter);
+      world.async(dest,
+                  [](auto pcomm, int from, auto pcounter) { (*pcounter)++; },
+                  pcounter);
     }
     world.barrier();
     ASSERT_RELEASE(counter == world.size());

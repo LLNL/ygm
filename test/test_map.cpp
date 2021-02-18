@@ -8,7 +8,7 @@
 #include <ygm/comm.hpp>
 #include <ygm/container/map.hpp>
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
 
   //
@@ -43,16 +43,16 @@ int main(int argc, char **argv) {
   // Test all ranks default & async_visit_if_exists
   {
     ygm::container::map<std::string, std::string> smap(world, "default_string");
-    smap.async_visit("dog", [](std::pair<const std::string, std::string> &s) {
-      ASSERT_RELEASE(s.first == "dog");
-      ASSERT_RELEASE(s.second == "default_string");
+    smap.async_visit("dog", [](const std::string& s1, const std::string& s2) {
+      ASSERT_RELEASE(s1 == "dog");
+      ASSERT_RELEASE(s2 == "default_string");
     });
-    smap.async_visit("cat", [](std::pair<const std::string, std::string> &s) {
-      ASSERT_RELEASE(s.first == "cat");
-      ASSERT_RELEASE(s.second == "default_string");
+    smap.async_visit("cat", [](const std::string& s1, const std::string& s2) {
+      ASSERT_RELEASE(s1 == "cat");
+      ASSERT_RELEASE(s2 == "default_string");
     });
     smap.async_visit_if_exists("red",
-                               [](const auto &p) { ASSERT_RELEASE(false); });
+                               [](const auto& p) { ASSERT_RELEASE(false); });
 
     ASSERT_RELEASE(smap.count("dog") == 1);
     ASSERT_RELEASE(smap.count("cat") == 1);
@@ -60,9 +60,7 @@ int main(int argc, char **argv) {
 
     ASSERT_RELEASE(smap.size() == 2);
 
-    if (world.rank() == 0) {
-      smap.async_erase("dog");
-    }
+    if (world.rank() == 0) { smap.async_erase("dog"); }
     ASSERT_RELEASE(smap.count("dog") == 0);
     ASSERT_RELEASE(smap.size() == 1);
     smap.async_erase("cat");
@@ -95,12 +93,9 @@ int main(int argc, char **argv) {
   //
   // Test map<vector>
   {
-    ygm::container::map<std::string, std::vector<std::string>> smap(world);
-    auto str_push_back = [](std::pair<const auto, auto> &key_value,
-                            const std::string &str) {
-      // auto str_push_back = [](auto key_value, const std::string &str) {
-      key_value.second.push_back(str);
-    };
+    ygm::container::map<std::string, std::vector<std::string> > smap(world);
+    auto str_push_back = [](const auto& key, auto& value,
+                            const std::string& str) { value.push_back(str); };
     if (world.rank0()) {
       smap.async_visit("foo", str_push_back, std::string("bar"));
       smap.async_visit("foo", str_push_back, std::string("baz"));
@@ -108,9 +103,7 @@ int main(int argc, char **argv) {
 
     std::vector<std::string> gather_list = {"foo"};
 
-    if (!world.rank0()) {
-      gather_list.clear();
-    }
+    if (!world.rank0()) { gather_list.clear(); }
 
     auto gmap = smap.all_gather(gather_list);
 

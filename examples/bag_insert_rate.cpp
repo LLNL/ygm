@@ -3,19 +3,19 @@
 //
 // SPDX-License-Identifier: MIT
 
-#include <ygm/comm.hpp>
-#include <ygm/utility.hpp>
-#include <omp.h>
-#include <iostream>
 #include <cstdlib>
+#include <iostream>
+#include <omp.h>
 #include <random>
+#include <ygm/comm.hpp>
 #include <ygm/container/bag.hpp>
+#include <ygm/utility.hpp>
 
 // This is just an example to check the insert rate for a distributed bag.
 // The #pragma omp's need to be uncommented for
 // multithreaded versions and commented out for unthreaded.
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
   {
     int num_nodes{atoi(std::getenv("SLURM_NNODES"))};
@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
     int comm_rank = world.rank();
     int comm_size = world.size();
 
-    {  // Insert vectors uint64_t's
+    { // Insert vectors uint64_t's
       world.cout0("Insertion rate for vectors");
 
       uint64_t vec_length = 1024;
@@ -38,13 +38,19 @@ int main(int argc, char** argv) {
       ygm::container::bag<std::vector<uint64_t>> my_bag(world);
 
       std::vector<uint64_t> to_send;
-      for (int i = 0; i < vec_length; ++i) { to_send.push_back(i); }
+      for (int i = 0; i < vec_length; ++i) {
+        to_send.push_back(i);
+      }
 
       world.barrier();
       ygm::timer bag_timer{};
 
-      for (uint64_t i = 0; i < inserts_per_rank; ++i) {
-        my_bag.async_insert(to_send);
+#pragma omp parallel
+      {
+#pragma omp for
+        for (uint64_t i = 0; i < inserts_per_rank; ++i) {
+          my_bag.async_insert(to_send);
+        }
       }
 
       world.barrier();
@@ -63,10 +69,10 @@ int main(int argc, char** argv) {
           effective_bandwidth, " GB/s\n");
     }
 
-    {  // Insert individual uint64_t's
+    { // Insert individual uint64_t's
       world.cout0("Insertion rate for uint64_t's");
 
-      uint64_t inserts_per_node{1024 * 1024 * 256};
+      uint64_t inserts_per_node{1024 * 1024 * 64};
       uint64_t inserts_per_rank = inserts_per_node * num_nodes / num_tasks;
 
       ygm::container::bag<uint64_t> my_bag(world);
@@ -74,8 +80,12 @@ int main(int argc, char** argv) {
       world.barrier();
       ygm::timer bag_timer{};
 
-      for (uint64_t i = 0; i < inserts_per_rank; ++i) {
-        my_bag.async_insert(i);
+#pragma omp parallel
+      {
+#pragma omp for
+        for (uint64_t i = 0; i < inserts_per_rank; ++i) {
+          my_bag.async_insert(i);
+        }
       }
 
       world.barrier();
