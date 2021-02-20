@@ -8,7 +8,7 @@
 #include <ygm/comm.hpp>
 #include <ygm/container/map.hpp>
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
 
   //
@@ -44,16 +44,16 @@ int main(int argc, char** argv) {
   {
     ygm::container::multimap<std::string, std::string> smap(world,
                                                             "default_string");
-    smap.async_visit("dog", [](const std::string& s1, const std::string& s2) {
-      ASSERT_RELEASE(s1 == "dog");
-      ASSERT_RELEASE(s2 == "default_string");
+    smap.async_visit("dog", [](std::pair<const std::string, std::string> s) {
+      ASSERT_RELEASE(s.first == "dog");
+      ASSERT_RELEASE(s.second == "default_string");
     });
-    smap.async_visit("cat", [](const std::string& s1, const std::string& s2) {
-      ASSERT_RELEASE(s1 == "cat");
-      ASSERT_RELEASE(s2 == "default_string");
+    smap.async_visit("cat", [](std::pair<const std::string, std::string> &s) {
+      ASSERT_RELEASE(s.first == "cat");
+      ASSERT_RELEASE(s.second == "default_string");
     });
     smap.async_visit_if_exists("red",
-                               [](const auto& p) { ASSERT_RELEASE(false); });
+                               [](const auto &p) { ASSERT_RELEASE(false); });
 
     ASSERT_RELEASE(smap.count("dog") == 1);
     ASSERT_RELEASE(smap.count("cat") == 1);
@@ -61,7 +61,9 @@ int main(int argc, char** argv) {
 
     ASSERT_RELEASE(smap.size() == 2);
 
-    if (world.rank() == 0) { smap.async_erase("dog"); }
+    if (world.rank() == 0) {
+      smap.async_erase("dog");
+    }
     ASSERT_RELEASE(smap.count("dog") == 0);
     ASSERT_RELEASE(smap.size() == 1);
     smap.async_erase("cat");
