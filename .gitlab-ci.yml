@@ -1,0 +1,41 @@
+# Ruby-GCC9-openmpi-release:
+#  tags:
+#   - ruby
+#   - shell
+#  variables:
+#    OMP_PROC_BIND: "false"
+#  script:
+#    - . /usr/workspace/llamag/spack/share/spack/setup-env.sh
+#    - spack load gcc@9
+#    - module load openmpi
+#    - spack load cereal
+#    - spack load nlohmann-json
+#    - mkdir build
+#    - cd build
+#    - cmake ../ -DTEST_WITH_SLURM=ON -DCMAKE_BUILD_TYPE=Release
+#    - make VERBOSE=1
+#    - ctest -VV -R SEQ
+#    - salloc -N2 --ntasks-per-node=4  -ppdebug --mpibind=on ctest -VV -E SEQ
+#    - salloc -N4 --ntasks-per-node=16 -ppdebug --mpibind=on ctest -VV -E SEQ
+
+
+Ruby-GCC-mvapich2-release:
+ tags:
+  - ruby
+  - shell
+ variables:
+   OMP_PROC_BIND: "false"
+ script:
+   - . /usr/workspace/llamag/spack_2021.01.26/share/spack/setup-env.sh
+   - spack load gcc@9
+   - module load mvapich2
+   - spack load cereal
+   - spack load nlohmann-json
+   - mkdir build
+   - cd build
+   - cmake ../ -DTEST_WITH_SLURM=ON -DCMAKE_BUILD_TYPE=Release
+   - make VERBOSE=1
+   - ctest -VV -R SEQ
+   - salloc -N2 --ntasks-per-node=4  -ppdebug --mpibind=on ctest -VV -E SEQ
+   - salloc -N4 --ntasks-per-node=16 -ppdebug --mpibind=on ctest -VV -E SEQ
+
