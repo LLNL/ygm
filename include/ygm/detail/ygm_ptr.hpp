@@ -9,14 +9,13 @@
 
 namespace ygm {
 
-template <typename T>
-class ygm_ptr {
- public:
+template <typename T> class ygm_ptr {
+public:
   ygm_ptr(){};
 
-  T *operator->() { return sptrs[idx]; }
+  T *operator->() const { return sptrs[idx]; }
 
-  T &operator*() { return *sptrs[idx]; }
+  T &operator*() const { return *sptrs[idx]; }
 
   ygm_ptr(T *t) {
     // TODO:  Should probably have a barrier in here.  Or, in a wrapper
@@ -30,22 +29,15 @@ class ygm_ptr {
 
   uint32_t index() { return idx; }
 
-  template <class Archive>
-  void serialize(Archive &archive) {
-    archive(idx);
-  }
+  template <class Archive> void serialize(Archive &archive) { archive(idx); }
 
- private:
+private:
   uint32_t idx;
   static std::vector<T *> sptrs;
 };
 
-template <typename T>
-ygm_ptr<T> make_ygm_pointer(T &t) {
-  return ygm_ptr(&t);
-}
+template <typename T> ygm_ptr<T> make_ygm_pointer(T &t) { return ygm_ptr(&t); }
 
-template <typename T>
-std::vector<T *> ygm_ptr<T>::sptrs;
+template <typename T> std::vector<T *> ygm_ptr<T>::sptrs;
 
-}  // end namespace ygm
+} // end namespace ygm
