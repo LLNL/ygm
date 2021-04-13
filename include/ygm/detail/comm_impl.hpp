@@ -175,13 +175,20 @@ class comm::impl {
   // }
 
   void async_flush(int dest) {
+    static int flush_counter{0};
     if (dest != m_comm_rank) {
       // Skip dest == m_comm_rank;   Only kill messages go to self.
-      if (m_vec_send_buffers[dest]->size() == 0) return;
+      if (m_vec_send_buffers[dest]->size() == 0)
+        return;
       auto buffer = allocate_buffer();
       std::swap(buffer, m_vec_send_buffers[dest]);
-      ASSERT_MPI(MPI_Send(buffer->data(), buffer->size(), MPI_BYTE, dest, 0,
-                          m_comm_async));
+      if (++flush_counter % 10) {
+        ASSERT_MPI(MPI_Send(buffer->data(), buffer->size(), MPI_BYTE, dest, 0,
+                            m_comm_async));
+      } else {
+        ASSERT_MPI(MPI_Ssend(buffer->data(), buffer->size(), MPI_BYTE, dest, 0,
+                             m_comm_async));
+      }
       free_buffer(buffer);
     }
   }
