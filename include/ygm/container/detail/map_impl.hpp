@@ -5,6 +5,7 @@
 
 #pragma once
 #include <cereal/archives/portable_binary.hpp>
+#include <cereal/types/utility.hpp>
 #include <fstream>
 #include <map>
 #include <ygm/comm.hpp>
@@ -242,11 +243,12 @@ public:
     auto to_return = m_comm.all_reduce(
         local_topk, [cfn, k](const vec_type &va, const vec_type &vb) {
           vec_type out(va.begin(), va.end());
-          out.push_back(vb.begin(), vb.end());
+          out.insert(out.end(), vb.begin(), vb.end());
           std::sort(out.begin(), out.end(), cfn);
           while (out.size() > k) {
             out.pop_back();
           }
+          return out;
         });
     return to_return;
   }
