@@ -88,7 +88,7 @@ public:
     auto visit_wrapper = [](auto pcomm, int from, auto pmap,
                             const key_type &key, const VisitorArgs &... args) {
       Visitor *vis;
-      pmap->local_visit(key, *vis);
+      pmap->local_visit(key, *vis, args...);
     };
 
     m_comm.async(dest, visit_wrapper, pthis, key,
@@ -203,10 +203,13 @@ public:
     return to_return;
   }
 
-  template <typename Function>
-  void local_visit(const key_type &key, Function &fn) {
+  template <typename Function, typename... VisitorArgs>
+  void local_visit(const key_type &key, Function &fn,
+                   const VisitorArgs &... args) {
     auto range = m_local_map.equal_range(key);
-    std::for_each(range.first, range.second, fn);
+    for (auto itr = range.first; itr != range.second; ++itr) {
+      fn(*itr, std::forward<const VisitorArgs>(args)...);
+    }
   }
 
   void local_erase(const key_type &key) { m_local_map.erase(key); }
