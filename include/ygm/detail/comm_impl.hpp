@@ -62,6 +62,7 @@ class comm::impl {
       m_send_count++;
       std::vector<char> data =
           pack_lambda(std::forward<const SendArgs>(args)...);
+      m_local_bytes_sent += data.size();
 
       if (data.size() < m_buffer_capacity) {
         // check if buffer doesn't have enough space
@@ -194,24 +195,29 @@ class comm::impl {
     // TODO async_flush_bcast(); goes here
   }
 
-  template <typename T>
-  T all_reduce_sum(const T &t) const {
+  int64_t local_bytes_sent() const { return m_local_bytes_sent; }
+
+  void reset_bytes_sent_counter() { m_local_bytes_sent = 0; }
+
+  int64_t local_rpc_calls() const { return m_local_rpc_calls; }
+
+  void reset_rpc_call_counter() { m_local_rpc_calls = 0; }
+
+  template <typename T> T all_reduce_sum(const T &t) const {
     T to_return;
     ASSERT_MPI(MPI_Allreduce(&t, &to_return, 1, detail::mpi_typeof(T()),
                              MPI_SUM, m_comm_other));
     return to_return;
   }
 
-  template <typename T>
-  T all_reduce_min(const T &t) const {
+  template <typename T> T all_reduce_min(const T &t) const {
     T to_return;
     ASSERT_MPI(MPI_Allreduce(&t, &to_return, 1, detail::mpi_typeof(T()),
                              MPI_MIN, m_comm_other));
     return to_return;
   }
 
-  template <typename T>
-  T all_reduce_max(const T &t) const {
+  template <typename T> T all_reduce_max(const T &t) const {
     T to_return;
     ASSERT_MPI(MPI_Allreduce(&t, &to_return, 1, detail::mpi_typeof(T()),
                              MPI_MAX, m_comm_other));
@@ -510,6 +516,9 @@ class comm::impl {
   int64_t m_recv_count = 0;
   int64_t m_send_count = 0;
 
+  int64_t m_local_rpc_calls = 0;
+  int64_t m_local_bytes_sent = 0;
+
   int large_message_announce_tag = 32766;
   int large_message_tag = 32767;
 };
@@ -549,24 +558,43 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &... args) {
 inline int comm::size() const { return pimpl->size(); }
 inline int comm::rank() const { return pimpl->rank(); }
 
+inline int64_t comm::local_bytes_sent() const {
+  return pimpl->local_bytes_sent();
+}
+
+inline int64_t comm::global_bytes_sent() const {
+  return all_reduce_sum(local_bytes_sent());
+}
+
+inline void comm::reset_bytes_sent_counter() {
+  pimpl->reset_bytes_sent_counter();
+}
+
+inline int64_t comm::local_rpc_calls() const {
+  return pimpl->local_rpc_calls();
+}
+
+inline int64_t comm::global_rpc_calls() const {
+  return all_reduce_sum(local_rpc_calls());
+}
+
+inline void comm::reset_rpc_call_counter() { pimpl->reset_rpc_call_counter(); }
+
 inline void comm::barrier() { pimpl->barrier(); }
 
 inline void comm::async_flush(int rank) { pimpl->async_flush(rank); }
 
 inline void comm::async_flush_all() { pimpl->async_flush_all(); }
 
-template <typename T>
-inline T comm::all_reduce_sum(const T &t) const {
+template <typename T> inline T comm::all_reduce_sum(const T &t) const {
   return pimpl->all_reduce_sum(t);
 }
 
-template <typename T>
-inline T comm::all_reduce_min(const T &t) const {
+template <typename T> inline T comm::all_reduce_min(const T &t) const {
   return pimpl->all_reduce_min(t);
 }
 
-template <typename T>
-inline T comm::all_reduce_max(const T &t) const {
+template <typename T> inline T comm::all_reduce_max(const T &t) const {
   return pimpl->all_reduce_max(t);
 }
 
