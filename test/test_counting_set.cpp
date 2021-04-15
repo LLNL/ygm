@@ -9,7 +9,7 @@
 #include <ygm/comm.hpp>
 #include <ygm/container/counting_set.hpp>
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
 
   //

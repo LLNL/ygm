@@ -208,7 +208,7 @@ public:
     auto range = m_local_map.equal_range(key);
     for (auto itr = range.first; itr != range.second; ++itr) {
       // fn(*itr, std::forward<const VisitorArgs>(args)...);
-      std::apply(fn, std::forward_as_tuple(*itr, args...));
+      // std::apply(fn, std::forward_as_tuple(*itr, args...));
       ygm::meta::apply_optional(fn, std::make_tuple(pthis, from),
                                 std::forward_as_tuple(*itr, args...));
     }
