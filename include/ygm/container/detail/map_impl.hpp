@@ -72,10 +72,8 @@ public:
         range = pmap->m_local_map.equal_range(key);
         ASSERT_DEBUG(range.first != range.second);
       }
-      for (auto itr = range.first; itr != range.second; ++itr) {
-        Visitor *v;
-        (*v)(*itr, std::forward<const VisitorArgs>(args)...);
-      }
+      Visitor *vis;
+      pmap->local_visit(key, *vis, from, args...);
     };
 
     m_comm.async(dest, visit_wrapper, pthis, key,
@@ -89,7 +87,7 @@ public:
     auto visit_wrapper = [](auto pcomm, int from, auto pmap,
                             const key_type &key, const VisitorArgs &... args) {
       Visitor *vis;
-      pmap->local_visit(key, *vis, args...);
+      pmap->local_visit(key, *vis, from, args...);
     };
 
     m_comm.async(dest, visit_wrapper, pthis, key,
@@ -205,11 +203,12 @@ public:
   }
 
   template <typename Function, typename... VisitorArgs>
-  void local_visit(const key_type &key, Function &fn,
+  void local_visit(const key_type &key, Function &fn, const int from,
                    const VisitorArgs &... args) {
     auto range = m_local_map.equal_range(key);
     for (auto itr = range.first; itr != range.second; ++itr) {
-      fn(*itr, std::forward<const VisitorArgs>(args)...);
+      ygm::meta::apply_optional(fn, std::make_tuple(pthis, from),
+                                std::forward_as_tuple(*itr, args...));
     }
   }
 
