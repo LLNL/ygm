@@ -78,6 +78,7 @@ option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
 # Emergency override MODERN_CMAKE_BUILD_TESTING provided as well
 if((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR MODERN_CMAKE_BUILD_TESTING) AND BUILD_TESTING)
     add_subdirectory(test)
+	add_subdirectory(performance)
     # Example codes are here.
     add_subdirectory(examples)
 endif()
