@@ -57,6 +57,18 @@ macro(include_link_mpi target)
   target_link_libraries(${target} ${MPI_LIBRARIES})
 endmacro()
 
+#
+# Cereal
+#
+find_path(CEREAL_INCLUDE_DIR cereal/cereal.hpp)
+
+if (NOT CEREAL_INCLUDE_DIR)
+	message(FATAL_ERROR "Cannot find Cereal")
+else()
+	message("Found Cereal: ${CEREAL_INCLUDE_DIR}")
+endif()
+include_directories(${CEREAL_INCLUDE_DIR})
+
 option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
 
 # Header-only library, so likely not have src dir 
