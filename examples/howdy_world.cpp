@@ -10,8 +10,9 @@ int main(int argc, char** argv) {
 
   // Define the function to execute in async
   auto howdy = [](auto pcomm, int from, const std::string& str) {
-    std::cout << "Howdy, I'm rank " << pcomm->rank()
-              << ", and I received a message from rank " << from
+    std::cout << "Howdy, I'm rank " << pcomm->rank() << " (local rank " 
+              << pcomm->local_rank() << ", remote rank " << pcomm->remote_rank()
+              << "), and I received a message from rank " << from 
               << " that read: \"" << str << "\"" << std::endl;
   };
 

@@ -28,6 +28,9 @@ class comm::impl {
     ASSERT_MPI(MPI_Comm_rank(m_comm_async, &m_comm_rank));
     m_buffer_capacity = buffer_capacity;
 
+    // Get node/core indices
+    init_local_remote_comms();
+
     // Allocate send buffers
     for (int i = 0; i < m_comm_size; ++i) {
       m_vec_send_buffers.push_back(allocate_buffer());
@@ -48,10 +51,16 @@ class comm::impl {
     MPI_Comm_free(&m_comm_async);
     MPI_Comm_free(&m_comm_barrier);
     MPI_Comm_free(&m_comm_other);
+    MPI_Comm_free(&m_comm_local);
+    MPI_Comm_free(&m_comm_remote);
   }
 
   int size() const { return m_comm_size; }
   int rank() const { return m_comm_rank; }
+  int local_size() const { return m_comm_local_size; }
+  int local_rank() const { return m_comm_local_rank; }
+  int remote_size() const { return m_comm_remote_size; }
+  int remote_rank() const { return m_comm_remote_rank; }
 
   template <typename... SendArgs>
   void async(int dest, const SendArgs &... args) {
@@ -495,11 +504,36 @@ class comm::impl {
     return received;
   }
 
+  inline void init_local_remote_comms() {
+    // Local indices
+    ASSERT_MPI(
+      MPI_Comm_split_type(
+        m_comm_async, MPI_COMM_TYPE_SHARED, m_comm_rank, MPI_INFO_NULL, &m_comm_local 
+      )
+    );
+    ASSERT_MPI(MPI_Comm_size(m_comm_local, &m_comm_local_size));
+    ASSERT_MPI(MPI_Comm_rank(m_comm_local, &m_comm_local_rank));
+
+    // remote indices
+    ASSERT_MPI(
+     MPI_Comm_split(m_comm_async, m_comm_local_rank, m_comm_rank, &m_comm_remote)
+    );
+    ASSERT_MPI(MPI_Comm_size(m_comm_remote, &m_comm_remote_size));
+    ASSERT_MPI(MPI_Comm_rank(m_comm_remote, &m_comm_remote_rank));
+  }
+
+
   MPI_Comm m_comm_async;
   MPI_Comm m_comm_barrier;
   MPI_Comm m_comm_other;
+  MPI_Comm m_comm_local;
+  MPI_Comm m_comm_remote;
   int m_comm_size;
   int m_comm_rank;
+  int m_comm_local_size;
+  int m_comm_local_rank;
+  int m_comm_remote_size;
+  int m_comm_remote_rank;
   size_t m_buffer_capacity;
 
   std::vector<std::shared_ptr<std::vector<char>>> m_vec_send_buffers;
@@ -557,6 +591,8 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &... args) {
 
 inline int comm::size() const { return pimpl->size(); }
 inline int comm::rank() const { return pimpl->rank(); }
+inline int comm::local_size() const { return pimpl->local_size(); }
+inline int comm::local_rank() const { return pimpl->local_rank(); }
 
 inline int64_t comm::local_bytes_sent() const {
   return pimpl->local_bytes_sent();

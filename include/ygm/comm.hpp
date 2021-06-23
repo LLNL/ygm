@@ -61,6 +61,10 @@ public:
   //
   int size() const;
   int rank() const;
+  int local_size() const;
+  int local_rank() const;
+  int remote_size() const;
+  int remote_rank() const;
 
   //
   //	Counters
