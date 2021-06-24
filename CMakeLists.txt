@@ -60,7 +60,8 @@ endmacro()
 #
 # Cereal
 #
-find_path(CEREAL_INCLUDE_DIR cereal/cereal.hpp)
+#find_path(CEREAL_INCLUDE_DIR cereal/cereal.hpp)
+set(CEREAL_INCLUDE_DIR /home/users/ssriniv2/packages/cereal/include)
 
 if (NOT CEREAL_INCLUDE_DIR)
 	message(FATAL_ERROR "Cannot find Cereal")
