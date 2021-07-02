@@ -20,6 +20,12 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     # Let's ensure -std=c++xx instead of -std=g++xx
     set(CMAKE_CXX_EXTENSIONS OFF)
 
+    if(CMAKE_BUILD_TYPE MATCHES "Debug")
+        message("CMAKE_BUILD_TYPE is ${CMAKE_BUILD_TYPE}")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Og")
+    endif()
+    
+
     # Let's nicely support folders in IDE's
     set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -78,8 +84,9 @@ option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
 # Testing & examples are only available if this is the main app
 # Emergency override MODERN_CMAKE_BUILD_TESTING provided as well
 if((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR MODERN_CMAKE_BUILD_TESTING) AND BUILD_TESTING)
-    add_subdirectory(test)
-	add_subdirectory(performance)
+    #Removed these for now. Will add them before sending pull requests
+    #add_subdirectory(test)
+	#add_subdirectory(performance)
     # Example codes are here.
     add_subdirectory(examples)
 endif()
