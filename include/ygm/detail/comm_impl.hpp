@@ -22,6 +22,8 @@ class comm::impl {
  public:
   impl(MPI_Comm c, int buffer_capacity = 16 * 1024) {
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_async));
+     //Large messages use a different communicator to a seperate listener thread
+    ASSERT_MPI(MPI_Comm_dup(c, &m_comm_large_async));
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_barrier));
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_other));
     ASSERT_MPI(MPI_Comm_size(m_comm_async, &m_comm_size));
@@ -37,18 +39,24 @@ class comm::impl {
     }
 
     // launch listener thread
-    m_listener = std::thread(&impl::listen, this);
+    m_large_listener = std::thread(&impl::listen_large, this);
+    m_small_listener = std::thread(&impl::listen_small, this);
   }
 
   ~impl() {
     barrier();
-    // send kill signal to self (listener thread)
+    // send kill signal to self (small listener thread)
     MPI_Send(NULL, 0, MPI_BYTE, m_comm_rank, 0, m_comm_async);
+    // send kill signal to self (large listener thread)
+    MPI_Send(NULL, 0, MPI_BYTE, m_comm_rank, 0, m_comm_large_async);
     // Join listener thread.
-    m_listener.join();
+    std::cout<<"listners joined \n";
+    m_large_listener.join();
+    m_small_listener.join();
     // Free cloned communicator.
     ASSERT_RELEASE(MPI_Barrier(m_comm_async) == MPI_SUCCESS);
     MPI_Comm_free(&m_comm_async);
+    MPI_Comm_free(&m_comm_large_async);
     MPI_Comm_free(&m_comm_barrier);
     MPI_Comm_free(&m_comm_other);
     MPI_Comm_free(&m_comm_local);
@@ -318,17 +326,17 @@ class comm::impl {
    * @brief Listener thread
    *
    */
-  void listen() {
+  void listen_large() {
     while (true) {
       auto recv_buffer = allocate_buffer();
       recv_buffer->resize(m_buffer_capacity);  // TODO:  does this clear?
       MPI_Status status;
       ASSERT_MPI(MPI_Recv(recv_buffer->data(), m_buffer_capacity, MPI_BYTE,
-                          MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_async, &status));
+                          MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_large_async, &status));
       int tag = status.MPI_TAG;
 
       if (tag == large_message_announce_tag) {
-        // Determine size and source of message
+        //Determine size and source of message
         size_t size = *(reinterpret_cast<size_t *>(recv_buffer->data()));
         int src = status.MPI_SOURCE;
 
@@ -340,6 +348,38 @@ class comm::impl {
 
         // Add buffer to receive queue
         receive_queue_push_back(large_recv_buff, src);
+      } else {
+         std::cout<<rank()<<" Got a small message and not my problem \n";
+        // int count;
+        // ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &count))
+        // // std::cout << "RANK: " << rank() << " received count: " << count
+        // //           << std::endl;
+        // // Resize buffer to cout MPI actually received
+        // recv_buffer->resize(count);
+
+        // Check for kill signal
+        if (status.MPI_SOURCE == m_comm_rank) {std::cout<<"It was a kill sig\n";break;}
+
+        // // Add buffer to receive queue
+        // receive_queue_push_back(recv_buffer, status.MPI_SOURCE);
+
+      }
+    }
+  }
+
+
+
+void listen_small() {
+    while (true) {
+      auto recv_buffer = allocate_buffer();
+      recv_buffer->resize(m_buffer_capacity);  // TODO:  does this clear?
+      MPI_Status status;
+      ASSERT_MPI(MPI_Recv(recv_buffer->data(), m_buffer_capacity, MPI_BYTE,
+                          MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_async, &status));
+      int tag = status.MPI_TAG;
+
+      if (tag == large_message_announce_tag) {
+        std::cout<<rank()<<":Oh shit thats a big one\n";
       } else {
         int count;
         ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &count))
@@ -355,6 +395,7 @@ class comm::impl {
         receive_queue_push_back(recv_buffer, status.MPI_SOURCE);
       }
     }
+    std::cout<<rank()<<" Did small\n";
   }
 
   /*
@@ -367,11 +408,11 @@ class comm::impl {
     // Announce the large message and its size
     size_t size = msg.size();
     ASSERT_MPI(MPI_Send(&size, 8, MPI_BYTE, dest, large_message_announce_tag,
-                        m_comm_async));
+                        m_comm_large_async));
 
     // Send message
     ASSERT_MPI(MPI_Send(msg.data(), size, MPI_BYTE, dest, large_message_tag,
-                        m_comm_async));
+                        m_comm_large_async));
   }
 
   /*
@@ -383,7 +424,7 @@ class comm::impl {
   void receive_large_message(std::shared_ptr<std::vector<char>> msg,
                              const int src, const size_t size) {
     ASSERT_MPI(MPI_Recv(msg->data(), size, MPI_BYTE, src, large_message_tag,
-                        m_comm_async, MPI_STATUS_IGNORE));
+                        m_comm_large_async, MPI_STATUS_IGNORE));
   }
 
   /**
@@ -524,6 +565,7 @@ class comm::impl {
 
 
   MPI_Comm m_comm_async;
+  MPI_Comm m_comm_large_async;
   MPI_Comm m_comm_barrier;
   MPI_Comm m_comm_other;
   MPI_Comm m_comm_local;
@@ -545,7 +587,8 @@ class comm::impl {
       m_receive_queue;
   std::mutex m_receive_queue_mutex;
 
-  std::thread m_listener;
+  std::thread m_large_listener;
+  std::thread m_small_listener;
 
   int64_t m_recv_count = 0;
   int64_t m_send_count = 0;

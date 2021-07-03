@@ -6,6 +6,7 @@
 #include <ygm/comm.hpp>
 
 int main(int argc, char** argv) {
+  
   ygm::comm world(&argc, &argv);
 
   // Define the function to execute in async
@@ -17,7 +18,7 @@ int main(int argc, char** argv) {
   };
 
   if (world.rank() == 0) {
-    for (int dest = 0; dest < world.size(); ++dest) {
+    for (int dest = 0; dest <= 1; ++dest) {
       world.async(dest, howdy, std::string("Can you hear me now?"));
     }
   }
