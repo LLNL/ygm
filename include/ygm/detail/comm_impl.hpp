@@ -15,6 +15,7 @@
 #include <ygm/detail/mpi.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
 #include <ygm/meta/functional.hpp>
+#define test_buffer_capacity 50
 
 namespace ygm {
 
@@ -22,36 +23,53 @@ class comm::impl {
  public:
   impl(MPI_Comm c, int buffer_capacity = 16 * 1024) {
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_async));
+     //Large messages use a different communicator to a separate listener thread
+    ASSERT_MPI(MPI_Comm_dup(c, &m_comm_large_async));
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_barrier));
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_other));
     ASSERT_MPI(MPI_Comm_size(m_comm_async, &m_comm_size));
     ASSERT_MPI(MPI_Comm_rank(m_comm_async, &m_comm_rank));
     m_buffer_capacity = buffer_capacity;
 
+    // Get node/core indices
+    init_local_remote_comms();
+
     // Allocate send buffers
     for (int i = 0; i < m_comm_size; ++i) {
       m_vec_send_buffers.push_back(allocate_buffer());
     }
 
-    // launch listener thread
-    m_listener = std::thread(&impl::listen, this);
+    // launch listener threads
+    m_large_listener = std::thread(&impl::listen_large, this);
+    m_small_listener = std::thread(&impl::listen_small, this);
   }
 
   ~impl() {
     barrier();
-    // send kill signal to self (listener thread)
+    // send kill signal to self (small listener thread)
     MPI_Send(NULL, 0, MPI_BYTE, m_comm_rank, 0, m_comm_async);
+    // send kill signal to self (large listener thread)
+    MPI_Send(NULL, 0, MPI_BYTE, m_comm_rank, 0, m_comm_large_async);
     // Join listener thread.
-    m_listener.join();
+    //std::cout<<"listners joined \n";
+    m_large_listener.join();
+    m_small_listener.join();
     // Free cloned communicator.
     ASSERT_RELEASE(MPI_Barrier(m_comm_async) == MPI_SUCCESS);
     MPI_Comm_free(&m_comm_async);
+    MPI_Comm_free(&m_comm_large_async);
     MPI_Comm_free(&m_comm_barrier);
     MPI_Comm_free(&m_comm_other);
+    MPI_Comm_free(&m_comm_local);
+    MPI_Comm_free(&m_comm_remote);
   }
 
   int size() const { return m_comm_size; }
   int rank() const { return m_comm_rank; }
+  int local_size() const { return m_comm_local_size; }
+  int local_rank() const { return m_comm_local_rank; }
+  int remote_size() const { return m_comm_remote_size; }
+  int remote_rank() const { return m_comm_remote_rank; }
 
   template <typename... SendArgs>
   void async(int dest, const SendArgs &... args) {
@@ -63,7 +81,8 @@ class comm::impl {
       std::vector<char> data =
           pack_lambda(std::forward<const SendArgs>(args)...);
       m_local_bytes_sent += data.size();
-
+      //if(rank() == 0){std::cout<<data.size()<<"$$"<<m_buffer_capacity<<"\n";}
+        
       if (data.size() < m_buffer_capacity) {
         // check if buffer doesn't have enough space
         if (data.size() + m_vec_send_buffers[dest]->size() >
@@ -309,17 +328,22 @@ class comm::impl {
    * @brief Listener thread
    *
    */
-  void listen() {
+  void listen_large() {
     while (true) {
       auto recv_buffer = allocate_buffer();
+      /*
+      I believe we don't need to resize to full capacity here as this is always going to be the announcer message
+      in this channel and we allocate the actual size after getting this message.
+      */
       recv_buffer->resize(m_buffer_capacity);  // TODO:  does this clear?
       MPI_Status status;
       ASSERT_MPI(MPI_Recv(recv_buffer->data(), m_buffer_capacity, MPI_BYTE,
-                          MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_async, &status));
+                          MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_large_async, &status));
       int tag = status.MPI_TAG;
 
       if (tag == large_message_announce_tag) {
-        // Determine size and source of message
+        //Determine size and source of message
+        //std::cout<<rank()<<":Oh shit thats a big one\n";
         size_t size = *(reinterpret_cast<size_t *>(recv_buffer->data()));
         int src = status.MPI_SOURCE;
 
@@ -331,6 +355,36 @@ class comm::impl {
 
         // Add buffer to receive queue
         receive_queue_push_back(large_recv_buff, src);
+      } else {
+        // int count;
+        // ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &count))
+        // // std::cout << "RANK: " << rank() << " received count: " << count
+        // //           << std::endl;
+        // // Resize buffer to cout MPI actually received
+        // recv_buffer->resize(count);
+
+        // Check for kill signal
+        if (status.MPI_SOURCE == m_comm_rank) {break;}
+
+        // // Add buffer to receive queue
+        // receive_queue_push_back(recv_buffer, status.MPI_SOURCE);
+
+      }
+    }
+  }
+
+
+
+void listen_small() {
+    while (true) {
+      auto recv_buffer = allocate_buffer();
+      recv_buffer->resize(m_buffer_capacity);  // TODO:  does this clear?
+      MPI_Status status;
+      ASSERT_MPI(MPI_Recv(recv_buffer->data(), m_buffer_capacity, MPI_BYTE,
+                          MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_async, &status));
+      int tag = status.MPI_TAG;
+
+      if (tag == large_message_announce_tag) { //Nothing todo here
       } else {
         int count;
         ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &count))
@@ -358,11 +412,11 @@ class comm::impl {
     // Announce the large message and its size
     size_t size = msg.size();
     ASSERT_MPI(MPI_Send(&size, 8, MPI_BYTE, dest, large_message_announce_tag,
-                        m_comm_async));
+                        m_comm_large_async));
 
     // Send message
     ASSERT_MPI(MPI_Send(msg.data(), size, MPI_BYTE, dest, large_message_tag,
-                        m_comm_async));
+                        m_comm_large_async));
   }
 
   /*
@@ -374,7 +428,7 @@ class comm::impl {
   void receive_large_message(std::shared_ptr<std::vector<char>> msg,
                              const int src, const size_t size) {
     ASSERT_MPI(MPI_Recv(msg->data(), size, MPI_BYTE, src, large_message_tag,
-                        m_comm_async, MPI_STATUS_IGNORE));
+                        m_comm_large_async, MPI_STATUS_IGNORE));
   }
 
   /**
@@ -495,11 +549,37 @@ class comm::impl {
     return received;
   }
 
+  inline void init_local_remote_comms() {
+    // Local indices
+    ASSERT_MPI(
+      MPI_Comm_split_type(
+        m_comm_async, MPI_COMM_TYPE_SHARED, m_comm_rank, MPI_INFO_NULL, &m_comm_local 
+      )
+    );
+    ASSERT_MPI(MPI_Comm_size(m_comm_local, &m_comm_local_size));
+    ASSERT_MPI(MPI_Comm_rank(m_comm_local, &m_comm_local_rank));
+
+    // remote indices
+    ASSERT_MPI(
+     MPI_Comm_split(m_comm_async, m_comm_local_rank, m_comm_rank, &m_comm_remote)
+    );
+    ASSERT_MPI(MPI_Comm_size(m_comm_remote, &m_comm_remote_size));
+    ASSERT_MPI(MPI_Comm_rank(m_comm_remote, &m_comm_remote_rank));
+  }
+
+
   MPI_Comm m_comm_async;
+  MPI_Comm m_comm_large_async;
   MPI_Comm m_comm_barrier;
   MPI_Comm m_comm_other;
+  MPI_Comm m_comm_local;
+  MPI_Comm m_comm_remote;
   int m_comm_size;
   int m_comm_rank;
+  int m_comm_local_size;
+  int m_comm_local_rank;
+  int m_comm_remote_size;
+  int m_comm_remote_rank;
   size_t m_buffer_capacity;
 
   std::vector<std::shared_ptr<std::vector<char>>> m_vec_send_buffers;
@@ -511,7 +591,8 @@ class comm::impl {
       m_receive_queue;
   std::mutex m_receive_queue_mutex;
 
-  std::thread m_listener;
+  std::thread m_large_listener;
+  std::thread m_small_listener;
 
   int64_t m_recv_count = 0;
   int64_t m_send_count = 0;
@@ -523,12 +604,12 @@ class comm::impl {
   int large_message_tag = 32767;
 };
 
-inline comm::comm(int *argc, char ***argv, int buffer_capacity = 1048576) {
+inline comm::comm(int *argc, char ***argv, int buffer_capacity = test_buffer_capacity) {
   pimpl_if = std::make_shared<detail::mpi_init_finalize>(argc, argv);
   pimpl = std::make_shared<comm::impl>(MPI_COMM_WORLD, buffer_capacity);
 }
 
-inline comm::comm(MPI_Comm mcomm, int buffer_capacity = 1048576) {
+inline comm::comm(MPI_Comm mcomm, int buffer_capacity = test_buffer_capacity) {
   pimpl_if.reset();
   int flag(0);
   ASSERT_MPI(MPI_Initialized(&flag));
@@ -557,6 +638,8 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &... args) {
 
 inline int comm::size() const { return pimpl->size(); }
 inline int comm::rank() const { return pimpl->rank(); }
+inline int comm::local_size() const { return pimpl->local_size(); }
+inline int comm::local_rank() const { return pimpl->local_rank(); }
 
 inline int64_t comm::local_bytes_sent() const {
   return pimpl->local_bytes_sent();
