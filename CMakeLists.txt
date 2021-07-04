@@ -84,9 +84,8 @@ option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
 # Testing & examples are only available if this is the main app
 # Emergency override MODERN_CMAKE_BUILD_TESTING provided as well
 if((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR MODERN_CMAKE_BUILD_TESTING) AND BUILD_TESTING)
-    #Removed these for now. Will add them before sending pull requests
-    #add_subdirectory(test)
-	#add_subdirectory(performance)
+    add_subdirectory(test)
+	add_subdirectory(performance)
     # Example codes are here.
     add_subdirectory(examples)
 endif()

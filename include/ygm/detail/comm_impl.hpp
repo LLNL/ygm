@@ -15,6 +15,7 @@
 #include <ygm/detail/mpi.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
 #include <ygm/meta/functional.hpp>
+#define test_buffer_capacity 50
 
 namespace ygm {
 
@@ -22,7 +23,7 @@ class comm::impl {
  public:
   impl(MPI_Comm c, int buffer_capacity = 16 * 1024) {
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_async));
-     //Large messages use a different communicator to a seperate listener thread
+     //Large messages use a different communicator to a separate listener thread
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_large_async));
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_barrier));
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_other));
@@ -38,7 +39,7 @@ class comm::impl {
       m_vec_send_buffers.push_back(allocate_buffer());
     }
 
-    // launch listener thread
+    // launch listener threads
     m_large_listener = std::thread(&impl::listen_large, this);
     m_small_listener = std::thread(&impl::listen_small, this);
   }
@@ -50,7 +51,7 @@ class comm::impl {
     // send kill signal to self (large listener thread)
     MPI_Send(NULL, 0, MPI_BYTE, m_comm_rank, 0, m_comm_large_async);
     // Join listener thread.
-    std::cout<<"listners joined \n";
+    //std::cout<<"listners joined \n";
     m_large_listener.join();
     m_small_listener.join();
     // Free cloned communicator.
@@ -80,7 +81,8 @@ class comm::impl {
       std::vector<char> data =
           pack_lambda(std::forward<const SendArgs>(args)...);
       m_local_bytes_sent += data.size();
-
+      //if(rank() == 0){std::cout<<data.size()<<"$$"<<m_buffer_capacity<<"\n";}
+        
       if (data.size() < m_buffer_capacity) {
         // check if buffer doesn't have enough space
         if (data.size() + m_vec_send_buffers[dest]->size() >
@@ -329,6 +331,10 @@ class comm::impl {
   void listen_large() {
     while (true) {
       auto recv_buffer = allocate_buffer();
+      /*
+      I believe we don't need to resize to full capacity here as this is always going to be the announcer message
+      in this channel and we allocate the actual size after getting this message.
+      */
       recv_buffer->resize(m_buffer_capacity);  // TODO:  does this clear?
       MPI_Status status;
       ASSERT_MPI(MPI_Recv(recv_buffer->data(), m_buffer_capacity, MPI_BYTE,
@@ -337,6 +343,7 @@ class comm::impl {
 
       if (tag == large_message_announce_tag) {
         //Determine size and source of message
+        //std::cout<<rank()<<":Oh shit thats a big one\n";
         size_t size = *(reinterpret_cast<size_t *>(recv_buffer->data()));
         int src = status.MPI_SOURCE;
 
@@ -349,7 +356,6 @@ class comm::impl {
         // Add buffer to receive queue
         receive_queue_push_back(large_recv_buff, src);
       } else {
-         std::cout<<rank()<<" Got a small message and not my problem \n";
         // int count;
         // ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &count))
         // // std::cout << "RANK: " << rank() << " received count: " << count
@@ -358,7 +364,7 @@ class comm::impl {
         // recv_buffer->resize(count);
 
         // Check for kill signal
-        if (status.MPI_SOURCE == m_comm_rank) {std::cout<<"It was a kill sig\n";break;}
+        if (status.MPI_SOURCE == m_comm_rank) {break;}
 
         // // Add buffer to receive queue
         // receive_queue_push_back(recv_buffer, status.MPI_SOURCE);
@@ -378,8 +384,7 @@ void listen_small() {
                           MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_async, &status));
       int tag = status.MPI_TAG;
 
-      if (tag == large_message_announce_tag) {
-        std::cout<<rank()<<":Oh shit thats a big one\n";
+      if (tag == large_message_announce_tag) { //Nothing todo here
       } else {
         int count;
         ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &count))
@@ -395,7 +400,6 @@ void listen_small() {
         receive_queue_push_back(recv_buffer, status.MPI_SOURCE);
       }
     }
-    std::cout<<rank()<<" Did small\n";
   }
 
   /*
@@ -600,12 +604,12 @@ void listen_small() {
   int large_message_tag = 32767;
 };
 
-inline comm::comm(int *argc, char ***argv, int buffer_capacity = 1048576) {
+inline comm::comm(int *argc, char ***argv, int buffer_capacity = test_buffer_capacity) {
   pimpl_if = std::make_shared<detail::mpi_init_finalize>(argc, argv);
   pimpl = std::make_shared<comm::impl>(MPI_COMM_WORLD, buffer_capacity);
 }
 
-inline comm::comm(MPI_Comm mcomm, int buffer_capacity = 1048576) {
+inline comm::comm(MPI_Comm mcomm, int buffer_capacity = test_buffer_capacity) {
   pimpl_if.reset();
   int flag(0);
   ASSERT_MPI(MPI_Initialized(&flag));
