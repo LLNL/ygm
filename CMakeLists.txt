@@ -20,6 +20,12 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     # Let's ensure -std=c++xx instead of -std=g++xx
     set(CMAKE_CXX_EXTENSIONS OFF)
 
+    if(CMAKE_BUILD_TYPE MATCHES "Debug")
+        message("CMAKE_BUILD_TYPE is ${CMAKE_BUILD_TYPE}")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Og")
+    endif()
+    
+
     # Let's nicely support folders in IDE's
     set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -60,7 +66,8 @@ endmacro()
 #
 # Cereal
 #
-find_path(CEREAL_INCLUDE_DIR cereal/cereal.hpp)
+#find_path(CEREAL_INCLUDE_DIR cereal/cereal.hpp)
+set(CEREAL_INCLUDE_DIR /g/g92/ssriniv/packages/cereal/include)
 
 if (NOT CEREAL_INCLUDE_DIR)
 	message(FATAL_ERROR "Cannot find Cereal")

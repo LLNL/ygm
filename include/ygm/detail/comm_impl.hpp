@@ -15,7 +15,9 @@
 #include <ygm/detail/mpi.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
 #include <ygm/meta/functional.hpp>
+
 #define test_buffer_capacity 50   //This is a smaller  just to test large messages
+
 
 namespace ygm {
 
@@ -343,6 +345,10 @@ class comm::impl {
 
       if (tag == large_message_announce_tag) {
         //Determine size and source of message
+<<<<<<< HEAD
+=======
+        //std::cout<<rank()<<":Oh shit thats a big one\n";
+>>>>>>> df7894a427be028cb2cdde97a973a13349abe6d6
         size_t size = *(reinterpret_cast<size_t *>(recv_buffer->data()));
         int src = status.MPI_SOURCE;
 
