@@ -11,10 +11,11 @@
 #include <ygm/detail/ygm_ptr.hpp>
 
 namespace ygm::container::detail {
-template <typename Item, typename Alloc = std::allocator<Item>> class bag_impl {
-public:
+template <typename Item, typename Alloc = std::allocator<Item>>
+class bag_impl {
+ public:
   using value_type = Item;
-  using self_type = bag_impl<Item, Alloc>;
+  using self_type  = bag_impl<Item, Alloc>;
 
   bag_impl(ygm::comm &comm) : m_comm(comm), pthis(this) { m_comm.barrier(); }
 
@@ -29,7 +30,8 @@ public:
     m_comm.async(dest, inserter, pthis, item);
   }
 
-  template <typename Function> void for_all(Function fn) {
+  template <typename Function>
+  void for_all(Function fn) {
     m_comm.barrier();
     local_for_all(fn);
   }
@@ -49,9 +51,11 @@ public:
     m_local_bag.swap(s.m_local_bag);
   }
 
+  ygm::comm &comm() { return m_comm; }
+
   void serialize(const std::string &fname) {
     m_comm.barrier();
-    std::string rank_fname = fname + std::to_string(m_comm.rank());
+    std::string   rank_fname = fname + std::to_string(m_comm.rank());
     std::ofstream os(rank_fname, std::ios::binary);
     cereal::JSONOutputArchive oarchive(os);
     oarchive(m_local_bag, m_round_robin, m_comm.size());
@@ -60,27 +64,29 @@ public:
   void deserialize(const std::string &fname) {
     m_comm.barrier();
 
-    std::string rank_fname = fname + std::to_string(m_comm.rank());
+    std::string   rank_fname = fname + std::to_string(m_comm.rank());
     std::ifstream is(rank_fname, std::ios::binary);
 
     cereal::JSONInputArchive iarchive(is);
-    int comm_size;
+    int                      comm_size;
     iarchive(m_local_bag, m_round_robin, comm_size);
 
     if (comm_size != m_comm.size()) {
-      m_comm.cerr0("Attempting to deserialize bag_impl using communicator of "
-                   "different size than serialized with");
+      m_comm.cerr0(
+          "Attempting to deserialize bag_impl using communicator of "
+          "different size than serialized with");
     }
   }
 
-  template <typename Function> void local_for_all(Function fn) {
+  template <typename Function>
+  void local_for_all(Function fn) {
     std::for_each(m_local_bag.begin(), m_local_bag.end(), fn);
   }
 
-protected:
-  size_t m_round_robin = 0;
-  ygm::comm m_comm;
-  std::vector<value_type> m_local_bag;
+ protected:
+  size_t                           m_round_robin = 0;
+  ygm::comm                        m_comm;
+  std::vector<value_type>          m_local_bag;
   typename ygm::ygm_ptr<self_type> pthis;
 };
-} // namespace ygm::container::detail
+}  // namespace ygm::container::detail

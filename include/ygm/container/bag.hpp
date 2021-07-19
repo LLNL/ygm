@@ -10,13 +10,13 @@ namespace ygm::container {
 template <typename Item, typename Alloc = std::allocator<Item>>
 class bag {
  public:
-  using self_type = bag<Item, Alloc>;
+  using self_type  = bag<Item, Alloc>;
   using value_type = Item;
-  using impl_type = detail::bag_impl<Item, Alloc>;
+  using impl_type  = detail::bag_impl<Item, Alloc>;
 
-  bag(ygm::comm& comm) : m_impl(comm) {}
+  bag(ygm::comm &comm) : m_impl(comm) {}
 
-  void async_insert(const value_type& item) { m_impl.async_insert(item); }
+  void async_insert(const value_type &item) { m_impl.async_insert(item); }
 
   template <typename Function>
   void for_all(Function fn) {
@@ -27,15 +27,17 @@ class bag {
 
   size_t size() { return m_impl.size(); }
 
-  void swap(self_type& s) { m_impl.swap(s.m_impl); }
+  void swap(self_type &s) { m_impl.swap(s.m_impl); }
 
   template <typename Function>
   void local_for_all(Function fn) {
     m_impl.local_for_all(fn);
   }
 
-  void serialize(const std::string& fname) { m_impl.serialize(fname); }
-  void deserialize(const std::string& fname) { m_impl.deserialize(fname); }
+  ygm::comm &comm() { return m_impl.comm(); }
+
+  void serialize(const std::string &fname) { m_impl.serialize(fname); }
+  void deserialize(const std::string &fname) { m_impl.deserialize(fname); }
 
  private:
   detail::bag_impl<value_type> m_impl;
