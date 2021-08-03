@@ -5,12 +5,12 @@
 
 #pragma once
 
-#include <vector>
-#include <memory>
-#include <deque>
-#include <thread>
 #include <atomic>
+#include <deque>
+#include <memory>
 #include <mutex>
+#include <thread>
+#include <vector>
 
 #include <ygm/detail/mpi.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
@@ -20,7 +20,7 @@ namespace ygm {
 
 class comm::impl {
  public:
-  impl(MPI_Comm c, int buffer_capacity = 16 * 1024) {
+  impl(MPI_Comm c, int buffer_capacity) {
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_async));
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_barrier));
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_other));
@@ -79,7 +79,9 @@ class comm::impl {
       }
     }
     // check if listener has queued receives to process
-    if (receive_queue_peek_size() > 0) { receive_queue_process(); }
+    if (receive_queue_peek_size() > 0) {
+      receive_queue_process();
+    }
   }
 
   // //
@@ -114,8 +116,8 @@ class comm::impl {
     while (true) {
       wait_local_idle();
       MPI_Request req = MPI_REQUEST_NULL;
-      int64_t first_all_count{-1};
-      int64_t first_local_count = m_send_count - m_recv_count;
+      int64_t     first_all_count{-1};
+      int64_t     first_local_count = m_send_count - m_recv_count;
       ASSERT_MPI(MPI_Iallreduce(&first_local_count, &first_all_count, 1,
                                 MPI_INT64_T, MPI_SUM, m_comm_barrier, &req));
 
@@ -203,21 +205,24 @@ class comm::impl {
 
   void reset_rpc_call_counter() { m_local_rpc_calls = 0; }
 
-  template <typename T> T all_reduce_sum(const T &t) const {
+  template <typename T>
+  T all_reduce_sum(const T &t) const {
     T to_return;
     ASSERT_MPI(MPI_Allreduce(&t, &to_return, 1, detail::mpi_typeof(T()),
                              MPI_SUM, m_comm_other));
     return to_return;
   }
 
-  template <typename T> T all_reduce_min(const T &t) const {
+  template <typename T>
+  T all_reduce_min(const T &t) const {
     T to_return;
     ASSERT_MPI(MPI_Allreduce(&t, &to_return, 1, detail::mpi_typeof(T()),
                              MPI_MIN, m_comm_other));
     return to_return;
   }
 
-  template <typename T> T all_reduce_max(const T &t) const {
+  template <typename T>
+  T all_reduce_max(const T &t) const {
     T to_return;
     ASSERT_MPI(MPI_Allreduce(&t, &to_return, 1, detail::mpi_typeof(T()),
                              MPI_MAX, m_comm_other));
@@ -226,7 +231,7 @@ class comm::impl {
 
   template <typename T>
   void mpi_send(const T &data, int dest, int tag, MPI_Comm comm) const {
-    std::vector<char> packed;
+    std::vector<char>        packed;
     cereal::YGMOutputArchive oarchive(packed);
     oarchive(data);
     size_t packed_size = packed.size();
@@ -239,14 +244,14 @@ class comm::impl {
   template <typename T>
   T mpi_recv(int source, int tag, MPI_Comm comm) const {
     std::vector<char> packed;
-    size_t packed_size{0};
+    size_t            packed_size{0};
     ASSERT_MPI(MPI_Recv(&packed_size, 1, detail::mpi_typeof(packed_size),
                         source, tag, comm, MPI_STATUS_IGNORE));
     packed.resize(packed_size);
     ASSERT_MPI(MPI_Recv(packed.data(), packed_size, MPI_BYTE, source, tag, comm,
                         MPI_STATUS_IGNORE));
 
-    T to_return;
+    T                       to_return;
     cereal::YGMInputArchive iarchive(packed.data(), packed.size());
     iarchive(to_return);
     return to_return;
@@ -254,18 +259,22 @@ class comm::impl {
 
   template <typename T>
   T mpi_bcast(const T &to_bcast, int root, MPI_Comm comm) const {
-    std::vector<char> packed;
+    std::vector<char>        packed;
     cereal::YGMOutputArchive oarchive(packed);
-    if (rank() == root) { oarchive(to_bcast); }
+    if (rank() == root) {
+      oarchive(to_bcast);
+    }
     size_t packed_size = packed.size();
     ASSERT_RELEASE(packed_size < 1024 * 1024 * 1024);
     ASSERT_MPI(MPI_Bcast(&packed_size, 1, detail::mpi_typeof(packed_size), root,
                          comm));
-    if (rank() != root) { packed.resize(packed_size); }
+    if (rank() != root) {
+      packed.resize(packed_size);
+    }
     ASSERT_MPI(MPI_Bcast(packed.data(), packed_size, MPI_BYTE, root, comm));
 
     cereal::YGMInputArchive iarchive(packed.data(), packed.size());
-    T to_return;
+    T                       to_return;
     iarchive(to_return);
     return to_return;
   }
@@ -281,23 +290,25 @@ class comm::impl {
    */
   template <typename T, typename MergeFunction>
   T all_reduce(const T &in, MergeFunction merge) const {
-    int first_child = 2 * rank() + 1;
+    int first_child  = 2 * rank() + 1;
     int second_child = 2 * (rank() + 1);
-    int parent = (rank() - 1) / 2;
+    int parent       = (rank() - 1) / 2;
 
     // Step 1: Receive from children, merge into tmp
     T tmp = in;
     if (first_child < size()) {
       T fc = mpi_recv<T>(first_child, 0, m_comm_other);
-      tmp = merge(tmp, fc);
+      tmp  = merge(tmp, fc);
     }
     if (second_child < size()) {
       T sc = mpi_recv<T>(second_child, 0, m_comm_other);
-      tmp = merge(tmp, sc);
+      tmp  = merge(tmp, sc);
     }
 
     // Step 2: Send merged to parent
-    if (rank() != 0) { mpi_send(tmp, parent, 0, m_comm_other); }
+    if (rank() != 0) {
+      mpi_send(tmp, parent, 0, m_comm_other);
+    }
 
     // Step 3:  Rank 0 bcasts
     T to_return = mpi_bcast(tmp, 0, m_comm_other);
@@ -321,7 +332,7 @@ class comm::impl {
       if (tag == large_message_announce_tag) {
         // Determine size and source of message
         size_t size = *(reinterpret_cast<size_t *>(recv_buffer->data()));
-        int src = status.MPI_SOURCE;
+        int    src  = status.MPI_SOURCE;
 
         // Allocate large buffer
         auto large_recv_buff = std::make_shared<std::vector<char>>(size);
@@ -437,13 +448,14 @@ class comm::impl {
     ASSERT_DEBUG(sizeof(Lambda) == 1);
     // Question: should this be std::forward(...)
     // \pp was: (l)(this, m_comm_rank, args...);
-    ygm::meta::apply_optional(l, std::make_tuple(this, m_comm_rank), std::make_tuple(args...));
+    ygm::meta::apply_optional(l, std::make_tuple(this, m_comm_rank),
+                              std::make_tuple(args...));
     return 1;
   }
 
   template <typename Lambda, typename... PackArgs>
   std::vector<char> pack_lambda(Lambda l, const PackArgs &... args) {
-    std::vector<char> to_return;
+    std::vector<char>             to_return;
     const std::tuple<PackArgs...> tuple_args(
         std::forward<const PackArgs>(args)...);
     ASSERT_DEBUG(sizeof(Lambda) == 1);
@@ -453,8 +465,8 @@ class comm::impl {
           std::tuple<PackArgs...> ta;
           bia(ta);
           Lambda *pl;
-          auto t1 = std::make_tuple((impl *)t, from);
-          
+          auto    t1 = std::make_tuple((impl *)t, from);
+
           // \pp was: std::apply(*pl, std::tuple_cat(t1, ta));
           ygm::meta::apply_optional(*pl, std::move(t1), std::move(ta));
         };
@@ -474,7 +486,7 @@ class comm::impl {
     bool received = false;
     while (true) {
       auto buffer_source = receive_queue_try_pop();
-      auto buffer = buffer_source.first;
+      auto buffer        = buffer_source.first;
       if (buffer == nullptr) break;
       int from = buffer_source.second;
       received = true;
@@ -498,17 +510,17 @@ class comm::impl {
   MPI_Comm m_comm_async;
   MPI_Comm m_comm_barrier;
   MPI_Comm m_comm_other;
-  int m_comm_size;
-  int m_comm_rank;
-  size_t m_buffer_capacity;
+  int      m_comm_size;
+  int      m_comm_rank;
+  size_t   m_buffer_capacity;
 
   std::vector<std::shared_ptr<std::vector<char>>> m_vec_send_buffers;
 
-  std::mutex m_vec_free_buffers_mutex;
+  std::mutex                                      m_vec_free_buffers_mutex;
   std::vector<std::shared_ptr<std::vector<char>>> m_vec_free_buffers;
 
   std::deque<std::pair<std::shared_ptr<std::vector<char>>, int>>
-      m_receive_queue;
+             m_receive_queue;
   std::mutex m_receive_queue_mutex;
 
   std::thread m_listener;
@@ -516,23 +528,25 @@ class comm::impl {
   int64_t m_recv_count = 0;
   int64_t m_send_count = 0;
 
-  int64_t m_local_rpc_calls = 0;
+  int64_t m_local_rpc_calls  = 0;
   int64_t m_local_bytes_sent = 0;
 
   int large_message_announce_tag = 32766;
-  int large_message_tag = 32767;
+  int large_message_tag          = 32767;
 };
 
-inline comm::comm(int *argc, char ***argv, int buffer_capacity = 1048576) {
+inline comm::comm(int *argc, char ***argv, int buffer_capacity = 16 * 1024) {
   pimpl_if = std::make_shared<detail::mpi_init_finalize>(argc, argv);
-  pimpl = std::make_shared<comm::impl>(MPI_COMM_WORLD, buffer_capacity);
+  pimpl    = std::make_shared<comm::impl>(MPI_COMM_WORLD, buffer_capacity);
 }
 
-inline comm::comm(MPI_Comm mcomm, int buffer_capacity = 1048576) {
+inline comm::comm(MPI_Comm mcomm, int buffer_capacity = 16 * 1024) {
   pimpl_if.reset();
   int flag(0);
   ASSERT_MPI(MPI_Initialized(&flag));
-  if (!flag) { throw std::runtime_error("ERROR: MPI not initialized"); }
+  if (!flag) {
+    throw std::runtime_error("ERROR: MPI not initialized");
+  }
   int provided(0);
   ASSERT_MPI(MPI_Query_thread(&provided));
   if (provided != MPI_THREAD_MULTIPLE) {
@@ -586,15 +600,18 @@ inline void comm::async_flush(int rank) { pimpl->async_flush(rank); }
 
 inline void comm::async_flush_all() { pimpl->async_flush_all(); }
 
-template <typename T> inline T comm::all_reduce_sum(const T &t) const {
+template <typename T>
+inline T comm::all_reduce_sum(const T &t) const {
   return pimpl->all_reduce_sum(t);
 }
 
-template <typename T> inline T comm::all_reduce_min(const T &t) const {
+template <typename T>
+inline T comm::all_reduce_min(const T &t) const {
   return pimpl->all_reduce_min(t);
 }
 
-template <typename T> inline T comm::all_reduce_max(const T &t) const {
+template <typename T>
+inline T comm::all_reduce_max(const T &t) const {
   return pimpl->all_reduce_max(t);
 }
 
