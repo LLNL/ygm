@@ -9,8 +9,9 @@
 
 namespace ygm {
 
-template <typename T> class ygm_ptr {
-public:
+template <typename T>
+class ygm_ptr {
+ public:
   ygm_ptr(){};
 
   T *operator->() const { return sptrs[idx]; }
@@ -25,19 +26,28 @@ public:
     sptrs.push_back(t);
   }
 
+  ygm_ptr(const ygm::ygm_ptr<T> &t) { idx = t.idx; }
+
   T *get_raw_pointer() { return operator->(); }
 
   uint32_t index() { return idx; }
 
-  template <class Archive> void serialize(Archive &archive) { archive(idx); }
+  template <class Archive>
+  void serialize(Archive &archive) {
+    archive(idx);
+  }
 
-private:
-  uint32_t idx;
+ private:
+  uint32_t                idx;
   static std::vector<T *> sptrs;
 };
 
-template <typename T> ygm_ptr<T> make_ygm_pointer(T &t) { return ygm_ptr(&t); }
+template <typename T>
+ygm_ptr<T> make_ygm_pointer(T &t) {
+  return ygm_ptr(&t);
+}
 
-template <typename T> std::vector<T *> ygm_ptr<T>::sptrs;
+template <typename T>
+std::vector<T *> ygm_ptr<T>::sptrs;
 
-} // end namespace ygm
+}  // end namespace ygm
