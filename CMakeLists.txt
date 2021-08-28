@@ -69,6 +69,11 @@ else()
 endif()
 include_directories(${CEREAL_INCLUDE_DIR})
 
+#
+# Boost
+#
+find_package(Boost 1.75)
+
 option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
 
 # Header-only library, so likely not have src dir 
