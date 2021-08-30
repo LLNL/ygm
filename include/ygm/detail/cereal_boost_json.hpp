@@ -10,7 +10,6 @@
 
 #include <boost/json/src.hpp>
 #include <cereal/cereal.hpp>
-#include <cereal/types/boost_variant.hpp>
 
 #include <ygm/detail/ygm_cereal_archive.hpp>
 
