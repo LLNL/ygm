@@ -532,7 +532,7 @@ class comm::impl {
       }
 
       // Only keep buffers of size m_buffer_capacity in pool of buffers
-      if (buffer->size() == m_buffer_capacity) free_buffer(buffer);
+      if (buffer->capacity() == m_buffer_capacity) free_buffer(buffer);
     }
     return received;
   }
