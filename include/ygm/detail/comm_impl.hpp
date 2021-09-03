@@ -529,6 +529,7 @@ class comm::impl {
         memcpy(&fun_ptr, &iptr, sizeof(uint64_t));
         fun_ptr(this, from, iarchive);
         m_recv_count++;
+        m_local_rpc_calls++;
       }
 
       // Only keep buffers of size m_buffer_capacity in pool of buffers
