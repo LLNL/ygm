@@ -74,3 +74,8 @@ add_mpi_omp_test(test_bag)
 add_mpi_omp_test(test_multiset)
 add_mpi_omp_test(test_counting_set)
 add_mpi_omp_test(test_container_serialization)
+
+if (Boost_FOUND)
+  add_seq_test(test_cereal_boost_json)
+  target_include_directories(SEQ_test_cereal_boost_json PUBLIC ${Boost_INCLUDE_DIRS})
+endif ()
