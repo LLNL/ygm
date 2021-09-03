@@ -45,10 +45,6 @@ class comm {
   void async_mcast_preempt(const std::vector<int> &dests, AsyncFunction fn,
                            const SendArgs &... args);
 
-  void async_flush(int rank);
-  void async_flush_bcast();
-  void async_flush_all();
-
   //
   // Collective operations across all ranks.  Cannot be called inside OpenMP
   // region.
