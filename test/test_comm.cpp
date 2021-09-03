@@ -13,13 +13,11 @@ int main(int argc, char** argv) {
   //
   // Test Rank 0 async to all others
   {
-    size_t counter{};
+    size_t               counter{};
     ygm::ygm_ptr<size_t> pcounter(&counter);
     if (world.rank() == 0) {
       for (int dest = 0; dest < world.size(); ++dest) {
-        world.async(
-            dest, [](auto pcomm, int from, auto pcounter) { (*pcounter)++; },
-            pcounter);
+        world.async(dest, [](auto pcounter) { (*pcounter)++; }, pcounter);
       }
     }
     world.barrier();
@@ -29,16 +27,46 @@ int main(int argc, char** argv) {
   //
   // Test all ranks async to all others
   {
-    size_t counter{};
+    size_t               counter{};
     ygm::ygm_ptr<size_t> pcounter(&counter);
 
     for (int dest = 0; dest < world.size(); ++dest) {
-      world.async(
-          dest, [](auto pcomm, int from, auto pcounter) { (*pcounter)++; },
-          pcounter);
+      world.async(dest, [](auto pcounter) { (*pcounter)++; }, pcounter);
     }
     world.barrier();
     ASSERT_RELEASE(counter == world.size());
+  }
+
+  //
+  // Test async_bcast
+  {
+    size_t               counter{};
+    ygm::ygm_ptr<size_t> pcounter(&counter);
+    world.async_bcast([](auto pcounter) { (*pcounter)++; }, pcounter);
+
+    world.barrier();
+    ASSERT_RELEASE(counter == 1);
+  }
+
+  //
+  // Test async_mcast
+  {
+    size_t               counter{};
+    ygm::ygm_ptr<size_t> pcounter(&counter);
+    if (world.rank() == 0) {
+      std::vector<int> dests;
+      for (int dest = 0; dest < world.size(); dest += 2) {
+        dests.push_back(dest);
+      }
+      world.async_mcast(dests, [](auto pcounter) { (*pcounter)++; }, pcounter);
+    }
+
+    world.barrier();
+    if (world.rank() % 2) {
+      ASSERT_RELEASE(counter == 0);
+    } else {
+      ASSERT_RELEASE(counter == 1);
+    }
   }
 
   //
@@ -53,8 +81,8 @@ int main(int argc, char** argv) {
     auto sum = world.all_reduce_sum(size_t(world.rank()));
     ASSERT_RELEASE(sum == ((world.size() - 1) * world.size()) / 2);
 
-    size_t id = world.rank();
-    auto red = world.all_reduce(id, [](size_t a, size_t b) {
+    size_t id  = world.rank();
+    auto   red = world.all_reduce(id, [](size_t a, size_t b) {
       if (a < b) {
         return a;
       } else {
