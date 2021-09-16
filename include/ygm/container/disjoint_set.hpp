@@ -1,0 +1,41 @@
+// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Project Developers. See the top-level COPYRIGHT file for details.
+//
+// SPDX-License-Identifier: MIT
+
+#pragma once
+#include <ygm/container/detail/disjoint_set_impl.hpp>
+
+namespace ygm::container {
+template <typename Item, typename Partitioner = detail::hash_partitioner<Item>>
+class disjoint_set {
+ public:
+  using self_type  = disjoint_set<Item, Partitioner>;
+  using value_type = Item;
+  using impl_type  = detail::disjoint_set_impl<Item, Partitioner>;
+
+  disjoint_set() = delete;
+
+  disjoint_set(ygm::comm &comm) : m_impl(comm) {}
+
+  void async_make_set(const value_type &item) { m_impl.async_make_set(item); }
+
+  void async_union(const value_type &a, const value_type &b) {
+    m_impl.async_union(a, b);
+  }
+
+  void all_compress() { m_impl.all_compress(); }
+
+  std::vector<std::pair<value_type, value_type>> all_find(
+      const std::vector<value_type> &items) {
+    return m_impl.all_find(items);
+  }
+
+  size_t size() { return m_impl.size(); }
+
+  size_t num_sets() { return m_impl.num_sets(); }
+
+ private:
+  impl_type m_impl;
+};
+}  // namespace ygm::container
