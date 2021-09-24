@@ -40,7 +40,11 @@ int main(int argc, char** argv) {
     if (world.rank0()) {
       dset.async_union("cat", "dog");
     }
-    ASSERT_RELEASE(dset.num_sets() == 2);
+
+    std::vector<std::string> to_find = {"cat", "dog"};
+
+    auto reps = dset.all_find(to_find);
+    ASSERT_RELEASE(reps[0].second == reps[1].second);
   }
 
   //
