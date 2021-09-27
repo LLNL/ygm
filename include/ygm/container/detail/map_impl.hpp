@@ -16,13 +16,13 @@ namespace ygm::container::detail {
 
 template <typename Key, typename Value,
           typename Partitioner = detail::hash_partitioner<Key>,
-          typename Compare = std::less<Key>,
-          class Alloc = std::allocator<std::pair<const Key, Value>>>
+          typename Compare     = std::less<Key>,
+          class Alloc          = std::allocator<std::pair<const Key, Value>>>
 class map_impl {
-public:
-  using self_type = map_impl<Key, Value, Partitioner, Compare, Alloc>;
+ public:
+  using self_type  = map_impl<Key, Value, Partitioner, Compare, Alloc>;
   using value_type = Value;
-  using key_type = Key;
+  using key_type   = Key;
 
   Partitioner partitioner;
 
@@ -32,6 +32,13 @@ public:
 
   map_impl(ygm::comm &comm, const value_type &dv)
       : m_comm(comm), pthis(this), m_default_value(dv) {
+    m_comm.barrier();
+  }
+
+  map_impl(const self_type &rhs)
+      : m_comm(rhs.m_comm), pthis(this), m_default_value(rhs.m_default_value) {
+    m_comm.barrier();
+    m_local_map.insert(std::begin(rhs.m_local_map), std::end(rhs.m_local_map));
     m_comm.barrier();
   }
 
@@ -62,12 +69,12 @@ public:
 
   template <typename Visitor, typename... VisitorArgs>
   void async_visit(const key_type &key, Visitor visitor,
-                   const VisitorArgs &... args) {
-    int dest = owner(key);
+                   const VisitorArgs &...args) {
+    int  dest          = owner(key);
     auto visit_wrapper = [](auto pcomm, int from, auto pmap,
-                            const key_type &key, const VisitorArgs &... args) {
+                            const key_type &key, const VisitorArgs &...args) {
       auto range = pmap->m_local_map.equal_range(key);
-      if (range.first == range.second) { // check if not in range
+      if (range.first == range.second) {  // check if not in range
         pmap->m_local_map.insert(std::make_pair(key, pmap->m_default_value));
         range = pmap->m_local_map.equal_range(key);
         ASSERT_DEBUG(range.first != range.second);
@@ -82,10 +89,10 @@ public:
 
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_if_exists(const key_type &key, Visitor visitor,
-                             const VisitorArgs &... args) {
-    int dest = owner(key);
+                             const VisitorArgs &...args) {
+    int  dest          = owner(key);
     auto visit_wrapper = [](auto pcomm, int from, auto pmap,
-                            const key_type &key, const VisitorArgs &... args) {
+                            const key_type &key, const VisitorArgs &...args) {
       Visitor *vis;
       pmap->local_visit(key, *vis, from, args...);
     };
@@ -95,7 +102,7 @@ public:
   }
 
   void async_erase(const key_type &key) {
-    int dest = owner(key);
+    int  dest          = owner(key);
     auto erase_wrapper = [](auto pcomm, int from, auto pmap,
                             const key_type &key) { pmap->local_erase(key); };
 
@@ -104,7 +111,8 @@ public:
 
   size_t local_count(const key_type &key) { return m_local_map.count(key); }
 
-  template <typename Function> void for_all(Function fn) {
+  template <typename Function>
+  void for_all(const Function &fn) {
     m_comm.barrier();
     local_for_all(fn);
   }
@@ -160,7 +168,7 @@ public:
 
   void serialize(const std::string &fname) {
     m_comm.barrier();
-    std::string rank_fname = fname + std::to_string(m_comm.rank());
+    std::string   rank_fname = fname + std::to_string(m_comm.rank());
     std::ofstream os(rank_fname, std::ios::binary);
     cereal::JSONOutputArchive oarchive(os);
     oarchive(m_local_map, m_default_value, m_comm.size());
@@ -169,16 +177,17 @@ public:
   void deserialize(const std::string &fname) {
     m_comm.barrier();
 
-    std::string rank_fname = fname + std::to_string(m_comm.rank());
+    std::string   rank_fname = fname + std::to_string(m_comm.rank());
     std::ifstream is(rank_fname, std::ios::binary);
 
     cereal::JSONInputArchive iarchive(is);
-    int comm_size;
+    int                      comm_size;
     iarchive(m_local_map, m_default_value, comm_size);
 
     if (comm_size != m_comm.size()) {
-      m_comm.cerr0("Attempting to deserialize map_impl using communicator of "
-                   "different size than serialized with");
+      m_comm.cerr0(
+          "Attempting to deserialize map_impl using communicator of "
+          "different size than serialized with");
     }
   }
 
@@ -204,7 +213,7 @@ public:
 
   template <typename Function, typename... VisitorArgs>
   void local_visit(const key_type &key, Function &fn, const int from,
-                   const VisitorArgs &... args) {
+                   const VisitorArgs &...args) {
     auto range = m_local_map.equal_range(key);
     for (auto itr = range.first; itr != range.second; ++itr) {
       ygm::meta::apply_optional(fn, std::make_tuple(pthis, from),
@@ -222,12 +231,13 @@ public:
 
   ygm::comm &comm() { return m_comm; }
 
-  template <typename Function> void local_for_all(Function fn) {
+  template <typename Function>
+  void local_for_all(const Function &fn) {
     std::for_each(m_local_map.begin(), m_local_map.end(), fn);
   }
 
   template <typename CompareFunction>
-  std::vector<std::pair<key_type, value_type>> topk(size_t k,
+  std::vector<std::pair<key_type, value_type>> topk(size_t          k,
                                                     CompareFunction cfn) {
     using vec_type = std::vector<std::pair<key_type, value_type>>;
     vec_type local_topk;
@@ -252,12 +262,14 @@ public:
     return to_return;
   }
 
-protected:
+  const value_type &default_value() const { return m_default_value; }
+
+ protected:
   map_impl() = delete;
 
-  value_type m_default_value;
+  value_type                                          m_default_value;
   std::multimap<key_type, value_type, Compare, Alloc> m_local_map;
-  ygm::comm m_comm;
-  typename ygm::ygm_ptr<self_type> pthis;
+  ygm::comm                                           m_comm;
+  typename ygm::ygm_ptr<self_type>                    pthis;
 };
-} // namespace ygm::container::detail
+}  // namespace ygm::container::detail
