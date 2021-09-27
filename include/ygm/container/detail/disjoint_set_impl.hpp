@@ -91,41 +91,39 @@ class disjoint_set_impl {
 
   void all_compress() {}
 
-  std::vector<std::pair<value_type, value_type>> all_find(
+  std::map<value_type, value_type> all_find(
       const std::vector<value_type> &items) {
     m_comm.barrier();
 
-    using return_type = std::vector<std::pair<value_type, value_type>>;
-    return_type          to_return(items.size());
+    using return_type = std::map<value_type, value_type>;
+    return_type          to_return;
     ygm_ptr<return_type> p_to_return(&to_return);
 
     struct find_rep_functor {
       void operator()(self_ygm_ptr_type pdset, ygm_ptr<return_type> p_to_return,
-                      const size_t to_return_index, const int source_rank,
-                      const value_type &item) {
-        const auto parent = pdset->local_get_parent(item);
+                      const value_type &source_item, const int source_rank,
+                      const value_type &local_item) {
+        const auto parent = pdset->local_get_parent(local_item);
 
         // Found root
-        if (parent == item) {
+        if (parent == local_item) {
           pdset->comm().async(
               source_rank,
-              [](ygm_ptr<return_type> p_to_return, const int to_return_index,
-                 const value_type &rep) {
-                (*p_to_return)[to_return_index].second = rep;
-              },
-              p_to_return, to_return_index, parent);
+              [](ygm_ptr<return_type> p_to_return,
+                 const value_type &   source_item,
+                 const value_type &rep) { (*p_to_return)[source_item] = rep; },
+              p_to_return, source_item, parent);
         } else {
           int dest = pdset->owner(parent);
           pdset->comm().async(dest, find_rep_functor(), pdset, p_to_return,
-                              to_return_index, source_rank, parent);
+                              source_item, source_rank, parent);
         }
       }
     };
 
     for (int i = 0; i < items.size(); ++i) {
-      to_return[i].first = items[i];
-      int dest           = owner(items[i]);
-      m_comm.async(dest, find_rep_functor(), pthis, p_to_return, i,
+      int dest = owner(items[i]);
+      m_comm.async(dest, find_rep_functor(), pthis, p_to_return, items[i],
                    m_comm.rank(), items[i]);
     }
 

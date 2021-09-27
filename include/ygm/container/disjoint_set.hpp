@@ -26,7 +26,7 @@ class disjoint_set {
 
   void all_compress() { m_impl.all_compress(); }
 
-  std::vector<std::pair<value_type, value_type>> all_find(
+  std::map<value_type, value_type> all_find(
       const std::vector<value_type> &items) {
     return m_impl.all_find(items);
   }
