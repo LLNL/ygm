@@ -38,3 +38,4 @@ function ( add_mpi_omp_example example_name )
 endfunction()
 
 add_mpi_omp_example(counter_scaling_test)
+add_mpi_omp_example(disjoint_set_union_chain)
