@@ -152,6 +152,8 @@ int main(int argc, char** argv) {
     dset.async_union(0, 3);
     ASSERT_RELEASE(dset.num_sets() == 1);
 
+    dset.all_compress();
+
     auto reps_final = dset.all_find(to_find);
     ASSERT_RELEASE(reps_final[0] == reps_final[1]);
     ASSERT_RELEASE(reps_final[1] == reps_final[2]);

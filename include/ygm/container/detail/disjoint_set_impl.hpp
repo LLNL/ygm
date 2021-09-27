@@ -89,7 +89,42 @@ class disjoint_set_impl {
     }
   }
 
-  void all_compress() {}
+  // Very inefficient as written. Starts walk from every single item.
+  void all_compress() {
+    m_comm.barrier();
+
+    struct find_root_functor {
+      void operator()(self_ygm_ptr_type pdset, const value_type &source_item,
+                      const value_type &local_item) {
+        const auto parent = pdset->local_get_parent(local_item);
+
+        // Found root
+        if (parent == local_item) {
+          int dest = pdset->owner(source_item);
+          pdset->comm().async(
+              dest,
+              [](self_ygm_ptr_type pdset, const value_type &source_item,
+                 const value_type &root) {
+                pdset->local_set_parent(source_item, root);
+              },
+              pdset, source_item, parent);
+        } else {
+          int dest = pdset->owner(parent);
+          pdset->comm().async(dest, find_root_functor(), pdset, source_item,
+                              parent);
+        }
+      }
+    };
+
+    // Initiate walks up trees from all local items
+    for (const auto &item_parent : m_local_item_parent_map) {
+      int dest = owner(item_parent.second);
+      m_comm.async(dest, find_root_functor(), pthis, item_parent.first,
+                   item_parent.second);
+    }
+
+    m_comm.barrier();
+  }
 
   std::map<value_type, value_type> all_find(
       const std::vector<value_type> &items) {
