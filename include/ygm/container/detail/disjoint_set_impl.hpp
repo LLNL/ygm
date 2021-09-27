@@ -142,6 +142,16 @@ class disjoint_set_impl {
 
         // Found root
         if (parent == local_item) {
+          // Send message to update parent of original item
+          int dest = pdset->owner(source_item);
+          pdset->comm().async(
+              dest,
+              [](self_ygm_ptr_type pdset, const value_type &source_item,
+                 const value_type &root) {
+                pdset->local_set_parent(source_item, root);
+              },
+              pdset, source_item, parent);
+          // Send message to store return value
           pdset->comm().async(
               source_rank,
               [](ygm_ptr<return_type> p_to_return,
