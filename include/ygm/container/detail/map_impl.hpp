@@ -112,7 +112,7 @@ class map_impl {
   size_t local_count(const key_type &key) { return m_local_map.count(key); }
 
   template <typename Function>
-  void for_all(const Function &fn) {
+  void for_all(Function fn) {
     m_comm.barrier();
     local_for_all(fn);
   }
@@ -232,7 +232,7 @@ class map_impl {
   ygm::comm &comm() { return m_comm; }
 
   template <typename Function>
-  void local_for_all(const Function &fn) {
+  void local_for_all(Function fn) {
     std::for_each(m_local_map.begin(), m_local_map.end(), fn);
   }
 

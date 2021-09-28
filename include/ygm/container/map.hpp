@@ -56,7 +56,7 @@ class map {
   size_t local_count(const key_type& key) { return m_impl.local_count(key); }
 
   template <typename Function>
-  void for_all(const Function& fn) {
+  void for_all(Function fn) {
     m_impl.for_all(fn);
   }
 
@@ -154,7 +154,7 @@ class multimap {
   size_t local_count(const key_type& key) { return m_impl.local_count(key); }
 
   template <typename Function>
-  void for_all(const Function& fn) {
+  void for_all(Function fn) {
     m_impl.for_all(fn);
   }
 
