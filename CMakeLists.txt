@@ -60,14 +60,13 @@ endmacro()
 #
 # Cereal
 #
-find_path(CEREAL_INCLUDE_DIR cereal/cereal.hpp)
-
-if (NOT CEREAL_INCLUDE_DIR)
-	message(FATAL_ERROR "Cannot find Cereal")
-else()
-	message("Found Cereal: ${CEREAL_INCLUDE_DIR}")
-endif()
-include_directories(${CEREAL_INCLUDE_DIR})
+include(FetchContent)
+FetchContent_Declare(
+        cereal
+        GIT_REPOSITORY https://github.com/USCiLab/cereal
+        GIT_TAG        af0700efb25e7dc7af637b9e6f970dbb94813bff
+)
+FetchContent_MakeAvailable(cereal)
 
 #
 # Boost
