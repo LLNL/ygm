@@ -61,6 +61,7 @@ endmacro()
 # Cereal
 #
 include(FetchContent)
+set(JUST_INSTALL_CEREAL TRUE)
 FetchContent_Declare(
         cereal
         GIT_REPOSITORY https://github.com/USCiLab/cereal
