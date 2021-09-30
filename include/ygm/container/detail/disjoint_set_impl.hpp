@@ -104,37 +104,60 @@ class disjoint_set_impl {
   void all_compress() {
     m_comm.barrier();
 
-    struct find_root_functor {
-      void operator()(self_ygm_ptr_type pdset, const value_type &source_item,
-                      const value_type &local_item) {
-        const auto parent = pdset->local_get_parent(local_item);
+    std::set<value_type>    active_set;
+    std::vector<value_type> active_set_to_remove;
 
-        // Found root
-        if (parent == local_item) {
-          int dest = pdset->owner(source_item);
-          pdset->comm().async(
-              dest,
-              [](self_ygm_ptr_type pdset, const value_type &source_item,
-                 const value_type &root) {
-                pdset->local_set_parent(source_item, root);
-              },
-              pdset, source_item, parent);
-        } else {
-          int dest = pdset->owner(parent);
-          pdset->comm().async(dest, find_root_functor(), pdset, source_item,
-                              parent);
-        }
+    ygm::ygm_ptr<std::set<value_type>> p_active_set =
+        ygm::make_ygm_pointer(active_set);
+    ygm::ygm_ptr<std::vector<value_type>> p_to_remove =
+        ygm::make_ygm_pointer(active_set_to_remove);
+
+    auto find_grandparent_lambda =
+        [](auto p_dset, auto p_active_set, auto p_to_remove,
+           const value_type &parent, const value_type &child) {
+          const value_type &grandparent = p_dset->local_get_parent(parent);
+          const int         return_dest = p_dset->owner(child);
+
+          if (p_active_set->count(parent)) {
+            p_dset->comm().async(return_dest,
+                                 [](auto p_dset, const value_type &item,
+                                    const value_type &grandparent) {
+                                   p_dset->local_set_parent(item, grandparent);
+                                 },
+                                 p_dset, child, grandparent);
+          } else {
+            p_dset->comm().async(
+                return_dest,
+                [](auto p_dset, auto p_to_remove, const value_type &item,
+                   const value_type &grandparent) {
+                  p_dset->local_set_parent(item, grandparent);
+                  p_to_remove->push_back(item);  // Remove from active set
+                },
+                p_dset, p_to_remove, child, grandparent);
+          }
+        };
+
+    // Initialize active set to contain all non-roots
+    for (const auto &item_parent_pair : m_local_item_parent_map) {
+      if (item_parent_pair.first != item_parent_pair.second) {
+        active_set.emplace(item_parent_pair.first);
       }
-    };
-
-    // Initiate walks up trees from all local items
-    for (const auto &item_parent : m_local_item_parent_map) {
-      int dest = owner(item_parent.second);
-      m_comm.async(dest, find_root_functor(), pthis, item_parent.first,
-                   item_parent.second);
     }
 
-    m_comm.barrier();
+    while (m_comm.all_reduce_sum(active_set.size())) {
+      for (const auto &item : active_set) {
+        const value_type &parent = local_get_parent(item);
+        const int         dest   = owner(parent);
+        m_comm.async(dest, find_grandparent_lambda, pthis, p_active_set,
+                     p_to_remove, parent, item);
+      }
+      m_comm.barrier();
+
+      for (const auto &item : active_set_to_remove) {
+        active_set.erase(item);
+      }
+      active_set_to_remove.clear();
+    }
   }
 
   std::map<value_type, value_type> all_find(
