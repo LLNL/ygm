@@ -77,13 +77,27 @@ class disjoint_set_impl {
 
     // Visit a first
     if (a > b) {
-      int dest = owner(a);
-      m_comm.async(dest, simul_parent_walk_functor(), pthis, a, b);
+      int main_dest = owner(a);
+      int sub_dest  = owner(b);
+      m_comm.async(main_dest, simul_parent_walk_functor(), pthis, a, b);
+      // Side-effect of looking up parent of b is setting b's parent to be
+      // itself if b has no parent
+      m_comm.async(sub_dest,
+                   [](self_ygm_ptr_type pdset, const value_type &item) {
+                     pdset->local_get_parent(item);
+                   },
+                   pthis, b);
     }
     // Visit b first
     else if (a < b) {
-      int dest = owner(b);
-      m_comm.async(dest, simul_parent_walk_functor(), pthis, b, a);
+      int main_dest = owner(b);
+      int sub_dest  = owner(a);
+      m_comm.async(main_dest, simul_parent_walk_functor(), pthis, b, a);
+      m_comm.async(sub_dest,
+                   [](self_ygm_ptr_type pdset, const value_type &item) {
+                     pdset->local_get_parent(item);
+                   },
+                   pthis, a);
     } else {
       return;
     }
