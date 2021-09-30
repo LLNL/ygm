@@ -18,7 +18,6 @@ See the [mailbox_test](src/mailbox_test.cpp) for an example.
 $ mkdir build
 $ cd build
 $ spack load gcc@9 # or newer
-$ spack load cereal
 $ cmake ../
 $ make
 $ salloc -N1 -ppdebug # if testing in a Slurm environment
