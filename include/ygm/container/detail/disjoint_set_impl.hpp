@@ -19,8 +19,7 @@ class disjoint_set_impl {
 
   Partitioner partitioner;
 
-  disjoint_set_impl(ygm::comm &comm)
-      : m_comm(comm), pthis(this), m_num_local_sets(0) {
+  disjoint_set_impl(ygm::comm &comm) : m_comm(comm), pthis(this) {
     m_comm.barrier();
   }
 
@@ -33,7 +32,6 @@ class disjoint_set_impl {
       // Only insert if no entry exists
       if (itr == dset->m_local_item_parent_map.end()) {
         dset->m_local_item_parent_map.insert(std::make_pair(item, item));
-        dset->m_num_local_sets++;
       }
     };
 
@@ -51,7 +49,6 @@ class disjoint_set_impl {
         // Found root
         if (my_parent == my_item) {
           pdset->local_set_parent(my_item, other_item);
-          pdset->m_num_local_sets--;
           return;
         }
 
@@ -197,7 +194,13 @@ class disjoint_set_impl {
 
   size_t num_sets() {
     m_comm.barrier();
-    return m_comm.all_reduce_sum(m_num_local_sets);
+    size_t num_local_sets{0};
+    for (const auto &item_parent_pair : m_local_item_parent_map) {
+      if (item_parent_pair.first == item_parent_pair.second) {
+        ++num_local_sets;
+      }
+    }
+    return m_comm.all_reduce_sum(num_local_sets);
   }
 
   int owner(const value_type &item) const {
@@ -217,7 +220,6 @@ class disjoint_set_impl {
     // Create new set if item is not found
     if (itr == m_local_item_parent_map.end()) {
       m_local_item_parent_map.insert(std::make_pair(item, item));
-      m_num_local_sets++;
       return item;
     } else {
       return itr->second;
@@ -235,7 +237,6 @@ class disjoint_set_impl {
 
   ygm::comm                        m_comm;
   self_ygm_ptr_type                pthis;
-  size_t                           m_num_local_sets;
   std::map<value_type, value_type> m_local_item_parent_map;
 };
 }  // namespace ygm::container::detail
