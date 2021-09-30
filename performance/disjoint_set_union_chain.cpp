@@ -20,51 +20,88 @@ int main(int argc, char **argv) {
   world.cout0("Global unions: ", num_unions);
 
   size_t num_local_unions =
-      num_unions / world.size() + (world.size() < num_unions % world.size());
+      num_unions / world.size() + (world.rank() < num_unions % world.size());
   size_t local_offset =
       (num_unions / world.size()) * world.rank() +
       std::min<size_t>(world.rank(), num_unions % world.size());
 
-  ygm::container::disjoint_set<size_t> dset(world);
-
   /*****************************
-   * Time unions
+   * Experiment with unions incrementing
    ****************************/
-  world.barrier();
+  {
+    world.cout0("**** Forward unions ****");
+    ygm::container::disjoint_set<size_t> dset(world);
 
-  ygm::timer union_timer{};
+    /*****************************
+     * Time unions
+     ****************************/
+    world.barrier();
 
-  // Perform unions
-  for (size_t i = local_offset; i < local_offset + num_local_unions; ++i) {
-    dset.async_union(i, i + 1);
+    ygm::timer union_timer{};
+
+    // Perform unions
+    for (size_t i = local_offset; i < local_offset + num_local_unions; ++i) {
+      dset.async_union(i, i + 1);
+    }
+
+    world.barrier();
+
+    world.cout0("Performed ", num_unions, " unions in ", union_timer.elapsed(),
+                " seconds");
+
+    /*****************************
+     * Time all_compress
+     ****************************/
+    world.barrier();
+
+    ygm::timer compress_timer{};
+
+    dset.all_compress();
+
+    world.barrier();
+
+    world.cout0("Performed all_compress on ", num_unions, " items in ",
+                compress_timer.elapsed(), " seconds");
   }
 
-  world.barrier();
-
-  world.cout0("Performed ", num_unions, " unions in ", union_timer.elapsed(),
-              " seconds");
-
   /*****************************
-   * Time finds
+   * Experiment with unions decrementing
    ****************************/
-  std::vector<size_t> to_find(num_local_unions);
+  {
+    world.cout0("\n**** Backward unions ****");
+    ygm::container::disjoint_set<size_t> dset(world);
 
-  for (size_t i = 0; i < num_local_unions; ++i) {
-    to_find[i] = local_offset + i;
+    /*****************************
+     * Time unions
+     ****************************/
+    world.barrier();
+
+    ygm::timer union_timer{};
+
+    // Perform unions
+    for (size_t i = local_offset + num_local_unions; i > local_offset; --i) {
+      dset.async_union(i - 1, i);
+    }
+
+    world.barrier();
+
+    world.cout0("Performed ", num_unions, " unions in ", union_timer.elapsed(),
+                " seconds");
+
+    /*****************************
+     * Time all_compress
+     ****************************/
+    world.barrier();
+
+    ygm::timer compress_timer{};
+
+    dset.all_compress();
+
+    world.barrier();
+
+    world.cout0("Performed all_compress on ", num_unions, " items in ",
+                compress_timer.elapsed(), " seconds");
   }
-
-  world.barrier();
-
-  ygm::timer find_timer{};
-
-  dset.all_find(to_find);
-
-  world.barrier();
-
-  world.cout0("Performed find on all ", num_unions, " items in ",
-              find_timer.elapsed(), " seconds");
-
-  world.cout() << "Local bytes sent: " << world.local_bytes_sent() << std::endl;
 
   return 0;
 }
