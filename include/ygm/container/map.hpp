@@ -10,13 +10,13 @@ namespace ygm::container {
 
 template <typename Key, typename Value,
           typename Partitioner = detail::hash_partitioner<Key>,
-          typename Compare = std::less<Key>,
-          class Alloc = std::allocator<std::pair<const Key, Value>>>
+          typename Compare     = std::less<Key>,
+          class Alloc          = std::allocator<std::pair<const Key, Value>>>
 class map {
  public:
-  using self_type = map<Key, Value, Partitioner, Compare, Alloc>;
+  using self_type  = map<Key, Value, Partitioner, Compare, Alloc>;
   using value_type = Value;
-  using key_type = Key;
+  using key_type   = Key;
   using impl_type =
       detail::map_impl<key_type, value_type, Partitioner, Compare, Alloc>;
   map() = delete;
@@ -24,6 +24,8 @@ class map {
   map(ygm::comm& comm) : m_impl(comm) {}
 
   map(ygm::comm& comm, const value_type& dv) : m_impl(comm, dv) {}
+
+  map(const self_type& rhs) : m_impl(rhs.m_impl) {}
 
   void async_insert(const std::pair<key_type, value_type>& kv) {
     async_insert(kv.first, kv.second);
@@ -97,10 +99,12 @@ class map {
   ygm::comm& comm() { return m_impl.comm(); }
 
   template <typename CompareFunction>
-  std::vector<std::pair<key_type, value_type>> topk(size_t k,
+  std::vector<std::pair<key_type, value_type>> topk(size_t          k,
                                                     CompareFunction cfn) {
     return m_impl.topk(k, cfn);
   }
+
+  const value_type& default_value() const { return m_impl.default_value(); }
 
  private:
   impl_type m_impl;
@@ -108,13 +112,13 @@ class map {
 
 template <typename Key, typename Value,
           typename Partitioner = detail::hash_partitioner<Key>,
-          typename Compare = std::less<Key>,
-          class Alloc = std::allocator<std::pair<const Key, Value>>>
+          typename Compare     = std::less<Key>,
+          class Alloc          = std::allocator<std::pair<const Key, Value>>>
 class multimap {
  public:
-  using self_type = multimap<Key, Value, Partitioner, Compare, Alloc>;
+  using self_type  = multimap<Key, Value, Partitioner, Compare, Alloc>;
   using value_type = Value;
-  using key_type = Key;
+  using key_type   = Key;
   using impl_type =
       detail::map_impl<key_type, value_type, Partitioner, Compare, Alloc>;
   multimap() = delete;
@@ -122,6 +126,8 @@ class multimap {
   multimap(ygm::comm& comm) : m_impl(comm) {}
 
   multimap(ygm::comm& comm, const value_type& dv) : m_impl(comm, dv) {}
+
+  multimap(const self_type& rhs) : m_impl(rhs.m_impl) {}
 
   void async_insert(const std::pair<key_type, value_type>& kv) {
     async_insert(kv.first, kv.second);
@@ -192,10 +198,12 @@ class multimap {
   ygm::comm& comm() { return m_impl.comm(); }
 
   template <typename CompareFunction>
-  std::vector<std::pair<key_type, value_type>> topk(size_t k,
+  std::vector<std::pair<key_type, value_type>> topk(size_t          k,
                                                     CompareFunction cfn) {
     return m_impl.topk(k, cfn);
   }
+
+  const value_type& default_value() const { return m_impl.default_value(); }
 
  private:
   impl_type m_impl;
