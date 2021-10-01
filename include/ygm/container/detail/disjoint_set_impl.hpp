@@ -100,7 +100,6 @@ class disjoint_set_impl {
     }
   }
 
-  // Very inefficient as written. Starts walk from every single item.
   void all_compress() {
     m_comm.barrier();
 
