@@ -667,10 +667,6 @@ inline void comm::reset_rpc_call_counter() { pimpl->reset_rpc_call_counter(); }
 
 inline void comm::barrier() { pimpl->barrier(); }
 
-inline void comm::async_flush(int rank) { pimpl->async_flush(rank); }
-
-inline void comm::async_flush_all() { pimpl->async_flush_all(); }
-
 template <typename T>
 inline T comm::all_reduce_sum(const T &t) const {
   return pimpl->all_reduce_sum(t);
