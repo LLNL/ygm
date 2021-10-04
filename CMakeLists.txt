@@ -100,7 +100,9 @@ if(YGM_INSTALL)
 endif()
 
 
-
+if(JUST_INSTALL_YGM)
+    return()
+endif()
 
 # Header-only library, so likely not have src dir 
 # add_subdirectory(src)
