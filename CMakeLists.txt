@@ -11,14 +11,12 @@ project(YGM
     DESCRIPTION "HPC Communication Library"
     LANGUAGES CXX)
 
-# Only do these if this is the main project, and not if it is included through add_subdirectory
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    set(YGM_MAIN_PROJECT ON)
+endif()
 
-    set(CMAKE_CXX_STANDARD 17)
-    set(CMAKE_CXX_STANDARD_REQUIRED ON)
-    
-    # Let's ensure -std=c++xx instead of -std=g++xx
-    set(CMAKE_CXX_EXTENSIONS OFF)
+# Only do these if this is the main project, and not if it is included through add_subdirectory
+if(CMAKE_MAIN_PROJECT)
 
     # Let's nicely support folders in IDE's
     set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -38,41 +36,41 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     endif()
 endif()
 
-
 ### Require out-of-source builds
 file(TO_CMAKE_PATH "${PROJECT_BINARY_DIR}/CMakeLists.txt" LOC_PATH)
 if(EXISTS "${LOC_PATH}")
     message(FATAL_ERROR "You cannot build in a source directory (or any directory with a CMakeLists.txt file). Please make a build subdirectory. Feel free to remove CMakeCache.txt and CMakeFiles.")
 endif()
 
-include_directories("${PROJECT_SOURCE_DIR}/include")
-#include_directories("${PROJECT_SOURCE_DIR}/external/include")
+add_library(ygm INTERFACE)
+add_library(YGM::ygm ALIAS ygm)
+target_include_directories(ygm INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+target_compile_features(ygm INTERFACE cxx_std_17)
 
 #
 # MPI is required
 #
-find_package( MPI REQUIRED)
-macro(include_link_mpi target)
-  include_directories(${MPI_INCLUDE_PATH})
-  target_link_libraries(${target} ${MPI_LIBRARIES})
-endmacro()
+find_package(MPI REQUIRED)
+
+#
+# Boost
+#
+find_package(Boost 1.75 REQUIRED)
 
 #
 # Cereal
 #
 include(FetchContent)
-set(JUST_INSTALL_CEREAL TRUE)
+set(JUST_INSTALL_CEREAL ON)
 FetchContent_Declare(
         cereal
         GIT_REPOSITORY https://github.com/USCiLab/cereal
         GIT_TAG        af0700efb25e7dc7af637b9e6f970dbb94813bff
 )
 FetchContent_MakeAvailable(cereal)
-
-#
-# Boost
-#
-find_package(Boost 1.75)
 
 option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
 
@@ -81,9 +79,10 @@ option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
 
 # Testing & examples are only available if this is the main app
 # Emergency override MODERN_CMAKE_BUILD_TESTING provided as well
-if((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR MODERN_CMAKE_BUILD_TESTING) AND BUILD_TESTING)
+#if((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR MODERN_CMAKE_BUILD_TESTING) AND BUILD_TESTING)
+if(YGM_MAIN_PROJECT)
     add_subdirectory(test)
-	add_subdirectory(performance)
+    add_subdirectory(performance)
     # Example codes are here.
     add_subdirectory(examples)
 endif()
