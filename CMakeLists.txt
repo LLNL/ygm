@@ -74,6 +74,34 @@ FetchContent_MakeAvailable(cereal)
 
 option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
 
+option(YGM_INSTALL "Generate the install target" ${YGM_MAIN_PROJECT})
+if(YGM_INSTALL)
+    include(CMakePackageConfigHelpers)
+
+    install(TARGETS cereal EXPORT ${PROJECT_NAME}Targets)
+    install(DIRECTORY include/ygm DESTINATION include)
+
+    set(configFile ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake)
+    set(versionFile ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake)
+    set(configInstallDestination lib/cmake/${PROJECT_NAME})
+
+    configure_package_config_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/Config.cmake.in
+	${configFile}
+	INSTALL_DESTINATION ${configInstallDestination}
+    )
+
+    install(FILES ${configFile} ${versionFile} DESTINATION ${configInstallDestination})
+    install(
+	EXPORT ${PROJECT_NAME}Targets
+	NAMESPACE "ygm::"
+	DESTINATION ${configInstallDestination}
+    )
+endif()
+
+
+
+
 # Header-only library, so likely not have src dir 
 # add_subdirectory(src)
 
