@@ -78,7 +78,7 @@ option(YGM_INSTALL "Generate the install target" ${YGM_MAIN_PROJECT})
 if(YGM_INSTALL)
     include(CMakePackageConfigHelpers)
 
-    install(TARGETS cereal EXPORT ${PROJECT_NAME}Targets)
+    install(TARGETS ygm EXPORT ${PROJECT_NAME}Targets)
     install(DIRECTORY include/ygm DESTINATION include)
 
     set(configFile ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake)
