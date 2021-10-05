@@ -12,11 +12,11 @@ project(YGM
     LANGUAGES CXX)
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-    set(YGM_MAIN_PROJECT ON)
+    set(YGM_MAIN_PROJECT TRUE)
 endif()
 
 # Only do these if this is the main project, and not if it is included through add_subdirectory
-if(CMAKE_MAIN_PROJECT)
+if(YGM_MAIN_PROJECT)
 
     # Let's nicely support folders in IDE's
     set_property(GLOBAL PROPERTY USE_FOLDERS ON)
