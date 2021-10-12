@@ -54,23 +54,34 @@ target_compile_features(ygm INTERFACE cxx_std_17)
 # MPI is required
 #
 find_package(MPI REQUIRED)
-
-#
-# Boost
-#
-find_package(Boost 1.75 REQUIRED)
+target_link_libraries(ygm INTERFACE MPI::MPI_CXX)
 
 #
 # Cereal
 #
-include(FetchContent)
-set(JUST_INSTALL_CEREAL ON)
-FetchContent_Declare(
+find_package(cereal QUIET)
+if(NOT cereal_FOUND)
+    include(FetchContent)
+    set(JUST_INSTALL_CEREAL ON)
+    FetchContent_Declare(
         cereal
         GIT_REPOSITORY https://github.com/USCiLab/cereal
         GIT_TAG        af0700efb25e7dc7af637b9e6f970dbb94813bff
-)
-FetchContent_MakeAvailable(cereal)
+    )
+    FetchContent_MakeAvailable(cereal)
+    message("Cloned cereal " ${cereal_SOURCE_DIR})
+else()
+    message("Found cereal " ${cereal_SOURCE_DIR})
+endif()
+target_link_libraries(ygm INTERFACE cereal)
+
+#
+# Boost
+#
+find_package(Boost 1.75)
+if(Boost_FOUND)
+    target_link_libraries(ygm INTERFACE Boost)
+endif()
 
 option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
 
