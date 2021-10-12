@@ -69,9 +69,9 @@ if(NOT cereal_FOUND)
         GIT_TAG        af0700efb25e7dc7af637b9e6f970dbb94813bff
     )
     FetchContent_MakeAvailable(cereal)
-    message("Cloned cereal " ${cereal_SOURCE_DIR})
+    message("YGM cloned cereal dependency: " ${cereal_SOURCE_DIR})
 else()
-    message("Found cereal " ${cereal_SOURCE_DIR})
+    message("YGM found cereal dependency: " ${cereal_DIR})
 endif()
 target_link_libraries(ygm INTERFACE cereal)
 
