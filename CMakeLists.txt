@@ -79,9 +79,11 @@ target_link_libraries(ygm INTERFACE cereal)
 # Boost
 #
 find_package(Boost 1.75)
-if(Boost_FOUND)
-    target_link_libraries(ygm INTERFACE Boost)
-endif()
+
+# Should we do this, or leave it up to the user to link boost when it is needed? 
+#if(Boost_FOUND) 
+#    target_link_libraries(ygm INTERFACE ${BOOST_INCLUDE_DIRS})
+#endif()
 
 option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
 
