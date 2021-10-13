@@ -69,16 +69,21 @@ if(NOT cereal_FOUND)
         GIT_TAG        af0700efb25e7dc7af637b9e6f970dbb94813bff
     )
     FetchContent_MakeAvailable(cereal)
-    message("YGM cloned cereal dependency: " ${cereal_SOURCE_DIR})
+    message("-- YGM cloned cereal dependency: " ${cereal_SOURCE_DIR})
 else()
-    message("YGM found cereal dependency: " ${cereal_DIR})
+    message("-- YGM found cereal dependency: " ${cereal_DIR})
 endif()
 target_link_libraries(ygm INTERFACE cereal)
 
 #
 # Boost
 #
+#find_package(Boost 1.75 COMPONENTS json)  # this would be better, but is not working on LC
 find_package(Boost 1.75)
+if (Boost_FOUND)
+    message("-- YGM found Boost libraries: " ${Boost_LIBRARIES})
+    message("-- YGM found boost include dirs: " ${Boost_INCLUDE_DIRS})
+endif()
 
 # Should we do this, or leave it up to the user to link boost when it is needed? 
 #if(Boost_FOUND) 
@@ -91,7 +96,7 @@ option(YGM_INSTALL "Generate the install target" ${YGM_MAIN_PROJECT})
 if(YGM_INSTALL)
     include(CMakePackageConfigHelpers)
 
-    install(TARGETS ygm EXPORT ${PROJECT_NAME}Targets)
+    install(TARGETS ygm cereal EXPORT ${PROJECT_NAME}Targets)
     install(DIRECTORY include/ygm DESTINATION include)
 
     set(configFile ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake)
