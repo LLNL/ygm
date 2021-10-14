@@ -54,7 +54,8 @@ target_compile_features(ygm INTERFACE cxx_std_17)
 # MPI is required
 #
 find_package(MPI REQUIRED)
-target_link_libraries(ygm INTERFACE MPI::MPI_CXX)
+find_package(OpenMP REQUIRED)
+target_link_libraries(ygm INTERFACE MPI::MPI_CXX OpenMP::OpenMP_CXX)
 
 #
 # Cereal
@@ -96,7 +97,11 @@ option(YGM_INSTALL "Generate the install target" ${YGM_MAIN_PROJECT})
 if(YGM_INSTALL)
     include(CMakePackageConfigHelpers)
 
-    install(TARGETS ygm cereal EXPORT ${PROJECT_NAME}Targets)
+    if(cereal_FOUND)
+	install(TARGETS ygm EXPORT ${PROJECT_NAME}Targets)
+    else()
+	install(TARGETS ygm cereal EXPORT ${PROJECT_NAME}Targets)
+    endif()
     install(DIRECTORY include/ygm DESTINATION include)
 
     set(configFile ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake)

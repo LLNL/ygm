@@ -38,8 +38,6 @@ function ( add_mpi_test test_name )
 endfunction()
 
 
-find_package(OpenMP)
-
 #
 # This function adds an MPI + OpenMP test.
 #
@@ -47,7 +45,6 @@ function ( add_mpi_omp_test test_name )
   set(test_source "${test_name}.cpp")
   set(test_exe    "test_MPI_OMP_${test_name}")
   add_executable(${test_exe} ${test_source})
-  target_link_libraries(${test_exe} OpenMP::OpenMP_CXX)
   target_link_libraries(${test_exe} ygm)
   if(UNIX AND NOT APPLE)
     target_link_libraries(${test_exe} rt)
