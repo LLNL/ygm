@@ -3,8 +3,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-# Works with 3.11 and tested through 3.15 (not tested yet)
-cmake_minimum_required(VERSION 3.11...3.15)
+cmake_minimum_required(VERSION 3.14)
 
 project(YGM
     VERSION 0.2
@@ -12,7 +11,7 @@ project(YGM
     LANGUAGES CXX)
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-    set(YGM_MAIN_PROJECT TRUE)
+    set(YGM_MAIN_PROJECT ON)
 endif()
 
 # Only do these if this is the main project, and not if it is included through add_subdirectory
@@ -42,6 +41,9 @@ if(EXISTS "${LOC_PATH}")
     message(FATAL_ERROR "You cannot build in a source directory (or any directory with a CMakeLists.txt file). Please make a build subdirectory. Feel free to remove CMakeCache.txt and CMakeFiles.")
 endif()
 
+#
+# Create the YGM target library
+#
 add_library(ygm INTERFACE)
 add_library(YGM::ygm ALIAS ygm)
 target_include_directories(ygm INTERFACE
@@ -51,18 +53,20 @@ target_include_directories(ygm INTERFACE
 target_compile_features(ygm INTERFACE cxx_std_17)
 
 #
-# MPI is required
+# MPI and Threads are required
 #
 find_package(MPI REQUIRED)
-find_package(OpenMP REQUIRED)
-target_link_libraries(ygm INTERFACE MPI::MPI_CXX OpenMP::OpenMP_CXX)
+find_package(Threads REQUIRED)
+target_link_libraries(ygm INTERFACE MPI::MPI_CXX Threads::Threads)
+
+# prepare to FetchContent
+include(FetchContent)
 
 #
 # Cereal
 #
 find_package(cereal QUIET)
-if(NOT cereal_FOUND)
-    include(FetchContent)
+if (NOT cereal_FOUND)
     set(JUST_INSTALL_CEREAL ON)
     FetchContent_Declare(
         cereal
@@ -70,14 +74,17 @@ if(NOT cereal_FOUND)
         GIT_TAG        af0700efb25e7dc7af637b9e6f970dbb94813bff
     )
     FetchContent_MakeAvailable(cereal)
-    message("-- YGM cloned cereal dependency: " ${cereal_SOURCE_DIR})
+    message(STATUS "YGM cloned cereal dependency: " ${cereal_SOURCE_DIR})
 else()
-    message("-- YGM found cereal dependency: " ${cereal_DIR})
+    message(STATUS "YGM found cereal dependency: " ${cereal_DIR})
 endif()
 target_link_libraries(ygm INTERFACE cereal)
 
 #
 # Boost
+#
+# only required by ygm/detail/cereal_boost_json.hpp. YGM will build if Boost is not found.
+# The user must manually link to executable.
 #
 #find_package(Boost 1.75 COMPONENTS json)  # this would be better, but is not working on LC
 find_package(Boost 1.75)
@@ -85,11 +92,6 @@ if (Boost_FOUND)
     message("-- YGM found Boost libraries: " ${Boost_LIBRARIES})
     message("-- YGM found boost include dirs: " ${Boost_INCLUDE_DIRS})
 endif()
-
-# Should we do this, or leave it up to the user to link boost when it is needed? 
-#if(Boost_FOUND) 
-#    target_link_libraries(ygm INTERFACE ${BOOST_INCLUDE_DIRS})
-#endif()
 
 option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
 
@@ -127,12 +129,7 @@ if(JUST_INSTALL_YGM)
     return()
 endif()
 
-# Header-only library, so likely not have src dir 
-# add_subdirectory(src)
-
 # Testing & examples are only available if this is the main app
-# Emergency override MODERN_CMAKE_BUILD_TESTING provided as well
-#if((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR MODERN_CMAKE_BUILD_TESTING) AND BUILD_TESTING)
 if(YGM_MAIN_PROJECT)
     add_subdirectory(test)
     add_subdirectory(performance)
