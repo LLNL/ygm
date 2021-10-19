@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
   std::vector<size_t> my_unions;
 
   for (size_t i = local_offset; i < local_offset + num_local_unions; ++i) {
-    my_unions.push_back(i);
+    my_unions.push_back(i + 1);
   }
 
   std::random_device rd;
@@ -43,6 +43,7 @@ int main(int argc, char **argv) {
 
   double cumulative_union_time{0.0};
   double cumulative_compress_time{0.0};
+  double cumulative_star_compress_time{0.0};
 
   for (int trial = 0; trial < num_trials; ++trial) {
     world.cout0("\n********** Trial ", trial + 1, " **********");
@@ -50,6 +51,7 @@ int main(int argc, char **argv) {
 
     std::shuffle(my_unions.begin(), my_unions.end(), g);
 
+    world.reset_rpc_call_counter();
     world.barrier();
 
     ygm::timer union_timer{};
@@ -64,6 +66,13 @@ int main(int argc, char **argv) {
     world.cout0("Union time: ", union_time);
     cumulative_union_time += union_time;
 
+    world.cout0("\tMin RPC calls: ",
+                world.all_reduce_min(world.local_rpc_calls()));
+    world.cout0("\tMax RPC calls: ",
+                world.all_reduce_max(world.local_rpc_calls()));
+
+    world.reset_rpc_call_counter();
+
     world.barrier();
 
     ygm::timer compress_timer{};
@@ -75,11 +84,54 @@ int main(int argc, char **argv) {
     double compress_time = compress_timer.elapsed();
     world.cout0("Compress time: ", compress_time);
     cumulative_compress_time += compress_time;
+
+    world.cout0("\tMin RPC calls: ",
+                world.all_reduce_min(world.local_rpc_calls()));
+    world.cout0("\tMax RPC calls: ",
+                world.all_reduce_max(world.local_rpc_calls()));
+
+    // Checking answer
+    auto my_parents_star = dset.all_find(my_unions);
+
+    for (const auto &item_parent : my_parents_star) {
+      ASSERT_RELEASE(item_parent.second == 1);
+    }
+
+    world.reset_rpc_call_counter();
+
+    world.barrier();
+
+    compress_timer.reset();
+
+    dset.all_compress();
+
+    world.barrier();
+
+    double star_compress_time = compress_timer.elapsed();
+    world.cout0("Star compress time: ", star_compress_time);
+    cumulative_star_compress_time += star_compress_time;
+
+    world.cout0("\tMin RPC calls: ",
+                world.all_reduce_min(world.local_rpc_calls()));
+    world.cout0("\tMax RPC calls: ",
+                world.all_reduce_max(world.local_rpc_calls()));
+
+    // Checking answer
+    auto my_parents = dset.all_find(my_unions);
+
+    for (const auto &item_parent : my_parents) {
+      ASSERT_RELEASE(item_parent.second == 1);
+    }
+
+    world.reset_rpc_call_counter();
+    world.barrier();
   }
 
   world.cout0("\n********** Summary **********");
   world.cout0("Average union time: ", cumulative_union_time / num_trials);
   world.cout0("Average compress time: ", cumulative_compress_time / num_trials);
+  world.cout0("Average star compress time: ",
+              cumulative_star_compress_time / num_trials);
 
   return 0;
 }

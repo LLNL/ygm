@@ -105,31 +105,58 @@ class disjoint_set_impl {
 
     static std::set<value_type>    active_set;
     static std::vector<value_type> active_set_to_remove;
+    // parents being looked up -> vector<local keys looking up parent>,
+    // grandparent (if returned), active parent (if returned), lookup returned
+    // flag
+    static std::map<value_type,
+                    std::tuple<std::vector<value_type>, value_type, bool, bool>>
+        parent_lookup_map;
 
     active_set.clear();
     active_set_to_remove.clear();
+    parent_lookup_map.clear();
 
     auto find_grandparent_lambda = [](auto p_dset, const value_type &parent,
-                                      const value_type &child) {
+                                      const int inquiring_rank) {
       const value_type &grandparent = p_dset->local_get_parent(parent);
-      const int         return_dest = p_dset->owner(child);
 
       if (active_set.count(parent)) {
-        p_dset->comm().async(return_dest,
-                             [](auto p_dset, const value_type &item,
+        p_dset->comm().async(inquiring_rank,
+                             [](auto p_dset, const value_type &parent,
                                 const value_type &grandparent) {
-                               p_dset->local_set_parent(item, grandparent);
+                               auto &inquiry_tuple = parent_lookup_map[parent];
+                               std::get<1>(inquiry_tuple) = grandparent;
+                               std::get<2>(inquiry_tuple) = true;
+                               std::get<3>(inquiry_tuple) = true;
+
+                               // Process all waiting lookups
+                               auto &child_vec = std::get<0>(inquiry_tuple);
+                               for (const auto &child : child_vec) {
+                                 p_dset->local_set_parent(child, grandparent);
+                               }
+
+                               child_vec.clear();
                              },
-                             p_dset, child, grandparent);
+                             p_dset, parent, grandparent);
       } else {
-        p_dset->comm().async(
-            return_dest,
-            [](auto p_dset, const value_type &item,
-               const value_type &grandparent) {
-              p_dset->local_set_parent(item, grandparent);
-              active_set_to_remove.push_back(item);  // Remove from active set
-            },
-            p_dset, child, grandparent);
+        p_dset->comm().async(inquiring_rank,
+                             [](auto p_dset, const value_type &parent,
+                                const value_type &grandparent) {
+                               auto &inquiry_tuple = parent_lookup_map[parent];
+                               std::get<1>(inquiry_tuple) = grandparent;
+                               std::get<2>(inquiry_tuple) = true;
+                               std::get<3>(inquiry_tuple) = false;
+
+                               // Process all waiting lookups
+                               auto &child_vec = std::get<0>(inquiry_tuple);
+                               for (const auto &child : child_vec) {
+                                 p_dset->local_set_parent(child, grandparent);
+                                 active_set_to_remove.push_back(child);
+                               }
+
+                               child_vec.clear();
+                             },
+                             p_dset, parent, grandparent);
       }
     };
 
@@ -143,8 +170,28 @@ class disjoint_set_impl {
     while (m_comm.all_reduce_sum(active_set.size())) {
       for (const auto &item : active_set) {
         const value_type &parent = local_get_parent(item);
-        const int         dest   = owner(parent);
-        m_comm.async(dest, find_grandparent_lambda, pthis, parent, item);
+
+        auto parent_lookup_iter = parent_lookup_map.find(parent);
+        // Already seen this parent
+        if (parent_lookup_iter != parent_lookup_map.end()) {
+          // Already found grandparent
+          if (std::get<2>(parent_lookup_iter->second)) {
+            local_set_parent(item, std::get<1>(parent_lookup_iter->second));
+            if (!std::get<3>(parent_lookup_iter->second)) {
+              active_set_to_remove.push_back(item);
+            }
+          } else {  // Grandparent hasn't returned yet
+            std::get<0>(parent_lookup_iter->second).push_back(item);
+          }
+        } else {  // Need to look up grandparent
+          parent_lookup_map.emplace(std::make_pair(
+              parent, std::make_tuple(std::vector<value_type>({item}), parent,
+                                      false, true)));
+
+          const int dest = owner(parent);
+          m_comm.async(dest, find_grandparent_lambda, pthis, parent,
+                       m_comm.rank());
+        }
       }
       m_comm.barrier();
 
@@ -152,6 +199,7 @@ class disjoint_set_impl {
         active_set.erase(item);
       }
       active_set_to_remove.clear();
+      parent_lookup_map.clear();
     }
   }
 
