@@ -5,7 +5,7 @@
 
 cmake_minimum_required(VERSION 3.14)
 
-project(YGM
+project(ygm
     VERSION 0.2
     DESCRIPTION "HPC Communication Library"
     LANGUAGES CXX)
@@ -45,7 +45,7 @@ endif()
 # Create the YGM target library
 #
 add_library(ygm INTERFACE)
-add_library(YGM::ygm ALIAS ygm)
+add_library(ygm::ygm ALIAS ygm)
 target_include_directories(ygm INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
@@ -89,39 +89,58 @@ target_link_libraries(ygm INTERFACE cereal)
 #find_package(Boost 1.75 COMPONENTS json)  # this would be better, but is not working on LC
 find_package(Boost 1.75)
 if (Boost_FOUND)
-    message("-- YGM found Boost libraries: " ${Boost_LIBRARIES})
-    message("-- YGM found boost include dirs: " ${Boost_INCLUDE_DIRS})
+    message(STATUS "YGM found Boost libraries: " ${Boost_LIBRARIES})
+    message(STATUS "YGM found boost include dirs: " ${Boost_INCLUDE_DIRS})
+else()
+    message(WARNING "YGM did not find Boost >=1.75. Building without Boost.")
 endif()
 
 option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
 
+
+# Install ygm. Expects CMAKE_INSTALL_PREFIX to be set to a suitable directory.
 option(YGM_INSTALL "Generate the install target" ${YGM_MAIN_PROJECT})
-if(YGM_INSTALL)
+if(${YGM_INSTALL})
+    include(GNUInstallDirs)
     include(CMakePackageConfigHelpers)
 
-    if(cereal_FOUND)
-	install(TARGETS ygm EXPORT ${PROJECT_NAME}Targets)
-    else()
-	install(TARGETS ygm cereal EXPORT ${PROJECT_NAME}Targets)
+    # List libraries to be installed
+    set(YGM_EXPORT_TARGETS ygm)
+    if(NOT cereal_FOUND)
+        # If cereal is not installed in the system, include the cloned headers as a dependency.
+	set(YGM_EXPORT_TARGETS ${YGM_EXPORT_TARGETS} cereal)
     endif()
-    install(DIRECTORY include/ygm DESTINATION include)
 
-    set(configFile ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake)
-    set(versionFile ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake)
-    set(configInstallDestination lib/cmake/${PROJECT_NAME})
+    install(TARGETS ${YGM_EXPORT_TARGETS}
+	    EXPORT ${PROJECT_NAME}Targets
+	    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
+    install(EXPORT ${PROJECT_NAME}Targets
+            FILE ${PROJECT_NAME}Targets.cmake
+	    NAMESPACE ${PROJECT_NAME}::
+	    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake)
+
+    install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ygm DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+    # create version file
+    write_basic_package_version_file(
+        "${PROJECT_NAME}ConfigVersion.cmake"
+	VERSION ${PROJECT_VERSION}
+	COMPATIBILITY ExactVersion)
+
+    # create config file
     configure_package_config_file(
-        ${CMAKE_CURRENT_SOURCE_DIR}/Config.cmake.in
-	${configFile}
-	INSTALL_DESTINATION ${configInstallDestination}
-    )
+        "${PROJECT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in"
+	"${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+	INSTALL_DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake)
 
-    install(FILES ${configFile} ${versionFile} DESTINATION ${configInstallDestination})
-    install(
-	EXPORT ${PROJECT_NAME}Targets
-	NAMESPACE "ygm::"
-	DESTINATION ${configInstallDestination}
-    )
+    install(FILES
+            "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+	    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+	    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake)
+
 endif()
 
 
