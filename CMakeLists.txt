@@ -89,7 +89,7 @@ target_link_libraries(ygm INTERFACE cereal)
 #find_package(Boost 1.75 COMPONENTS json)  # this would be better, but is not working on LC
 find_package(Boost 1.75)
 if (Boost_FOUND)
-    message(STATUS "YGM found Boost libraries: " ${Boost_LIBRARIES})
+#    message(STATUS "YGM found Boost libraries: " ${Boost_LIBRARIES})
     message(STATUS "YGM found boost include dirs: " ${Boost_INCLUDE_DIRS})
 else()
     message(WARNING "YGM did not find Boost >=1.75. Building without Boost.")
