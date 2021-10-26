@@ -16,7 +16,7 @@ int main(int argc, char **argv) {
   if (world.rank0()) {
     my_maptrix.async_insert("row1", "row2", "val1");
     my_maptrix.async_insert("row1", "row3", "val7");
-    my_maptrix.async_insert("row1", "row1001", "val8");
+    //my_maptrix.async_insert("row1", "row1001", "val8");
     
     my_maptrix.async_insert("row2", "row3",     "val2");
     my_maptrix.async_insert("row2", "row1003",  "val15");
@@ -40,10 +40,25 @@ int main(int argc, char **argv) {
   auto ijk_lambda = [&my_maptrix](auto row, auto col, auto value) {
     auto &mptrx_comm = my_maptrix.comm();
     int rank         = mptrx_comm.rank();
-    std::cout << "In rank: " << rank << ", row: " << row << ", col: " << col << "val: " << value << std::endl;
+    std::cout << "In rank: " << rank << ", key1: " << row << ", key2: " << col << ", val: " << value << std::endl;
   };
   my_maptrix.for_all(ijk_lambda);
-  world.barrier();
+  /* At a barrier point, are we expecting all
+    * asynchronously launched fns to have finished 
+    * processing? */
+  world.barrier(); 
+
+  auto visit_lambda = [](auto key1, auto key2, auto value, 
+                          int val1,
+                          //, const std::string val2) {
+                          //const std::string val2) {
+                          float val2) {
+    std::cout << "Key1: " << key1 << ", Key2: " << key2
+              << ", Value: " << value << ", Val1: " << val1 
+              << ", Val2: " << val2
+              << std::endl;
+  };
+  my_maptrix.async_visit_if_exists("row1", "row2", visit_lambda, 1023, 1.0);
 
   return 0;
 }

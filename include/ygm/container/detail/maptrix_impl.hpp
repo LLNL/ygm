@@ -28,19 +28,16 @@ class maptrix_impl {
   Partitioner partitioner;
 
   maptrix_impl(ygm::comm &comm) : m_comm(comm), pthis(this), m_default_value{} {
-    //std::cout << "const 1 \n";
     m_comm.barrier();
   }
 
   maptrix_impl(ygm::comm &comm, const value_type &dv)
       : m_comm(comm), pthis(this), m_default_value(dv) {
-    std::cout << "const 2 \n";
     m_comm.barrier();
   }
 
   maptrix_impl(const self_type &rhs)
       : m_comm(rhs.m_comm), pthis(this), m_default_value(rhs.m_default_value) {
-    std::cout << "const 3 \n";
     m_comm.barrier();
     m_row_map.insert(std::begin(rhs.m_row_map), std::end(rhs.m_col_map));
     m_comm.barrier();
@@ -52,28 +49,29 @@ class maptrix_impl {
     auto row_inserter = [](auto mailbox, int from, auto pmaptrix, 
                        const key_type &row, const key_type &col,
                        const value_type &value) {
-      //std::cout << "Row Inserter: " << row << " " << col << " " << value << "\n"; 
       pmaptrix->m_row_map[row].insert(std::make_pair(col, value));
     };
+
     auto col_inserter = [](auto mailbox, int from, auto pmaptrix, 
                        const key_type &row, const key_type &col,
                        const value_type &value) {
-      //std::cout << "Col Inserter: " << row << " " << col << " " << value << "\n" ; 
       pmaptrix->m_col_map[col].insert(std::make_pair(row, value));
     };
-    int dest = owner(row);
+
+    int dest = owner(row, col);
     m_comm.async(dest, row_inserter, pthis, row, col, value);
-    dest = owner(col);
+
+    dest = owner(col, row);
     m_comm.async(dest, col_inserter, pthis, row, col, value);
   }
 
-  int owner(const key_type &key) const {
-    auto [owner, rank] = partitioner(key, m_comm.size(), 1024);
+  int owner(const key_type &row, const key_type &col) const {
+    auto [owner, rank] = partitioner(row, m_comm.size(), 1024);
     return owner;
   }
 
-  bool is_mine(const key_type &key) const {
-    return owner(key) == m_comm.rank();
+  bool is_mine(const key_type &row, const key_type &col) const {
+    return owner(row, col) == m_comm.rank();
   }
 
   ygm::comm &comm() { return m_comm; }
@@ -81,18 +79,23 @@ class maptrix_impl {
   template <typename Function>
   void local_for_all(Function fn) {
     auto fn_wrapper = [fn](auto &e) {
-      std::cout << "Within row: " << e.first << std::endl;
-      key_type row            = e.first;
-      inner_map_type col_map  = e.second;
-      for (auto itr = col_map.begin(); itr != col_map.end(); ++itr) {
-        key_type col      = itr->first;
-        value_type value  = itr->second;
-        fn(row, col, value);
+      std::cout << "Using key: " << e.first << std::endl;
+      key_type outer_key        = e.first;
+      inner_map_type &inner_map = e.second;
+      for (auto itr = inner_map.begin(); itr != inner_map.end(); ++itr) {
+        key_type inner_key      = itr->first;
+        value_type value        = itr->second;
+        fn(outer_key, inner_key, value);
       }
     }; 
 
     std::for_each(m_row_map.begin(), m_row_map.end(), fn_wrapper);
+    /* Visit both? -- separate out to row/col? */
+    /* This depends on whether we're supporting updates 
+      * to row-map and column map..*/
+    //std::for_each(m_col_map.begin(), m_col_map.end(), fn_wrapper);
   }
+
 
   template <typename Function>
   void for_all(Function fn) {
@@ -100,36 +103,74 @@ class maptrix_impl {
     local_for_all(fn);
   }
 
+  template <typename... VisitorArgs>
+  void print_all(std::ostream& os, VisitorArgs const&... args) {
+    ((os << args), ...);
+  }
 
-  #ifdef impl_visit
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_if_exists(const key_type &row, const key_type &col, 
           Visitor visitor, const VisitorArgs &...args) {
-    auto visit_wrapper = [](auto pcomm, int from, auto pmaptrix,
+
+    //Debug..
+    //print_all(std::cout, args...);
+    //std::cout << std::endl;
+
+    auto row_visit_wrapper = [](auto pcomm, int from, auto pmaptrix,
                             const key_type &row, const key_type &col, const VisitorArgs &...args) {
       Visitor *vis;
-      pmaptrix->local_visit(row, col, *vis, from, args...);
+      pmaptrix->local_visit_row(row, col, *vis, from, args...);
     };
 
     /* Expect to find all column entries of row id where 
       * row is located. */
-    int  dest          = owner(row, col);
-    m_comm.async(dest, visit_wrapper, pthis, row, col,
+    int dest = owner(row, col);
+    m_comm.async(dest, row_visit_wrapper, pthis, row, col,
                  std::forward<const VisitorArgs>(args)...);
+
+    #ifdef col_visitor
+    /* Are lambdas also expected to modify data? */
+    /* Should you then modify column entries too? */
+    auto col_visit_wrapper = [](auto pcomm, int from, auto pmaptrix,
+                            const key_type &row, const key_type &col, const VisitorArgs &...args) {
+      Visitor *vis;
+      pmaptrix->local_visit_col(row, col, *vis, from, args...);
+    };
+    dest = owner(col, row);
+    m_comm.async(dest, col_visit_wrapper, pthis, row, col,
+                std::forward<const VisitorArgs>(args)...);
+    #endif
   }
 
+
   template <typename Function, typename... VisitorArgs>
-  void local_visit(const key_type &row, const key_type &col, 
+  void local_visit_row(const key_type &row, const key_type &col, 
+                   Function &fn, const int from, const VisitorArgs &...args) {
+    /* Fetch the row map, key: col id, value: val. */
+    inner_map_type col_map  = m_row_map[row];
+    value_type value        = col_map[col];
+
+    /* Assuming this changes the value at row, col. */
+    ygm::meta::apply_optional(fn, std::make_tuple(pthis, from),
+                                std::forward_as_tuple(row, col, value, args...));
+  }
+
+
+  #ifdef impl_visit
+  template <typename Function, typename... VisitorArgs>
+  void local_visit_col(const key_type &row, const key_type &col, 
                    Function &fn, const int from,
                    const VisitorArgs &...args) {
     /* Fetch the row map, key: col id, value: val. */
-    auto row_map      = m_local_map.find(row)->first;
-    value_type value  = row_map.find(col);
+    inner_map_type row_map  = m_col_map[col];
+    const value_type value  = row_map[row];
+
     /* Assuming this changes the value at row, col. */
     ygm::meta::apply_optional(fn, std::make_tuple(pthis, from),
-                                std::forward_as_tuple(*value, args...));
+                                std::forward_as_tuple(row, col, value, args...));
   }
   #endif
+
 
   #ifdef other_local_fns
   /* Expect the row data and column data of an identifier to be 
@@ -146,7 +187,7 @@ class maptrix_impl {
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_col_if_exists(const key_type &col, Visitor visitor,
                              const VisitorArgs &...args) {
-    int  dest          = owner(col);
+    int  dest          = owner(row, col);
     auto visit_wrapper = [](auto pcomm, int from, auto pmaptrix,
                             const key_type &col, const VisitorArgs &...args) {
       Visitor *vis;
