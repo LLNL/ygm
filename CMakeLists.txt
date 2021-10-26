@@ -45,7 +45,6 @@ endif()
 # Create the YGM target library
 #
 add_library(ygm INTERFACE)
-add_library(ygm::ygm ALIAS ygm)
 target_include_directories(ygm INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
@@ -67,12 +66,12 @@ include(FetchContent)
 #
 find_package(cereal QUIET)
 if (NOT cereal_FOUND)
-    set(JUST_INSTALL_CEREAL ON)
     FetchContent_Declare(
         cereal
         GIT_REPOSITORY https://github.com/USCiLab/cereal
         GIT_TAG        af0700efb25e7dc7af637b9e6f970dbb94813bff
     )
+    set(JUST_INSTALL_CEREAL ON)
     FetchContent_MakeAvailable(cereal)
     message(STATUS "YGM cloned cereal dependency: " ${cereal_SOURCE_DIR})
 else()
@@ -89,7 +88,6 @@ target_link_libraries(ygm INTERFACE cereal)
 #find_package(Boost 1.75 COMPONENTS json)  # this would be better, but is not working on LC
 find_package(Boost 1.75)
 if (Boost_FOUND)
-#    message(STATUS "YGM found Boost libraries: " ${Boost_LIBRARIES})
     message(STATUS "YGM found boost include dirs: " ${Boost_INCLUDE_DIRS})
 else()
     message(WARNING "YGM did not find Boost >=1.75. Building without Boost.")
@@ -123,6 +121,12 @@ if(${YGM_INSTALL})
 	    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake)
 
     install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ygm DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+    if(NOT cereal_FOUND)
+    	# if we cloned cereal, install the headers
+        install(DIRECTORY ${PROJECT_BINARY_DIR}/_deps/cereal-src/include/cereal
+	        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    endif()
 
     # create version file
     write_basic_package_version_file(
