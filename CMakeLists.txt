@@ -45,6 +45,7 @@ endif()
 # Create the YGM target library
 #
 add_library(ygm INTERFACE)
+add_library(ygm::ygm ALIAS ygm)
 target_include_directories(ygm INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
