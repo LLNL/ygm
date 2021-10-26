@@ -112,7 +112,7 @@ class maptrix_impl {
   void async_visit_if_exists(const key_type &row, const key_type &col, 
           Visitor visitor, const VisitorArgs &...args) {
 
-    //Debug..
+    //For debug..
     //print_all(std::cout, args...);
     //std::cout << std::endl;
 
@@ -147,48 +147,36 @@ class maptrix_impl {
   void local_visit_row(const key_type &row, const key_type &col, 
                    Function &fn, const int from, const VisitorArgs &...args) {
     /* Fetch the row map, key: col id, value: val. */
-    inner_map_type col_map  = m_row_map[row];
-    value_type value        = col_map[col];
+    inner_map_type &col_map = m_row_map[row];
+    /* Should you use find here? What if it doen't exist? */
+    //inner_map_type &col_map = m_row_map.find(row)->second;
+
+    value_type value  = col_map[col];
 
     /* Assuming this changes the value at row, col. */
     ygm::meta::apply_optional(fn, std::make_tuple(pthis, from),
                                 std::forward_as_tuple(row, col, value, args...));
   }
 
-
-  #ifdef impl_visit
   template <typename Function, typename... VisitorArgs>
   void local_visit_col(const key_type &row, const key_type &col, 
                    Function &fn, const int from,
                    const VisitorArgs &...args) {
     /* Fetch the row map, key: col id, value: val. */
-    inner_map_type row_map  = m_col_map[col];
-    const value_type value  = row_map[row];
+    inner_map_type &row_map = m_col_map[col];
+    value_type value  = row_map[row];
 
     /* Assuming this changes the value at row, col. */
     ygm::meta::apply_optional(fn, std::make_tuple(pthis, from),
                                 std::forward_as_tuple(row, col, value, args...));
   }
-  #endif
-
-
-  #ifdef other_local_fns
-  /* Expect the row data and column data of an identifier to be 
-      ** stored in the same node. */
-  template <typename Function>
-  void col_local_for_all(const key_type &col, Function fn, const int from,
-                   const VisitorArgs &...args) {
-    /* Fetch the col map, key: row id, value: val. */
-    inner_map_type col_map = m_local_map.find(col)->second;
-    /* How do you use pthis and from in this statement? */
-    std::for_each(col_map.begin(), col_map.end(), fn);
-  }
 
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_col_if_exists(const key_type &col, Visitor visitor,
                              const VisitorArgs &...args) {
-    int  dest          = owner(row, col);
-    auto visit_wrapper = [](auto pcomm, int from, auto pmaptrix,
+    /* !!!!!!!!!!!!!!  This is weird  !!!!!!!!!!!!!!!!!!!!! */
+    int  dest          = owner(col, col);
+    auto col_visit_wrapper = [](auto pcomm, int from, auto pmaptrix,
                             const key_type &col, const VisitorArgs &...args) {
       Visitor *vis;
       /* Assume the data of the column to be in
@@ -196,10 +184,70 @@ class maptrix_impl {
       pmaptrix->col_local_for_all(col, *vis, from, args...);
     };
 
-    m_comm.async(dest, visit_wrapper, pthis, key,
+    m_comm.async(dest, col_visit_wrapper, pthis, col,
                  std::forward<const VisitorArgs>(args)...);
+
+    /* Row visitor wrapper that will send an async visit to 
+      * every row that will have this column..  */
+    auto row_visit_wrapper = [](auto pcomm, int from, auto pmaptrix,
+                            const key_type &row, const key_type &col, const VisitorArgs &...args) {
+      Visitor *vis;
+      pmaptrix->col_local_visit_row(col, *vis, from, args...);
+    };
+
+    m_comm.async(dest, col_visit_wrapper, pthis, col,
+                 std::forward<const VisitorArgs>(args)...); 
   }
 
+  template <typename Function, typename... VisitorArgs>
+  void col_local_visit_row(const key_type &col, Function fn, const int from,
+                   const VisitorArgs &...args) {
+    /* Fetch the col map, key: row id, value: val. */
+    inner_map_type &row_map = m_col_map.find(col)->second;
+    auto row_visit_wrapper = [](auto pcomm, int from, auto pmaptrix,
+                            const key_type &row, const key_type &col, const VisitorArgs &...args) {
+      Function *vis;
+      pmaptrix->local_visit_row(row, col, *vis, from, args...);
+    };
+
+    int dest; 
+    for (auto itr = row_map.begin(); itr != row_map.end(); ++itr) {
+      key_type row      = itr->first;
+      dest = owner(row, col);
+      value_type value  = itr->second;
+      std::cout << "Sending msg to: " << row << " " << value << std::endl;
+      m_comm.async(dest, row_visit_wrapper, pthis, row, col,
+                 std::forward<const VisitorArgs>(args)...);
+    }
+  }
+
+  /* Expect the row data and column data of an identifier to be 
+      ** stored in the same node. */
+  template <typename Function, typename... VisitorArgs>
+  void col_local_for_all(const key_type &col, Function fn, const int from,
+                   const VisitorArgs &...args) {
+    //inner_map_type &row_map = m_col_map.find(col)->second;
+    //std::for_each(row_map.begin(), row_map.end(), fn);
+    
+    auto fn_wrapper = [fn, ...args = std::forward<const VisitorArgs>(args)](auto &e) {
+      std::cout << "ColVisit: Using key: " << e.first << std::endl;
+      key_type outer_key        = e.first;
+      inner_map_type &inner_map = e.second;
+      for (auto itr = inner_map.begin(); itr != inner_map.end(); ++itr) {
+        key_type inner_key      = itr->first;
+        value_type value        = itr->second;
+        fn(outer_key, inner_key, value, args...);
+      }
+    }; 
+
+    std::for_each(m_col_map.begin(), m_col_map.end(), fn_wrapper);
+  }
+
+  /*****************************************************************************************/
+  /*                                     TO BE IMPLEMENTED                                 */
+  /*****************************************************************************************/
+
+  #ifdef other_local_fns
   void async_erase(const key_type &row, const key_type &col) {
     auto erase_wrapper = [](auto pcomm, int from, auto pmaptrix,
                             const key_type &row, const key_type &col) { pmaptrix->local_erase(row, col); };

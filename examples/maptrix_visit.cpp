@@ -53,12 +53,24 @@ int main(int argc, char **argv) {
                           //, const std::string val2) {
                           //const std::string val2) {
                           float val2) {
-    std::cout << "Key1: " << key1 << ", Key2: " << key2
+    std::cout << "[ASYNC VISIT]:: Key1: " << key1 << ", Key2: " << key2
               << ", Value: " << value << ", Val1: " << val1 
               << ", Val2: " << val2
               << std::endl;
   };
-  my_maptrix.async_visit_if_exists("row1", "row2", visit_lambda, 1023, 1.0);
+
+  //if (world.rank()==0)
+  my_maptrix.async_visit_if_exists("row1", "row1002", visit_lambda, world.rank(), world.rank()+1.0);
+
+  auto visit_col_lambda = [](auto key1, auto key2, auto value, int val1) {
+    std::cout << "[COL VISIT]:: Key1: " << key1 << ", Key2: " << key2
+              << ", Value: " << value << ", Val1: " << val1 
+              << std::endl;
+  };
+  if (!world.rank() % 2)
+    my_maptrix.async_visit_col_if_exists("row1", visit_col_lambda, 1000);
+  else
+    my_maptrix.async_visit_col_if_exists("row1", visit_col_lambda, 2000);
 
   return 0;
 }
