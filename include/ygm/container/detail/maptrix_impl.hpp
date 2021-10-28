@@ -51,18 +51,40 @@ class maptrix_impl {
                        const value_type &value) {
       pmaptrix->m_row_map[row].insert(std::make_pair(col, value));
     };
-
     auto col_inserter = [](auto mailbox, int from, auto pmaptrix, 
                        const key_type &row, const key_type &col,
                        const value_type &value) {
       pmaptrix->m_col_map[col].insert(std::make_pair(row, value));
     };
+    int dest = owner(row, col);
+    m_comm.async(dest, row_inserter, pthis, row, col, value);
+    dest = owner(col, row);
+    m_comm.async(dest, col_inserter, pthis, row, col, value);
+  }
+
+  void async_visit_or_insert(const key_type& row, 
+                              const key_type& col, const value_type& value) {
+    auto row_inserter = [](auto mailbox, int from, auto pmaptrix,
+                       const key_type &row, const key_type &col,
+                       const value_type &value) {
+      if (pmaptrix->m_row_map.find(row) == pmaptrix->m_row_map.end()) {
+        // row not found.
+        pmaptrix->m_row_map[row].insert(std::make_pair(col, value)); 
+      } else { 
+        inner_map_type &col_map = pmaptrix->m_row_map[row];
+        auto col_itr = col_map.find(col);
+        if (col_map.find(col) == col_map.end()) {
+          // column not found, insert.
+          col_map.insert(std::make_pair(col, value));
+        } else {
+          // found and update.
+          col_map[col] = value;
+        } 
+      }
+    };
 
     int dest = owner(row, col);
     m_comm.async(dest, row_inserter, pthis, row, col, value);
-
-    dest = owner(col, row);
-    m_comm.async(dest, col_inserter, pthis, row, col, value);
   }
 
   int owner(const key_type &row, const key_type &col) const {
@@ -128,7 +150,6 @@ class maptrix_impl {
     m_comm.async(dest, row_visit_wrapper, pthis, row, col,
                  std::forward<const VisitorArgs>(args)...);
 
-    #ifdef col_visitor
     /* Are lambdas also expected to modify data? */
     /* Should you then modify column entries too? */
     auto col_visit_wrapper = [](auto pcomm, int from, auto pmaptrix,
@@ -139,9 +160,7 @@ class maptrix_impl {
     dest = owner(col, row);
     m_comm.async(dest, col_visit_wrapper, pthis, row, col,
                 std::forward<const VisitorArgs>(args)...);
-    #endif
   }
-
 
   template <typename Function, typename... VisitorArgs>
   void local_visit_row(const key_type &row, const key_type &col, 
@@ -172,10 +191,12 @@ class maptrix_impl {
   }
 
   template <typename Visitor, typename... VisitorArgs>
-  void async_visit_col_if_exists(const key_type &col, Visitor visitor,
+  void async_visit_col_const(const key_type &col, Visitor visitor,
                              const VisitorArgs &...args) {
+
     /* !!!!!!!!!!!!!!  This is weird  !!!!!!!!!!!!!!!!!!!!! */
-    int  dest          = owner(col, col);
+    int  dest = owner(col, col);
+
     auto col_visit_wrapper = [](auto pcomm, int from, auto pmaptrix,
                             const key_type &col, const VisitorArgs &...args) {
       Visitor *vis;
@@ -186,39 +207,6 @@ class maptrix_impl {
 
     m_comm.async(dest, col_visit_wrapper, pthis, col,
                  std::forward<const VisitorArgs>(args)...);
-
-    /* Row visitor wrapper that will send an async visit to 
-      * every row that will have this column..  */
-    auto row_visit_wrapper = [](auto pcomm, int from, auto pmaptrix,
-                            const key_type &row, const key_type &col, const VisitorArgs &...args) {
-      Visitor *vis;
-      pmaptrix->col_local_visit_row(col, *vis, from, args...);
-    };
-
-    m_comm.async(dest, col_visit_wrapper, pthis, col,
-                 std::forward<const VisitorArgs>(args)...); 
-  }
-
-  template <typename Function, typename... VisitorArgs>
-  void col_local_visit_row(const key_type &col, Function fn, const int from,
-                   const VisitorArgs &...args) {
-    /* Fetch the col map, key: row id, value: val. */
-    inner_map_type &row_map = m_col_map.find(col)->second;
-    auto row_visit_wrapper = [](auto pcomm, int from, auto pmaptrix,
-                            const key_type &row, const key_type &col, const VisitorArgs &...args) {
-      Function *vis;
-      pmaptrix->local_visit_row(row, col, *vis, from, args...);
-    };
-
-    int dest; 
-    for (auto itr = row_map.begin(); itr != row_map.end(); ++itr) {
-      key_type row      = itr->first;
-      dest = owner(row, col);
-      value_type value  = itr->second;
-      std::cout << "Sending msg to: " << row << " " << value << std::endl;
-      m_comm.async(dest, row_visit_wrapper, pthis, row, col,
-                 std::forward<const VisitorArgs>(args)...);
-    }
   }
 
   /* Expect the row data and column data of an identifier to be 
@@ -242,6 +230,37 @@ class maptrix_impl {
 
     std::for_each(m_col_map.begin(), m_col_map.end(), fn_wrapper);
   }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_visit_col_mutate(const key_type& col, Visitor visitor,
+                             const VisitorArgs&... args) {
+
+    /* !!!!!!!!!!!!!!  This is weird  !!!!!!!!!!!!!!!!!!!!! */
+    int  dest = owner(col, col);
+
+    auto col_visit_wrapper = [](auto pcomm, int from, auto pmaptrix,
+                            const key_type &col, const VisitorArgs &...args) {
+      Visitor *vis;
+      pmaptrix->local_col_mutate(col, *vis, from, args...);
+    };
+
+    m_comm.async(dest, col_visit_wrapper, pthis, col,
+                 std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename Function, typename... VisitorArgs>
+  void local_col_mutate(const key_type &col, Function fn, const int from,
+                   const VisitorArgs &...args) {
+
+    inner_map_type &row_map = m_col_map.find(col)->second;
+
+    for (auto itr = row_map.begin(); itr != row_map.end(); ++itr) {
+      key_type row  = itr->first;
+      pthis->async_visit_if_exists(row, col, fn, 
+                                    std::forward<const VisitorArgs>(args)...); 
+    }
+  }
+
 
   /*****************************************************************************************/
   /*                                     TO BE IMPLEMENTED                                 */

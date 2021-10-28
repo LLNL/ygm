@@ -35,10 +35,12 @@ class maptrix {
     m_impl.async_insert(row, col, value);
   }
 
-  /* Ideally implemented as a message which will then generate another message. */
-  bool is_mine(const key_type& row, const key_type& col) const { return m_impl.is_mine(row, col); }
+  void async_visit_or_insert(const key_type& row, const key_type& col, const value_type &value) {
+    m_impl.async_visit_or_insert(row, col, value); 
+  }
 
-  int owner(const key_type& row, const key_type& col) const { return m_impl.owner(row, col); }
+  //bool is_mine(const key_type& row, const key_type& col) const { return m_impl.is_mine(row, col); }
+  //int owner(const key_type& row, const key_type& col) const { return m_impl.owner(row, col); }
 
   template <typename Function>
   void for_all(Function fn) {
@@ -54,30 +56,24 @@ class maptrix {
                                  std::forward<const VisitorArgs>(args)...);
   }
 
-  template <typename Visitor, typename... VisitorArgs>
-  void async_visit_or_insert(const key_type& row, const key_type& col, 
-                             const value_type &value, Visitor visitor, 
-                             const VisitorArgs&... args) {
-    m_impl.async_visit_or_update(row, col, value, visitor, 
-                                 std::forward<const VisitorArgs>(args)...); 
-  }
-
   /* Expect the row-data and col-data of an identifier to be 
     * placed in the same node. */
   template <typename Visitor, typename... VisitorArgs>
-  void async_visit_col_if_exists(const key_type& col, Visitor visitor,
+  void async_visit_col_const(const key_type& col, Visitor visitor,
                              const VisitorArgs&... args) {
-    m_impl.async_visit_col_if_exists(col, visitor, std::forward<const VisitorArgs>(args)...);
+    m_impl.async_visit_col_const(col, visitor, std::forward<const VisitorArgs>(args)...);
   }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_visit_col_mutate(const key_type& col, Visitor visitor,
+                             const VisitorArgs&... args) {
+    m_impl.async_visit_col_mutate(col, visitor, std::forward<const VisitorArgs>(args)...);
+  }
+
 
   /*****************************************************************************************/
   /*****************************************************************************************/
   #ifdef api_creation
-  template <typename Visitor, typename... VisitorArgs>
-  void async_visit_row_if_exists(const key_type& row, Visitor visitor,
-                             const VisitorArgs&... args) {
-    m_impl.async_visit_row_if_exists(row, visitor, std::forward<const VisitorArgs>(args)...);
-  }
 
   void async_erase(const key_type& row, const key_type& col) { m_impl.async_erase(row, col); }
 
