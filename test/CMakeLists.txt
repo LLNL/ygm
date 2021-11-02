@@ -43,6 +43,7 @@ add_mpi_test(test_set)
 add_mpi_test(test_bag)
 add_mpi_test(test_multiset)
 add_mpi_test(test_counting_set)
+add_mpi_test(test_disjoint_set)
 add_mpi_test(test_container_serialization)
 
 if (Boost_FOUND)
