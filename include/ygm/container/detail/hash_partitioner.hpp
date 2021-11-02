@@ -17,6 +17,16 @@ struct hash_partitioner {
     size_t bank = (hash / nranks) % nbanks;
     return std::make_pair(rank, bank);
   }
+
+  std::pair<size_t, size_t> operator()(const Key& row, const Key& col, 
+                                       size_t nranks, size_t nbanks) const {
+    size_t hash = std::hash<Key>{}(row);
+    size_t col_hash = std::hash<Key>{}(col);
+    size_t xor_hash = hash ^ col_hash;
+    size_t rank = hash % nranks;
+    size_t bank = (hash / nranks) % nbanks;
+    return std::make_pair(rank, bank);
+  }
 };
 
 }  // namespace ygm::container::detail

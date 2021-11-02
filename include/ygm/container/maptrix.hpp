@@ -29,25 +29,16 @@ class maptrix {
 
   maptrix(const self_type& rhs) : m_impl(rhs.m_impl) {}
 
-  /* Should is_symmetric flag be included here? -- Yes. */
+  ygm::comm& comm() { return m_impl.comm(); }
+
   void async_insert(const key_type& row, const key_type& col, const value_type& value) {
-    /* Define this function in the maptrix impl. */
     m_impl.async_insert(row, col, value);
   }
-
-  void async_visit_or_insert(const key_type& row, const key_type& col, const value_type &value) {
-    m_impl.async_visit_or_insert(row, col, value); 
-  }
-
-  //bool is_mine(const key_type& row, const key_type& col) const { return m_impl.is_mine(row, col); }
-  //int owner(const key_type& row, const key_type& col) const { return m_impl.owner(row, col); }
 
   template <typename Function>
   void for_all(Function fn) {
     m_impl.for_all(fn);
   }
-
-  ygm::comm& comm() { return m_impl.comm(); }
 
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_if_exists(const key_type& row, const key_type& col, Visitor visitor,
@@ -56,20 +47,26 @@ class maptrix {
                                  std::forward<const VisitorArgs>(args)...);
   }
 
-  /* Expect the row-data and col-data of an identifier to be 
-    * placed in the same node. */
-  template <typename Visitor, typename... VisitorArgs>
-  void async_visit_col_const(const key_type& col, Visitor visitor,
-                             const VisitorArgs&... args) {
-    m_impl.async_visit_col_const(col, visitor, std::forward<const VisitorArgs>(args)...);
-  }
-
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_col_mutate(const key_type& col, Visitor visitor,
                              const VisitorArgs&... args) {
     m_impl.async_visit_col_mutate(col, visitor, std::forward<const VisitorArgs>(args)...);
   }
 
+  template <typename Visitor, typename... VisitorArgs>
+  void async_visit_col_const(const key_type& col, Visitor visitor,
+                             const VisitorArgs&... args) {
+    m_impl.async_visit_col_const(col, visitor, std::forward<const VisitorArgs>(args)...);
+  }
+
+  void async_visit_or_insert(const key_type& row, const key_type& col, const value_type &value) {
+    m_impl.async_visit_or_insert(row, col, value); 
+  }
+
+  #ifdef old_api
+  //bool is_mine(const key_type& row, const key_type& col) const { return m_impl.is_mine(row, col); }
+  //int owner(const key_type& row, const key_type& col) const { return m_impl.owner(row, col); }
+  #endif
 
   /*****************************************************************************************/
   /*****************************************************************************************/

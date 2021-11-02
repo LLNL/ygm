@@ -11,7 +11,6 @@ int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
 
   ygm::container::maptrix<std::string, std::string> my_maptrix(world);
-  //std::cout << "Size: " << world.size();
   
   #ifdef random_map_check
   using inner_map_type = std::map<std::string, std::string>;
@@ -28,13 +27,11 @@ int main(int argc, char **argv) {
 
   m_row_map["row1"]["row1001"] = "test";
   std::cout << m_row_map["row1"]["row1001"] << std::endl;
-  exit(0);
   #endif
 
   if (world.rank0()) {
     my_maptrix.async_insert("row1", "row2", "val1");
     my_maptrix.async_insert("row1", "row3", "val7");
-    //my_maptrix.async_insert("row1", "row1001", "val8");
     
     my_maptrix.async_insert("row2", "row3",     "val2");
     my_maptrix.async_insert("row2", "row1003",  "val15");
@@ -62,25 +59,39 @@ int main(int argc, char **argv) {
     std::cout << "In rank: " << rank << ", key1: " << row << ", key2: " << col << ", val: " << value << std::endl;
   };
   my_maptrix.for_all(ijk_lambda);
-  /* At a barrier point, are we expecting all
-    * asynchronously launched fns to have finished 
-    * processing? */
-  world.barrier(); 
+  world.barrier();
 
-  #ifdef dbg_impls
-  auto visit_lambda = [](auto key1, auto key2, auto value, 
-                          int val1,
-                          const std::string val2) {
-                          //float val2) {
+  auto visit_lambda = [](auto padj, int from,
+                          auto key1, auto key2, auto value, 
+                          int val1, const std::string val2) {
+
     std::cout << "[ASYNC VISIT]:: Key1: " << key1 << ", Key2: " << key2
               << ", Value: " << value << ", Val1: " << val1 
               << ", Val2: " << val2
+              << ", From: " << from 
               << std::endl;
+
+    /* pobj->comm().async(0, [](auto pcomm, int from) {
+      std::cout << "Hi. I'm rank " << pcomm->rank() << ". Rank " << from
+                << " wanted me to say something." << std::endl;
+    }); */
+
+    /* pobj->for_all([](auto row, auto col, auto value) {
+      std::cout << "Hi. Params are: " << row << ", " << col 
+                << ", " << value << std::endl;
+    }); */
+
+    auto inner_lambda = [](auto row, auto col, auto value) {
+      std::cout << "Hi. Params are: " << 
+                row << ", " << col << ", " << value << std::endl;
+    };
+    padj->async_visit_const(key2, inner_lambda);
   };
 
-  //if (world.rank()==0)
-  my_maptrix.async_visit_if_exists("row1", "row1002", visit_lambda, world.rank(), std::string("abc"));
+  my_maptrix.async_visit_if_exists("row1001", "row1002", visit_lambda, world.rank(), std::string("abc"));
+  world.barrier();
 
+  #ifdef dbg_impls
   auto visit_col_lambda = [](auto key1, auto key2, auto value, int val1) {
     std::cout << "[COL VISIT]:: Key1: " << key1 << ", Key2: " << key2
               << ", Value: " << value << ", Val1: " << val1 
@@ -93,6 +104,7 @@ int main(int argc, char **argv) {
   world.barrier();
   #endif
 
+  #ifdef old_api_examples
   auto visit_col_lambda_mutate = [](auto pmaptrix, int from, auto row, auto col, auto value, int val1) {
     std::cout << "[COL MUTATE VISIT]:: Key1: " << row << ", Key2: " << col
               << ", Value: " << value << ", Val1: " << val1 
@@ -110,6 +122,7 @@ int main(int argc, char **argv) {
     * asynchronously launched fns to have finished 
     * processing? */
   world.barrier();
+  #endif
 
   return 0;
 }

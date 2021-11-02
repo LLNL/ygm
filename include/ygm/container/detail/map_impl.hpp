@@ -196,6 +196,11 @@ class map_impl {
     return owner;
   }
 
+  int owner(const key_type &row, const key_type &col) const {
+    auto [owner, rank] = partitioner(row, col, m_comm.size(), 1024);
+    return owner;
+  }
+
   bool is_mine(const key_type &key) const {
     return owner(key) == m_comm.rank();
   }
