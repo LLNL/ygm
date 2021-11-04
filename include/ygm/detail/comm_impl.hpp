@@ -371,7 +371,7 @@ class comm::impl {
         receive_large_message(large_recv_buff, src, size);
 
         // Add buffer to receive queue
-        receive_queue_push_back(large_recv_buff, src);
+        receive_queue_push_back(large_recv_buff);
       } else {
         int count;
         ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &count))
@@ -384,7 +384,7 @@ class comm::impl {
         if (status.MPI_SOURCE == m_comm_rank) break;
 
         // Add buffer to receive queue
-        receive_queue_push_back(recv_buffer, status.MPI_SOURCE);
+        receive_queue_push_back(recv_buffer);
       }
     }
   }
@@ -449,10 +449,10 @@ class comm::impl {
 
   size_t receive_queue_peek_size() const { return m_receive_queue.size(); }
 
-  std::pair<std::shared_ptr<std::vector<char>>, int> receive_queue_try_pop() {
+  std::shared_ptr<std::vector<char>> receive_queue_try_pop() {
     std::scoped_lock lock(m_receive_queue_mutex);
     if (m_receive_queue.empty()) {
-      return std::make_pair(std::shared_ptr<std::vector<char>>(), int(-1));
+      return std::shared_ptr<std::vector<char>>();
     } else {
       auto to_return = m_receive_queue.front();
       m_receive_queue.pop_front();
@@ -460,11 +460,11 @@ class comm::impl {
     }
   }
 
-  void receive_queue_push_back(std::shared_ptr<std::vector<char>> b, int from) {
+  void receive_queue_push_back(std::shared_ptr<std::vector<char>> b) {
     size_t current_size = 0;
     {
       std::scoped_lock lock(m_receive_queue_mutex);
-      m_receive_queue.push_back(std::make_pair(b, from));
+      m_receive_queue.push_back(b);
       current_size = m_receive_queue.size();
     }
     if (current_size > 16) {
@@ -478,7 +478,7 @@ class comm::impl {
     ASSERT_DEBUG(sizeof(Lambda) == 1);
     // Question: should this be std::forward(...)
     // \pp was: (l)(this, m_comm_rank, args...);
-    ygm::meta::apply_optional(l, std::make_tuple(this, m_comm_rank),
+    ygm::meta::apply_optional(l, std::make_tuple(this),
                               std::make_tuple(args...));
     return 1;
   }
@@ -490,12 +490,12 @@ class comm::impl {
         std::forward<const PackArgs>(args)...);
     ASSERT_DEBUG(sizeof(Lambda) == 1);
 
-    void (*fun_ptr)(impl *, int, cereal::YGMInputArchive &) =
-        [](impl *t, int from, cereal::YGMInputArchive &bia) {
+    void (*fun_ptr)(impl *, cereal::YGMInputArchive &) =
+        [](impl *t, cereal::YGMInputArchive &bia) {
           std::tuple<PackArgs...> ta;
           bia(ta);
           Lambda *pl;
-          auto    t1 = std::make_tuple((impl *)t, from);
+          auto    t1 = std::make_tuple((impl *)t);
 
           // \pp was: std::apply(*pl, std::tuple_cat(t1, ta));
           ygm::meta::apply_optional(*pl, std::move(t1), std::move(ta));
@@ -515,19 +515,17 @@ class comm::impl {
   bool receive_queue_process() {
     bool received = false;
     while (true) {
-      auto buffer_source = receive_queue_try_pop();
-      auto buffer        = buffer_source.first;
+      auto buffer = receive_queue_try_pop();
       if (buffer == nullptr) break;
-      int from = buffer_source.second;
       received = true;
       cereal::YGMInputArchive iarchive(buffer->data(), buffer->size());
       while (!iarchive.empty()) {
         int64_t iptr;
         iarchive(iptr);
         iptr += (int64_t)&reference;
-        void (*fun_ptr)(impl *, int, cereal::YGMInputArchive &);
+        void (*fun_ptr)(impl *, cereal::YGMInputArchive &);
         memcpy(&fun_ptr, &iptr, sizeof(uint64_t));
-        fun_ptr(this, from, iarchive);
+        fun_ptr(this, iarchive);
         m_recv_count++;
         m_local_rpc_calls++;
       }
@@ -550,9 +548,8 @@ class comm::impl {
   std::mutex                                      m_vec_free_buffers_mutex;
   std::vector<std::shared_ptr<std::vector<char>>> m_vec_free_buffers;
 
-  std::deque<std::pair<std::shared_ptr<std::vector<char>>, int>>
-             m_receive_queue;
-  std::mutex m_receive_queue_mutex;
+  std::deque<std::shared_ptr<std::vector<char>>> m_receive_queue;
+  std::mutex                                     m_receive_queue_mutex;
 
   std::thread m_listener;
 

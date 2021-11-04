@@ -14,11 +14,11 @@
 namespace ygm::container::detail {
 template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
           typename Compare = std::less<Key>,
-          class Alloc = std::allocator<const Key>>
+          class Alloc      = std::allocator<const Key>>
 class set_impl {
-public:
+ public:
   using self_type = set_impl<Key, Partitioner, Compare, Alloc>;
-  using key_type = Key;
+  using key_type  = Key;
 
   Partitioner partitioner;
 
@@ -27,7 +27,7 @@ public:
   ~set_impl() { m_comm.barrier(); }
 
   void async_insert_multi(const key_type &key) {
-    auto inserter = [](auto mailbox, int from, auto pset, const key_type &key) {
+    auto inserter = [](auto mailbox, auto pset, const key_type &key) {
       pset->m_local_set.insert(key);
     };
     int dest = owner(key);
@@ -35,7 +35,7 @@ public:
   }
 
   void async_insert_unique(const key_type &key) {
-    auto inserter = [](auto mailbox, int from, auto pset, const key_type &key) {
+    auto inserter = [](auto mailbox, auto pset, const key_type &key) {
       if (pset->m_local_set.count(key) == 0) {
         pset->m_local_set.insert(key);
       }
@@ -45,16 +45,16 @@ public:
   }
 
   void async_erase(const key_type &key) {
-    int dest = owner(key);
-    auto erase_wrapper = [](auto pcomm, int from, auto pset,
-                            const key_type &key) {
+    int  dest          = owner(key);
+    auto erase_wrapper = [](auto pcomm, auto pset, const key_type &key) {
       pset->m_local_set.erase(key);
     };
 
     m_comm.async(dest, erase_wrapper, pthis, key);
   }
 
-  template <typename Function> void for_all(Function fn) {
+  template <typename Function>
+  void for_all(Function fn) {
     m_comm.barrier();
     local_for_all(fn);
   }
@@ -85,7 +85,7 @@ public:
 
   void serialize(const std::string &fname) {
     m_comm.barrier();
-    std::string rank_fname = fname + std::to_string(m_comm.rank());
+    std::string   rank_fname = fname + std::to_string(m_comm.rank());
     std::ofstream os(rank_fname, std::ios::binary);
     cereal::JSONOutputArchive oarchive(os);
     oarchive(m_local_set, m_comm.size());
@@ -94,21 +94,23 @@ public:
   void deserialize(const std::string &fname) {
     m_comm.barrier();
 
-    std::string rank_fname = fname + std::to_string(m_comm.rank());
+    std::string   rank_fname = fname + std::to_string(m_comm.rank());
     std::ifstream is(rank_fname, std::ios::binary);
 
     cereal::JSONInputArchive iarchive(is);
-    int comm_size;
+    int                      comm_size;
     iarchive(m_local_set, comm_size);
 
     if (comm_size != m_comm.size()) {
-      m_comm.cerr0("Attempting to deserialize set_impl using communicator of "
-                   "different size than serialized with");
+      m_comm.cerr0(
+          "Attempting to deserialize set_impl using communicator of "
+          "different size than serialized with");
     }
   }
 
   // protected:
-  template <typename Function> void local_for_all(Function fn) {
+  template <typename Function>
+  void local_for_all(Function fn) {
     std::for_each(m_local_set.begin(), m_local_set.end(), fn);
   }
 
@@ -119,7 +121,7 @@ public:
   set_impl() = delete;
 
   std::multiset<key_type, Compare, Alloc> m_local_set;
-  ygm::comm m_comm;
-  typename ygm::ygm_ptr<self_type> pthis;
+  ygm::comm                               m_comm;
+  typename ygm::ygm_ptr<self_type>        pthis;
 };
-} // namespace ygm::container::detail
+}  // namespace ygm::container::detail
