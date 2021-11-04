@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
   world.cout0("Visiting individual key-value pairs with async_visit");
 
   // async_visit gives access to individual key-value pairs
-  auto visit_lambda = [](auto pmap, auto kv_pair) {
+  auto visit_lambda = [](auto kv_pair) {
     std::cout << "One thing a " << kv_pair.first << " says is "
               << kv_pair.second << std::endl;
   };
@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
 
   // async_visit_group provides begin and end iterators to the collection of
   // key-value pairs associated to a single key
-  auto visit_group_lambda = [](auto pmap, auto begin_iter, auto end_iter) {
+  auto visit_group_lambda = [](auto begin_iter, auto end_iter) {
     std::cout << "The " << begin_iter->first << " says " << begin_iter->second;
 
     for (auto curr_iter = ++begin_iter; curr_iter != end_iter; ++curr_iter) {
