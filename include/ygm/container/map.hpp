@@ -143,6 +143,13 @@ class multimap {
   }
 
   template <typename Visitor, typename... VisitorArgs>
+  void async_visit_group(const key_type& key, Visitor visitor,
+                         const VisitorArgs&... args) {
+    m_impl.async_visit_group(key, visitor,
+                             std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
   void async_visit_if_exists(const key_type& key, Visitor visitor,
                              const VisitorArgs&... args) {
     m_impl.async_visit_if_exists(key, visitor,

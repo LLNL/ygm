@@ -88,6 +88,28 @@ class map_impl {
   }
 
   template <typename Visitor, typename... VisitorArgs>
+  void async_visit_group(const key_type &key, Visitor visitor,
+                         const VisitorArgs &... args) {
+    int  dest          = owner(key);
+    auto visit_wrapper = [](auto pcomm, auto pmap, const key_type &key,
+                            const VisitorArgs &... args) {
+      auto range = pmap->m_local_map.equal_range(key);
+      if (range.first == range.second) {  // check if not in range
+        pmap->m_local_map.insert(std::make_pair(key, pmap->m_default_value));
+        range = pmap->m_local_map.equal_range(key);
+        ASSERT_DEBUG(range.first != range.second);
+      }
+      Visitor *vis;
+      ygm::meta::apply_optional(
+          *vis, std::make_tuple(pmap),
+          std::forward_as_tuple(range.first, range.second, args...));
+    };
+
+    m_comm.async(dest, visit_wrapper, pthis, key,
+                 std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
   void async_visit_if_exists(const key_type &key, Visitor visitor,
                              const VisitorArgs &... args) {
     int  dest          = owner(key);
