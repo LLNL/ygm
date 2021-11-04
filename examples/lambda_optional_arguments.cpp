@@ -9,10 +9,9 @@ int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
 
   // Define a lambda with optional arguments
-  auto opt_args = [](auto pcomm, int from, int msg) {
-    std::cout << "Rank " << pcomm->rank() << " received message from rank "
-              << from << " with contents " << msg << " using optional arguments"
-              << std::endl;
+  auto opt_args = [](auto pcomm, int msg) {
+    std::cout << "Rank " << pcomm->rank() << " received message with contents "
+              << msg << " using optional arguments" << std::endl;
   };
 
   // Define a lambda without optional arguments

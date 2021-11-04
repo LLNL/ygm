@@ -13,8 +13,8 @@ int main(int argc, char** argv) {
 
   // Test Rank 0 large message to all ranks
   {
-    size_t large_msg_size = 1024;
-    size_t counter{};
+    size_t               large_msg_size = 1024;
+    size_t               counter{};
     ygm::ygm_ptr<size_t> pcounter(&counter);
     if (world.rank() == 0) {
       std::vector<size_t> large_msg(large_msg_size);
@@ -22,9 +22,10 @@ int main(int argc, char** argv) {
         // Count elements in large message's vector
         world.async(
             dest,
-            [](auto pcomm, int from, auto pcounter,
-               const std::vector<size_t>& vec) {
-              for (size_t i = 0; i < vec.size(); ++i) { (*pcounter)++; }
+            [](auto pcomm, auto pcounter, const std::vector<size_t>& vec) {
+              for (size_t i = 0; i < vec.size(); ++i) {
+                (*pcounter)++;
+              }
             },
             pcounter, large_msg);
       }
