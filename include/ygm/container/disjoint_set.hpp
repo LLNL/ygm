@@ -24,6 +24,11 @@ class disjoint_set {
 
   void all_compress() { m_impl.all_compress(); }
 
+  template <typename Function>
+  void for_all(Function fn) {
+    m_impl.for_all(fn);
+  }
+
   std::map<value_type, value_type> all_find(
       const std::vector<value_type> &items) {
     return m_impl.all_find(items);
