@@ -601,26 +601,10 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &... args) {
 }
 
 template <typename AsyncFunction, typename... SendArgs>
-inline void comm::async_preempt(int dest, AsyncFunction fn,
-                                const SendArgs &... args) {
-  static_assert(std::is_empty<AsyncFunction>::value,
-                "Only stateless lambdas are supported");
-  pimpl->async_preempt(dest, fn, std::forward<const SendArgs>(args)...);
-}
-
-template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async_bcast(AsyncFunction fn, const SendArgs &... args) {
   static_assert(std::is_empty<AsyncFunction>::value,
                 "Only stateless lambdas are supported");
   pimpl->async_bcast(fn, std::forward<const SendArgs>(args)...);
-}
-
-template <typename AsyncFunction, typename... SendArgs>
-inline void comm::async_bcast_preempt(AsyncFunction fn,
-                                      const SendArgs &... args) {
-  static_assert(std::is_empty<AsyncFunction>::value,
-                "Only stateless lambdas are supported");
-  pimpl->async_bcast_preempt(fn, std::forward<const SendArgs>(args)...);
 }
 
 template <typename AsyncFunction, typename... SendArgs>
@@ -629,15 +613,6 @@ inline void comm::async_mcast(const std::vector<int> &dests, AsyncFunction fn,
   static_assert(std::is_empty<AsyncFunction>::value,
                 "Only stateless lambdas are supported");
   pimpl->async_mcast(dests, fn, std::forward<const SendArgs>(args)...);
-}
-
-template <typename AsyncFunction, typename... SendArgs>
-inline void comm::async_mcast_preempt(const std::vector<int> &dests,
-                                      AsyncFunction           fn,
-                                      const SendArgs &... args) {
-  static_assert(std::is_empty<AsyncFunction>::value,
-                "Only stateless lambdas are supported");
-  pimpl->async_mcast_preempt(dests, fn, std::forward<const SendArgs>(args)...);
 }
 
 inline int comm::size() const { return pimpl->size(); }
