@@ -25,20 +25,6 @@ class disjoint_set_impl {
 
   ~disjoint_set_impl() { m_comm.barrier(); }
 
-  void async_make_set(const value_type &item) {
-    auto inserter = [](auto dset, const value_type &item) {
-      auto itr = dset->m_local_item_parent_map.find(item);
-
-      // Only insert if no entry exists
-      if (itr == dset->m_local_item_parent_map.end()) {
-        dset->m_local_item_parent_map.insert(std::make_pair(item, item));
-      }
-    };
-
-    int dest = owner(item);
-    m_comm.async(dest, inserter, pthis, item);
-  }
-
   void async_union(const value_type &a, const value_type &b) {
     // Walking up parent trees can be expressed as a recursive operation
     struct simul_parent_walk_functor {
@@ -96,7 +82,12 @@ class disjoint_set_impl {
                    },
                    pthis, a);
     } else {
-      return;
+      // Set item as own parent
+      m_comm.async(owner(a),
+                   [](self_ygm_ptr_type pdset, const value_type &item) {
+                     pdset->local_get_parent(item);
+                   },
+                   pthis, a);
     }
   }
 

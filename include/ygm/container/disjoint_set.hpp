@@ -18,8 +18,6 @@ class disjoint_set {
 
   disjoint_set(ygm::comm &comm) : m_impl(comm) {}
 
-  void async_make_set(const value_type &item) { m_impl.async_make_set(item); }
-
   void async_union(const value_type &a, const value_type &b) {
     m_impl.async_union(a, b);
   }
