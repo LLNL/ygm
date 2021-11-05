@@ -22,6 +22,13 @@ class disjoint_set {
     m_impl.async_union(a, b);
   }
 
+  template <typename Function, typename... FunctionArgs>
+  void async_union_and_execute(const value_type &a, const value_type &b,
+                               Function fn, const FunctionArgs &... args) {
+    m_impl.async_union_and_execute(a, b, fn,
+                                   std::forward<const FunctionArgs>(args)...);
+  }
+
   void all_compress() { m_impl.all_compress(); }
 
   std::map<value_type, value_type> all_find(
