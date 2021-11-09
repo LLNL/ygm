@@ -149,4 +149,25 @@ int main(int argc, char** argv) {
     ASSERT_RELEASE(reps_final[3] == reps_final[4]);
     ASSERT_RELEASE(reps_final[4] == reps_final[5]);
   }
+
+  //
+  // Test async_union_and_execute
+  {
+    ygm::container::disjoint_set<int> dset(world);
+
+    static int counter{0};
+
+    dset.async_union_and_execute(0, 1,
+                                 [](const int u, const int v) { counter++; });
+    dset.async_union_and_execute(0, 2,
+                                 [](const int u, const int v) { counter++; });
+    dset.async_union_and_execute(1, 2,
+                                 [](const int u, const int v) { counter++; });
+    dset.async_union_and_execute(3, 4,
+                                 [](const int u, const int v) { counter++; });
+
+    world.barrier();
+
+    ASSERT_RELEASE(world.all_reduce_sum(counter) == 3);
+  }
 }
