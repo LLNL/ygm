@@ -91,6 +91,23 @@ int main(int argc, char **argv) {
   my_maptrix.async_visit_if_exists("row1001", "row1002", visit_lambda, world.rank(), std::string("abc"));
   world.barrier();
 
+  auto visit_insert_lambda = [](auto padj, int from,
+                          auto key1, auto key2, auto value, 
+                          int val1, const std::string val2) {
+
+    std::cout << "[ASYNC INSERT VISIT]:: Key1: " << key1 << ", Key2: " << key2
+              << ", Value: " << value << ", Val1: " << val1 
+              << ", Val2: " << val2
+              << ", From: " << from 
+              << std::endl;
+  };
+
+  my_maptrix.async_visit_or_insert("row1001", "row1004", "NEW__VAL",  visit_insert_lambda, world.rank(), std::string("abc"));
+  world.barrier();
+
+  my_maptrix.async_visit_or_insert("row1001", "row1004", "NEW__VAL",  visit_insert_lambda, world.rank()+100, std::string("abc"));
+  world.barrier();
+
   #ifdef dbg_impls
   auto visit_col_lambda = [](auto key1, auto key2, auto value, int val1) {
     std::cout << "[COL VISIT]:: Key1: " << key1 << ", Key2: " << key2

@@ -57,6 +57,11 @@ class adj_impl {
     m_comm.async(dest, inserter, pthis, row, col, value);
   }
 
+  void clear() {
+    m_comm.barrier();
+    m_map.clear();
+  }
+
   template <typename Function>
   void for_all(Function fn) {
     m_comm.barrier();
@@ -65,18 +70,16 @@ class adj_impl {
 
   template <typename Function>
   void local_for_all(Function fn) {
-    auto fn_wrapper = [fn](auto &e) {
-      std::cout << "Using key: " << e.first << std::endl;
-      key_type outer_key        = e.first;
-      inner_map_type &inner_map = e.second;
-      for (auto itr = inner_map.begin(); itr != inner_map.end(); ++itr) {
-        key_type inner_key      = itr->first;
-        value_type value        = itr->second;
+    for (auto itr = m_map.begin(); itr != m_map.end(); ++itr) {
+      //std::cout << "Using key: " << itr->first << std::endl;
+      key_type outer_key        = itr->first;
+      inner_map_type &inner_map = itr->second;
+      for (auto inner_itr = inner_map.begin(); inner_itr != inner_map.end(); ++inner_itr) {
+        key_type inner_key      = inner_itr->first;
+        value_type value        = inner_itr->second;
         fn(outer_key, inner_key, value);
       }
-    };
-
-    std::for_each(m_map.begin(), m_map.end(), fn_wrapper);
+    }
   }
 
   template <typename Visitor, typename... VisitorArgs>
@@ -125,17 +128,49 @@ class adj_impl {
   void adj_local_for_all(const key_type &key, Function fn, const int from,
                    const VisitorArgs &...args) {
     auto &inner_map = m_map[key];
-    auto fn_wrapper = [fn, key, ...args = std::forward<const VisitorArgs>(args)](auto &e) {
-      std::cout << "ColVisit: Using key: " << e.first << std::endl;
+    for (auto itr = inner_map.begin(); itr != inner_map.end(); ++itr) {
+      //std::cout << "ColVisit: Using key: " << itr->first << std::endl;
       key_type outer_key  = key;       
-      key_type inner_key  = e.first;
-      value_type value    = e.second;
+      key_type inner_key  = itr->first;
+      value_type value    = itr->second;
       fn(outer_key, inner_key, value, args...);
-    }; 
-
-    std::for_each(inner_map.begin(), inner_map.end(), fn_wrapper);
+    }
   }
 
+  template <typename Visitor, typename... VisitorArgs>
+  void async_visit_or_insert(const key_type& row, const key_type& col, const value_type& value, 
+                              Visitor visitor, const VisitorArgs &...args) {
+
+    std::cout << "Inside the adj impl." << std::endl;
+    auto visit_wrapper = [](auto pcomm, int from, auto padj,
+                       const key_type &row, const key_type &col,
+                       const value_type &value, const VisitorArgs &...args) {
+      //Apply Visitor.. 
+      Visitor *vis;
+      padj->local_visit_or_insert(row, col, value, *vis, from, args...); 
+    };
+
+    int dest = owner(row);
+    m_comm.async(dest, visit_wrapper, pthis, row, col, value, 
+                  std::forward<const VisitorArgs>(args)...);
+  }
+
+  /* Do we really need a value here? */
+  template <typename Function, typename... VisitorArgs>
+  void local_visit_or_insert(const key_type &row, const key_type &col, const value_type &value,
+                   Function &fn, const int from, const VisitorArgs &...args) {
+    std::cout << "Inside the local adj impl, lambda reached." << row << col << std::endl;
+    /* Fetch the row map, key: col id, value: val. */
+    inner_map_type &inner_map = m_map[row];
+    if (inner_map.find(col) == inner_map.end()) {
+      std::cout << "In insert." << std::endl;
+      inner_map.insert(std::make_pair(col, value));
+    } else {
+      value_type value = inner_map[col];
+      ygm::meta::apply_optional(fn, std::make_tuple(pthis, from),
+                                std::forward_as_tuple(row, col, value, args...));
+    }
+  }
 
  protected: 
   value_type                                  m_default_value;

@@ -99,74 +99,20 @@ class maptrix_impl {
     m_csc.async_visit_const(col, visitor, std::forward<const VisitorArgs>(args)...);
   }
 
-  void async_visit_or_insert(const key_type& row, const key_type& col, 
-                             const value_type& value) {
-    auto row_inserter = [](auto mailbox, int from, auto pmaptrix,
-                       const key_type &row, const key_type &col,
-                       const value_type &value) {
-      /* Default construct..  */
-      if (pmaptrix->m_row_map.find(row) == pmaptrix->m_row_map.end()) {
-        // row not found.
-        pmaptrix->m_row_map[row].insert(std::make_pair(col, value)); 
-      } else { 
-        inner_map_type &col_map = pmaptrix->m_row_map[row];
-        auto col_itr = col_map.find(col);
-        if (col_map.find(col) == col_map.end()) {
-          // column not found, insert.
-          col_map.insert(std::make_pair(col, value));
-        } else {
-          // found and update.
-          col_map[col] = value;
-        } 
-      }
-    };
-
-    int dest = owner(row, col);
-    m_comm.async(dest, row_inserter, pthis, row, col, value);
-  }
-
-  #ifdef old_impl
   template <typename Visitor, typename... VisitorArgs>
-  void async_visit_col_const(const key_type &col, Visitor visitor,
-                             const VisitorArgs &...args) {
-
-    /* !!!!!!!!!!!!!!  This is weird  !!!!!!!!!!!!!!!!!!!!! */
-    int  dest = owner(col, col);
-
-    auto col_visit_wrapper = [](auto pcomm, int from, auto pmaptrix,
-                            const key_type &col, const VisitorArgs &...args) {
-      Visitor *vis;
-      /* Assume the data of the column to be in
-        * the same local node. */
-      pmaptrix->col_local_for_all(col, *vis, from, args...);
-    };
-
-    m_comm.async(dest, col_visit_wrapper, pthis, col,
-                 std::forward<const VisitorArgs>(args)...);
+  void async_visit_or_insert(const key_type& row, const key_type& col, const value_type &value, 
+                                Visitor visitor, const VisitorArgs&... args) {
+    //std::cout << "Inside the impl." << std::endl;
+    m_csr.async_visit_or_insert(row, col, value, visitor, std::forward<const VisitorArgs>(args)...);
+    //m_csc.async_visit_or_insert(col, row, value, visitor, std::forward<const VisitorArgs>(args)...);
   }
 
-  /* Expect the row data and column data of an identifier to be 
-      ** stored in the same node. */
-  template <typename Function, typename... VisitorArgs>
-  void col_local_for_all(const key_type &col, Function fn, const int from,
-                   const VisitorArgs &...args) {
-    //inner_map_type &row_map = m_col_map.find(col)->second;
-    //std::for_each(row_map.begin(), row_map.end(), fn);
-    
-    auto fn_wrapper = [fn, ...args = std::forward<const VisitorArgs>(args)](auto &e) {
-      std::cout << "ColVisit: Using key: " << e.first << std::endl;
-      key_type outer_key        = e.first;
-      inner_map_type &inner_map = e.second;
-      for (auto itr = inner_map.begin(); itr != inner_map.end(); ++itr) {
-        key_type inner_key      = itr->first;
-        value_type value        = itr->second;
-        fn(outer_key, inner_key, value, args...);
-      }
-    }; 
+  typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }
 
-    std::for_each(m_col_map.begin(), m_col_map.end(), fn_wrapper);
+  void local_clear() { 
+    m_csr.clear(); 
+    m_csc.clear(); 
   }
-  #endif 
 
   /*****************************************************************************************/
   /*                                     TO BE IMPLEMENTED                                 */
@@ -190,31 +136,13 @@ class maptrix_impl {
     row_map.erase(col); 
   }
 
-  void local_clear() { m_local_map.clear(); }
-
-  size_t local_size() const { return m_local_map.size(); }
-
   /* When may this be used? */
   //size_t local_count(const key_type &key) const { 
     //return (m_local_map.find(key)->first.count(k)+m_local_map.find(key)->second.count(k)); 
   //}
   #endif
 
-  #ifdef row_col_ownership
-  int owner(const key_type &row, const key_type &col) const {
-    auto [owner, rank] = partitioner(row, col, m_comm.size(), 1024);
-    return owner;
-  }
-
-  bool is_mine(const key_type &row, const key_type &col) const {
-    return owner(row, col) == m_comm.rank();
-  }
-  #endif
-
-
   #ifdef serialize
-  typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }
-
   void serialize(const std::string &fname) {
     m_comm.barrier();
     std::string   rank_fname = fname + std::to_string(m_comm.rank());

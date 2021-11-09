@@ -59,35 +59,34 @@ class maptrix {
     m_impl.async_visit_col_const(col, visitor, std::forward<const VisitorArgs>(args)...);
   }
 
-  void async_visit_or_insert(const key_type& row, const key_type& col, const value_type &value) {
-    m_impl.async_visit_or_insert(row, col, value); 
+  template <typename Visitor, typename... VisitorArgs>
+  void async_visit_or_insert(const key_type& row, const key_type& col, const value_type &value, 
+                                Visitor visitor, const VisitorArgs&... args) {
+    std::cout << "Reached outer container." << std::endl;
+    m_impl.async_visit_or_insert(row, col, value, visitor, std::forward<const VisitorArgs>(args)...); 
   }
 
-  #ifdef old_api
-  //bool is_mine(const key_type& row, const key_type& col) const { return m_impl.is_mine(row, col); }
-  //int owner(const key_type& row, const key_type& col) const { return m_impl.owner(row, col); }
-  #endif
+  void clear() { m_impl.clear(); }
+
+  /* Use this if you want to interact with more that one containers. */
+  typename ygm::ygm_ptr<impl_type> get_ygm_ptr() const {
+    return m_impl.get_ygm_ptr();
+  }
 
   /*****************************************************************************************/
+  /*                                     TO BE IMPLEMENTED                                 */
   /*****************************************************************************************/
+
   #ifdef api_creation
-
   void async_erase(const key_type& row, const key_type& col) { m_impl.async_erase(row, col); }
 
   size_t local_count(const key_type& row, const key_type& col) { return m_impl.local_count(row, col); }
-
-  void clear() { m_impl.clear(); }
 
   size_t size() { return m_impl.size(); }
 
   size_t count_row(const key_type& row) { return m_impl.count_row(row); }
 
   size_t count_col(const key_type& col) { return m_impl.count_col(col); }
-
-  /* Use this if you want to interact with more that one containers. */
-  typename ygm::ygm_ptr<impl_type> get_ygm_ptr() const {
-    return m_impl.get_ygm_ptr();
-  }
 
   void serialize(const std::string& fname) { m_impl.serialize(fname); }
   void deserialize(const std::string& fname) { m_impl.deserialize(fname); }
