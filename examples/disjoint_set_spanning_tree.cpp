@@ -12,7 +12,12 @@ int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
 
   std::vector<std::pair<int, int>> graph_edges = {
-      {0, 1}, {1, 2}, {1, 3}, {0, 3}, {1, 4}};
+      {0, 1}, {1, 2}, {1, 3}, {0, 3}, {2, 4}, {2, 5}, {3, 5}, {4, 5}};
+
+  world.cout0("---Graph edges---");
+  for (const auto &edge : graph_edges) {
+    world.cout0("(", edge.first, ", ", edge.second, ")");
+  }
 
   static std::vector<std::pair<int, int>> local_spanning_tree_edges;
 
