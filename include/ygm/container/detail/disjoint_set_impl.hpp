@@ -194,6 +194,14 @@ class disjoint_set_impl {
     }
   }
 
+  template <typename Function>
+  void for_all(Function fn) {
+    all_compress();
+
+    std::for_each(m_local_item_parent_map.begin(),
+                  m_local_item_parent_map.end(), fn);
+  }
+
   std::map<value_type, value_type> all_find(
       const std::vector<value_type> &items) {
     m_comm.barrier();
