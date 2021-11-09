@@ -98,7 +98,7 @@ class disjoint_set_impl {
     struct simul_parent_walk_functor {
       void operator()(self_ygm_ptr_type pdset, const value_type &my_item,
                       const value_type &other_item, const value_type &orig_a,
-                      const value_type &orig_b) {
+                      const value_type &orig_b, const FunctionArgs &... args) {
         const auto my_parent = pdset->local_get_parent(my_item);
 
         // Found root
@@ -107,8 +107,9 @@ class disjoint_set_impl {
 
           // Perform user function after merge
           Function *f;
-          ygm::meta::apply_optional(*f, std::make_tuple(pdset),
-                                    std::forward_as_tuple(orig_a, orig_b));
+          ygm::meta::apply_optional(
+              *f, std::make_tuple(pdset),
+              std::forward_as_tuple(orig_a, orig_b, args...));
 
           return;
         }
@@ -117,14 +118,14 @@ class disjoint_set_impl {
         if (my_parent < other_item) {
           int dest = pdset->owner(other_item);
           pdset->comm().async(dest, simul_parent_walk_functor(), pdset,
-                              other_item, my_parent, orig_a, orig_b);
+                              other_item, my_parent, orig_a, orig_b, args...);
         }
         // Keep walking up current branch
         else if (my_parent > other_item) {
           pdset->local_set_parent(my_item, other_item);  // Splicing
           int dest = pdset->owner(my_parent);
           pdset->comm().async(dest, simul_parent_walk_functor(), pdset,
-                              my_parent, other_item, orig_a, orig_b);
+                              my_parent, other_item, orig_a, orig_b, args...);
         }
         // Paths converged. Sets were already merged.
         else {
@@ -137,7 +138,8 @@ class disjoint_set_impl {
     if (a > b) {
       int main_dest = owner(a);
       int sub_dest  = owner(b);
-      m_comm.async(main_dest, simul_parent_walk_functor(), pthis, a, b, a, b);
+      m_comm.async(main_dest, simul_parent_walk_functor(), pthis, a, b, a, b,
+                   args...);
       // Side-effect of looking up parent of b is setting b's parent to be
       // itself if b has no parent
       m_comm.async(sub_dest,
@@ -150,7 +152,8 @@ class disjoint_set_impl {
     else if (a < b) {
       int main_dest = owner(b);
       int sub_dest  = owner(a);
-      m_comm.async(main_dest, simul_parent_walk_functor(), pthis, b, a, a, b);
+      m_comm.async(main_dest, simul_parent_walk_functor(), pthis, b, a, a, b,
+                   args...);
       m_comm.async(sub_dest,
                    [](self_ygm_ptr_type pdset, const value_type &item) {
                      pdset->local_get_parent(item);
