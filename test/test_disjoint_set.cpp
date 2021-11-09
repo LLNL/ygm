@@ -149,4 +149,24 @@ int main(int argc, char** argv) {
     ASSERT_RELEASE(reps_final[3] == reps_final[4]);
     ASSERT_RELEASE(reps_final[4] == reps_final[5]);
   }
+
+  //
+  // Test for_all
+  {
+    ygm::container::disjoint_set<int> dset(world);
+    int                               num_items = 4;
+
+    int counter{0};
+
+    for (int i = 0; i < num_items; ++i) {
+      dset.async_union(i, i);
+    }
+
+    dset.for_all([&counter](const auto& item_rep_pair) {
+      ASSERT_RELEASE(item_rep_pair.first == item_rep_pair.second);
+      ++counter;
+    });
+
+    ASSERT_RELEASE(world.all_reduce_sum(counter) == num_items);
+  }
 }
