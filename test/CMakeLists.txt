@@ -7,7 +7,7 @@
 #
 # This function adds a Sequential test.
 #
-function ( add_ygm_seq_ygm_test test_name )
+function ( add_ygm_seq_test test_name )
   set(test_source "${test_name}.cpp")
   set(test_exe    "SEQ_${test_name}")
   add_executable(${test_exe} ${test_source})
