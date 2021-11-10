@@ -7,7 +7,7 @@
 #
 # This function adds a Sequential test.
 #
-function ( add_seq_test test_name )
+function ( add_ygm_seq_ygm_test test_name )
   set(test_source "${test_name}.cpp")
   set(test_exe    "SEQ_${test_name}")
   add_executable(${test_exe} ${test_source})
@@ -18,7 +18,7 @@ endfunction()
 #
 # This function adds an MPI test.
 #
-function ( add_mpi_test test_name )
+function ( add_ygm_test test_name )
   set(test_source "${test_name}.cpp")
   set(test_exe    "MPI_${test_name}")
   add_executable(${test_exe} ${test_source})
@@ -32,21 +32,21 @@ function ( add_mpi_test test_name )
 endfunction()
 
 
-add_seq_test(test_cereal_archive)
+add_ygm_seq_test(test_cereal_archive)
 
-add_mpi_test(test_comm)
-add_mpi_test(test_comm_2)
-add_mpi_test(test_large_messages)
-add_mpi_test(test_map)
-add_mpi_test(test_multimap)
-add_mpi_test(test_set)
-add_mpi_test(test_bag)
-add_mpi_test(test_multiset)
-add_mpi_test(test_counting_set)
-add_mpi_test(test_disjoint_set)
-add_mpi_test(test_container_serialization)
+add_ygm_test(test_comm)
+add_ygm_test(test_comm_2)
+add_ygm_test(test_large_messages)
+add_ygm_test(test_map)
+add_ygm_test(test_multimap)
+add_ygm_test(test_set)
+add_ygm_test(test_bag)
+add_ygm_test(test_multiset)
+add_ygm_test(test_counting_set)
+add_ygm_test(test_disjoint_set)
+add_ygm_test(test_container_serialization)
 
 if (Boost_FOUND)
-  add_seq_test(test_cereal_boost_json)
+  add_ygm_seq_test(test_cereal_boost_json)
   target_include_directories(SEQ_test_cereal_boost_json PUBLIC ${Boost_INCLUDE_DIRS})
 endif ()
