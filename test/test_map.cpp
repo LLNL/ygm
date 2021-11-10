@@ -40,6 +40,32 @@ int main(int argc, char **argv) {
   }
 
   //
+  // Test async_insert_if_missing
+  {
+    ygm::container::map<std::string, std::string> smap(world);
+
+    smap.async_insert_if_missing("dog", "cat");
+    smap.async_insert_if_missing("apple", "orange");
+
+    world.barrier();
+
+    smap.async_insert_if_missing("dog", "dog");
+    smap.async_insert_if_missing("red", "green");
+
+    world.barrier();
+
+    smap.async_visit("dog", [](std::pair<const std::string, std::string> &s) {
+      ASSERT_RELEASE(s.second == "cat");
+    });
+    smap.async_visit("apple", [](std::pair<const std::string, std::string> &s) {
+      ASSERT_RELEASE(s.second == "orange");
+    });
+    smap.async_visit("red", [](std::pair<const std::string, std::string> &s) {
+      ASSERT_RELEASE(s.second == "green");
+    });
+  }
+
+  //
   // Test all ranks default & async_visit_if_exists
   {
     ygm::container::map<std::string, std::string> smap(world, "default_string");
@@ -72,6 +98,41 @@ int main(int argc, char **argv) {
   }
 
   //
+  // Test async_insert_if_missing_else_visit
+  {
+    ygm::container::map<std::string, std::string> smap(world);
+
+    smap.async_insert("dog", "cat");
+
+    world.barrier();
+
+    static int dog_visit_counter{0};
+
+    smap.async_insert_if_missing_else_visit(
+        "dog", "other_dog", [](const auto &kv) { dog_visit_counter++; });
+
+    world.barrier();
+
+    ASSERT_RELEASE(world.all_reduce_sum(dog_visit_counter) == world.size());
+
+    static int apple_visit_counter{0};
+
+    smap.async_insert_if_missing_else_visit(
+        "apple", "orange", [](const auto &kv) { apple_visit_counter++; });
+
+    world.barrier();
+
+    ASSERT_RELEASE(world.all_reduce_sum(apple_visit_counter) ==
+                   world.size() - 1);
+
+    if (world.rank0()) {
+      smap.async_insert_if_missing_else_visit(
+          "red", "green",
+          [](const auto &kv) { ASSERT_RELEASE(true == false); });
+    }
+  }
+
+  //
   // Test swap & async_set
   {
     ygm::container::map<std::string, std::string> smap(world);
@@ -97,7 +158,7 @@ int main(int argc, char **argv) {
   {
     ygm::container::map<std::string, std::vector<std::string>> smap(world);
     auto str_push_back = [](std::pair<const auto, auto> &key_value,
-                            const std::string &str) {
+                            const std::string &          str) {
       // auto str_push_back = [](auto key_value, const std::string &str) {
       key_value.second.push_back(str);
     };
