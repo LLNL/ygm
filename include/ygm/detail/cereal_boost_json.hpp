@@ -5,8 +5,9 @@
 
 #pragma once
 
-// This prevents the compilation of the header if boost is not linked.
-#if __has_include(<boost/json/src.hpp>)
+#if !__has_include(<boost/json/src.hpp>)
+#error BOOST >= 1.75 is required for Boost.JSON
+#endif
 
 #include <string>
 #include <variant>
@@ -178,5 +179,3 @@ void CEREAL_LOAD_FUNCTION_NAME(Archive &archive, bj::string &str) {
 }
 
 }  // namespace cereal
-
-#endif
