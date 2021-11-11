@@ -30,7 +30,7 @@ class comm::impl {
 
     m_vec_send_buffers.resize(m_comm_size);
     // launch listener thread
-    m_listener = std::thread(&impl::listen, this);
+    m_listener = std::thread(&impl::listener_thread, this);
   }
 
   ~impl() {
@@ -80,13 +80,8 @@ class comm::impl {
     }
     // check if listener has queued receives to process
     if (receive_queue_peek_size() > 0) {
-      receive_queue_process();
+      process_receive_queue();
     }
-  }
-
-  template <typename... SendArgs>
-  void async_preempt(int dest, const SendArgs &... args) {
-    async(dest, std::forward<const SendArgs>(args)...);
   }
 
   template <typename... SendArgs>
@@ -97,33 +92,23 @@ class comm::impl {
   }
 
   template <typename... SendArgs>
-  void async_bcast_preempt(const SendArgs &... args) {
-    bcast(std::forward<const SendArgs>(args)...);
-  }
-
-  template <typename... SendArgs>
   void async_mcast(const std::vector<int> &dests, const SendArgs &... args) {
     for (auto dest : dests) {
       async(dest, std::forward<const SendArgs>(args)...);
     }
   }
 
-  template <typename... SendArgs>
-  void async_mcast_preempt(const std::vector<int> &dests,
-                           const SendArgs &... args) {
-    mcast(dests, std::forward<const SendArgs>(args)...);
-  }
 
   // //
   // // Blocking barrier
   // void barrier() {
   //   int64_t all_count = -1;
   //   while (all_count != 0) {
-  //     receive_queue_process();
+  //     process_receive_queue();
   //     do {
   //       flush_all_send_buffers();
   //       std::this_thread::yield();
-  //     } while (receive_queue_process());
+  //     } while (process_receive_queue());
 
   //     int64_t local_count = m_send_count - m_recv_count;
 
@@ -133,14 +118,6 @@ class comm::impl {
   //     // std::cout << "MPI_Allreduce() " << std::endl;
   //   }
   // }
-
-  void wait_local_idle() {
-    receive_queue_process();
-    do {
-      flush_all_send_buffers();
-      std::this_thread::yield();
-    } while (receive_queue_process());
-  }
 
   void barrier() {
     while (true) {
@@ -181,8 +158,8 @@ class comm::impl {
   //   -6}; MPI_Request req = MPI_REQUEST_NULL;
 
   //   do {
-  //     receive_queue_process();
-  //     do { flush_all_send_buffers(); } while (receive_queue_process());
+  //     process_receive_queue();
+  //     do { flush_all_send_buffers(); } while (process_receive_queue());
 
   //     int64_t local_count = m_send_count - m_recv_count;
 
@@ -207,27 +184,7 @@ class comm::impl {
   //   ASSERT_MPI(MPI_Barrier(m_comm_barrier));
   // }
 
-  void flush_send_buffer(int dest) {
-    ASSERT_RELEASE(dest != m_comm_rank);
-    if (m_vec_send_buffers[dest].size() > 0) {
-      ASSERT_MPI(MPI_Send(m_vec_send_buffers[dest].data(),
-                          m_vec_send_buffers[dest].size(), MPI_BYTE, dest, 0,
-                          m_comm_async));
-      m_send_buffer_size -= m_vec_send_buffers[dest].size();
-    }
-    m_vec_send_buffers[dest].clear();
-    m_vec_send_buffers[dest].shrink_to_fit();
-  }
 
-  void flush_all_send_buffers() {
-    while (!m_send_dest_queue.empty()) {
-      int dest = m_send_dest_queue.front();
-      m_send_dest_queue.pop_front();
-      flush_send_buffer(dest);
-      receive_queue_process();
-    }
-    ASSERT_RELEASE(m_send_dest_queue.empty() && m_send_buffer_size == 0);
-  }
 
   int64_t local_bytes_sent() const { return m_local_bytes_sent; }
 
@@ -348,11 +305,42 @@ class comm::impl {
   }
 
  private:
+
+   void flush_send_buffer(int dest) {
+    ASSERT_RELEASE(dest != m_comm_rank);
+    if (m_vec_send_buffers[dest].size() > 0) {
+      ASSERT_MPI(MPI_Send(m_vec_send_buffers[dest].data(),
+                          m_vec_send_buffers[dest].size(), MPI_BYTE, dest, 0,
+                          m_comm_async));
+      m_send_buffer_size -= m_vec_send_buffers[dest].size();
+    }
+    m_vec_send_buffers[dest].clear();
+    m_vec_send_buffers[dest].shrink_to_fit();
+  }
+
+  void flush_all_send_buffers() {
+    while (!m_send_dest_queue.empty()) {
+      int dest = m_send_dest_queue.front();
+      m_send_dest_queue.pop_front();
+      flush_send_buffer(dest);
+      process_receive_queue();
+    }
+    ASSERT_RELEASE(m_send_dest_queue.empty() && m_send_buffer_size == 0);
+  }
+  
+  void wait_local_idle() {
+    process_receive_queue();
+    do {
+      flush_all_send_buffers();
+      std::this_thread::yield();
+    } while (process_receive_queue());
+  }
+
   /**
    * @brief Listener thread
    *
    */
-  void listen() {
+  void listener_thread() {
     while (true) {
       MPI_Status status;
       ASSERT_MPI(MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_async, &status));
@@ -437,10 +425,18 @@ class comm::impl {
     return to_return;
   }
 
-  // this is used to fix address space randomization
+  /**
+   * @brief Static reference point to anchor address space randomization.
+   *
+   */
   static void reference() {}
 
-  bool receive_queue_process() {
+  /**
+   * @brief Process receive queue of messages received by the listener thread.
+   *
+   * @return True if receive queue was non-empty, else false
+   */
+  bool process_receive_queue() {
     bool received = false;
     while (true) {
       auto buffer = receive_queue_try_pop();
