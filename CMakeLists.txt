@@ -65,8 +65,10 @@ include(FetchContent)
 #
 # Cereal
 #
+set(ygm_cereal_VERSION 1.3.0)
 find_package(cereal QUIET)
 if (NOT cereal_FOUND)
+    # Currently cereal version 1.3.0 has an outdate CMakeLists.txt, so we need to use this commit
     FetchContent_Declare(
         cereal
         GIT_REPOSITORY https://github.com/USCiLab/cereal
@@ -110,41 +112,69 @@ if(${YGM_INSTALL})
 	set(YGM_EXPORT_TARGETS ${YGM_EXPORT_TARGETS} cereal)
     endif()
 
-    install(TARGETS ${YGM_EXPORT_TARGETS}
-	    EXPORT ${PROJECT_NAME}Targets
-	    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+    install(TARGETS ${PROJECT_NAME}
+            EXPORT ${PROJECT_NAME}Targets
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
     install(EXPORT ${PROJECT_NAME}Targets
             FILE ${PROJECT_NAME}Targets.cmake
-	    NAMESPACE ${PROJECT_NAME}::
-	    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake)
+            NAMESPACE ${PROJECT_NAME}::
+            DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake)
 
-    install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ygm DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ygm
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
 
     if(NOT cereal_FOUND)
-    	# if we cloned cereal, install the headers
+        install(TARGETS cereal
+                EXPORT cerealTargets
+                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+        install(EXPORT cerealTargets
+                FILE cerealTargets.cmake
+                NAMESPACE cereal::
+                DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cereal/cmake)
+
         install(DIRECTORY ${PROJECT_BINARY_DIR}/_deps/cereal-src/include/cereal
-	        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+	            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+        write_basic_package_version_file(
+            "cerealConfigVersion.cmake"
+	        VERSION ${ygm_cereal_VERSION}
+	        COMPATIBILITY ExactVersion)
+
+        configure_package_config_file(
+	        "${PROJECT_SOURCE_DIR}/cmake/cerealConfig.cmake.in"
+	        "${PROJECT_BINARY_DIR}/cerealConfig.cmake"
+	        INSTALL_DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cereal/cmake)
+
+        install(FILES
+	        "${PROJECT_BINARY_DIR}/cerealConfig.cmake"
+	        "${PROJECT_BINARY_DIR}/cerealConfigVersion.cmake"
+	        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cereal/cmake)
     endif()
 
     # create version file
     write_basic_package_version_file(
         "${PROJECT_NAME}ConfigVersion.cmake"
-	VERSION ${PROJECT_VERSION}
-	COMPATIBILITY ExactVersion)
+  	    VERSION ${PROJECT_VERSION}
+	      COMPATIBILITY ExactVersion)
 
     # create config file
     configure_package_config_file(
         "${PROJECT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in"
-	"${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-	INSTALL_DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake)
+	    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+	    INSTALL_DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake)
 
     install(FILES
-            "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-	    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+        "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+  	    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
 	    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake)
+
 
 endif()
 
