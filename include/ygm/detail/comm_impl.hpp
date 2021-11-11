@@ -75,7 +75,7 @@ class comm::impl {
         ASSERT_DEBUG(!m_send_dest_queue.empty());
         int dest = m_send_dest_queue.front();
         m_send_dest_queue.pop_front();
-        async_flush(dest);
+        flush_send_buffer(dest);
       }
     }
     // check if listener has queued receives to process
@@ -121,7 +121,7 @@ class comm::impl {
   //   while (all_count != 0) {
   //     receive_queue_process();
   //     do {
-  //       async_flush_all();
+  //       flush_all_send_buffers();
   //       std::this_thread::yield();
   //     } while (receive_queue_process());
 
@@ -137,7 +137,7 @@ class comm::impl {
   void wait_local_idle() {
     receive_queue_process();
     do {
-      async_flush_all();
+      flush_all_send_buffers();
       std::this_thread::yield();
     } while (receive_queue_process());
   }
@@ -182,7 +182,7 @@ class comm::impl {
 
   //   do {
   //     receive_queue_process();
-  //     do { async_flush_all(); } while (receive_queue_process());
+  //     do { flush_all_send_buffers(); } while (receive_queue_process());
 
   //     int64_t local_count = m_send_count - m_recv_count;
 
@@ -207,25 +207,23 @@ class comm::impl {
   //   ASSERT_MPI(MPI_Barrier(m_comm_barrier));
   // }
 
-  void async_flush(int dest) {
-    if (dest != m_comm_rank) {
-      // Skip dest == m_comm_rank;   Only kill messages go to self.
-      if (m_vec_send_buffers[dest].size() > 0) {
-        ASSERT_MPI(MPI_Send(m_vec_send_buffers[dest].data(),
-                            m_vec_send_buffers[dest].size(), MPI_BYTE, dest, 0,
-                            m_comm_async));
-        m_send_buffer_size -= m_vec_send_buffers[dest].size();
-      }
-      m_vec_send_buffers[dest].clear();
-      m_vec_send_buffers[dest].shrink_to_fit();
+  void flush_send_buffer(int dest) {
+    ASSERT_RELEASE(dest != m_comm_rank);
+    if (m_vec_send_buffers[dest].size() > 0) {
+      ASSERT_MPI(MPI_Send(m_vec_send_buffers[dest].data(),
+                          m_vec_send_buffers[dest].size(), MPI_BYTE, dest, 0,
+                          m_comm_async));
+      m_send_buffer_size -= m_vec_send_buffers[dest].size();
     }
+    m_vec_send_buffers[dest].clear();
+    m_vec_send_buffers[dest].shrink_to_fit();
   }
 
-  void async_flush_all() {
+  void flush_all_send_buffers() {
     while (!m_send_dest_queue.empty()) {
       int dest = m_send_dest_queue.front();
       m_send_dest_queue.pop_front();
-      async_flush(dest);
+      flush_send_buffer(dest);
       receive_queue_process();
     }
     ASSERT_RELEASE(m_send_dest_queue.empty() && m_send_buffer_size == 0);
