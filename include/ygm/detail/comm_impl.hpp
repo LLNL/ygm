@@ -62,16 +62,16 @@ class comm::impl {
 
       //
       // add data to the to dest buffer
-      if(m_vec_send_buffers[dest].empty()) {
+      if (m_vec_send_buffers[dest].empty()) {
         m_send_dest_queue.push_back(dest);
       }
       m_send_buffer_size += data.size();
       m_vec_send_buffers[dest].insert(m_vec_send_buffers[dest].end(),
-                                        data.begin(), data.end());
+                                      data.begin(), data.end());
 
       //
-      // Check capacity
-      while(m_send_buffer_size > m_buffer_capacity) {
+      // Check if send buffer capacity has been exceeded
+      while (m_send_buffer_size > m_buffer_capacity) {
         ASSERT_DEBUG(!m_send_dest_queue.empty());
         int dest = m_send_dest_queue.front();
         m_send_dest_queue.pop_front();
@@ -210,9 +210,10 @@ class comm::impl {
   void async_flush(int dest) {
     if (dest != m_comm_rank) {
       // Skip dest == m_comm_rank;   Only kill messages go to self.
-      if (m_vec_send_buffers[dest].size() > 0){
-        ASSERT_MPI(MPI_Send(m_vec_send_buffers[dest].data(), m_vec_send_buffers[dest].size(), MPI_BYTE, dest, 0,
-                          m_comm_async));
+      if (m_vec_send_buffers[dest].size() > 0) {
+        ASSERT_MPI(MPI_Send(m_vec_send_buffers[dest].data(),
+                            m_vec_send_buffers[dest].size(), MPI_BYTE, dest, 0,
+                            m_comm_async));
         m_send_buffer_size -= m_vec_send_buffers[dest].size();
       }
       m_vec_send_buffers[dest].clear();
@@ -221,13 +222,13 @@ class comm::impl {
   }
 
   void async_flush_all() {
-    while(!m_send_dest_queue.empty()) {
+    while (!m_send_dest_queue.empty()) {
       int dest = m_send_dest_queue.front();
       m_send_dest_queue.pop_front();
       async_flush(dest);
       receive_queue_process();
     }
-    ASSERT_RELEASE(m_send_dest_queue.empty() && m_send_buffer_size==0);
+    ASSERT_RELEASE(m_send_dest_queue.empty() && m_send_buffer_size == 0);
   }
 
   int64_t local_bytes_sent() const { return m_local_bytes_sent; }
@@ -366,13 +367,13 @@ class comm::impl {
 
       std::shared_ptr<char[]> recv_buffer{new char[count]};
 
-      ASSERT_MPI(MPI_Recv(recv_buffer.get(), count, MPI_BYTE, source, tag, m_comm_async, & status));
+      ASSERT_MPI(MPI_Recv(recv_buffer.get(), count, MPI_BYTE, source, tag,
+                          m_comm_async, &status));
 
       // Check for kill signal
       if (status.MPI_SOURCE == m_comm_rank) break;
 
       receive_queue_push_back(recv_buffer, count);
-
     }
   }
 
@@ -389,11 +390,11 @@ class comm::impl {
     }
   }
 
-  void receive_queue_push_back(const std::shared_ptr<char[]>& b, size_t size) {
+  void receive_queue_push_back(const std::shared_ptr<char[]> &b, size_t size) {
     size_t current_size = 0;
     {
       std::scoped_lock lock(m_receive_queue_mutex);
-      m_receive_queue.push_back({b,size});
+      m_receive_queue.push_back({b, size});
       current_size = m_receive_queue.size();
     }
     if (current_size > 16) {
@@ -458,7 +459,6 @@ class comm::impl {
         m_recv_count++;
         m_local_rpc_calls++;
       }
-
     }
     return received;
   }
@@ -470,12 +470,12 @@ class comm::impl {
   int      m_comm_rank;
   size_t   m_buffer_capacity;
 
-  std::vector<std::vector<char>>                  m_vec_send_buffers;
-  size_t                                          m_send_buffer_size = 0;
-  std::deque<int>                                 m_send_dest_queue;
+  std::vector<std::vector<char>> m_vec_send_buffers;
+  size_t                         m_send_buffer_size = 0;
+  std::deque<int>                m_send_dest_queue;
 
-  std::deque<std::pair<std::shared_ptr<char[]>,size_t> > m_receive_queue;
-  std::mutex                                     m_receive_queue_mutex;
+  std::deque<std::pair<std::shared_ptr<char[]>, size_t>> m_receive_queue;
+  std::mutex                                             m_receive_queue_mutex;
 
   std::thread m_listener;
 
@@ -486,7 +486,8 @@ class comm::impl {
   int64_t m_local_bytes_sent = 0;
 };
 
-inline comm::comm(int *argc, char ***argv, int buffer_capacity = 16 * 1024 * 1024) {
+inline comm::comm(int *argc, char ***argv,
+                  int buffer_capacity = 16 * 1024 * 1024) {
   pimpl_if = std::make_shared<detail::mpi_init_finalize>(argc, argv);
   pimpl    = std::make_shared<comm::impl>(MPI_COMM_WORLD, buffer_capacity);
 }
