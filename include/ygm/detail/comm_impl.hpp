@@ -67,7 +67,12 @@ class comm::impl {
           async_flush(dest);
         }
 
+        //
         // add data to the to dest buffer
+        if(m_vec_send_buffers[dest].empty()) {
+          m_send_dest_queue.push_back(dest);
+        }
+        m_send_buffer_size += data.size();
         m_vec_send_buffers[dest].insert(m_vec_send_buffers[dest].end(),
                                          data.begin(), data.end());
       } else {  // Large message
@@ -209,6 +214,7 @@ class comm::impl {
       if (m_vec_send_buffers[dest].size() > 0){
         ASSERT_MPI(MPI_Send(m_vec_send_buffers[dest].data(), m_vec_send_buffers[dest].size(), MPI_BYTE, dest, 0,
                           m_comm_async));
+        m_send_buffer_size -= m_vec_send_buffers[dest].size();
       }
       m_vec_send_buffers[dest].clear();
       m_vec_send_buffers[dest].shrink_to_fit();
@@ -216,11 +222,13 @@ class comm::impl {
   }
 
   void async_flush_all() {
-    for (int i = 0; i < size(); ++i) {
-      int dest = (rank() + i) % size();
+    while(!m_send_dest_queue.empty()) {
+      int dest = m_send_dest_queue.front();
+      m_send_dest_queue.pop_front();
       async_flush(dest);
+      receive_queue_process();
     }
-    // TODO async_flush_bcast(); goes here
+    ASSERT_RELEASE(m_send_dest_queue.empty() && m_send_buffer_size==0);
   }
 
   int64_t local_bytes_sent() const { return m_local_bytes_sent; }
@@ -540,6 +548,8 @@ class comm::impl {
   size_t   m_buffer_capacity;
 
   std::vector<std::vector<char>>                  m_vec_send_buffers;
+  size_t                                          m_send_buffer_size = 0;
+  std::deque<int>                                 m_send_dest_queue;
 
   std::mutex                                      m_vec_free_buffers_mutex;
   std::vector<std::shared_ptr<std::vector<char>>> m_vec_free_buffers;
