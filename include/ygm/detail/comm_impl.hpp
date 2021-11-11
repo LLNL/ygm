@@ -28,11 +28,7 @@ class comm::impl {
     ASSERT_MPI(MPI_Comm_rank(m_comm_async, &m_comm_rank));
     m_buffer_capacity = buffer_capacity;
 
-    // Allocate send buffers
-    for (int i = 0; i < m_comm_size; ++i) {
-      m_vec_send_buffers.push_back(allocate_buffer());
-    }
-
+    m_vec_send_buffers.resize(m_comm_size);
     // launch listener thread
     m_listener = std::thread(&impl::listen, this);
   }
@@ -66,13 +62,13 @@ class comm::impl {
 
       if (data.size() < m_buffer_capacity) {
         // check if buffer doesn't have enough space
-        if (data.size() + m_vec_send_buffers[dest]->size() >
+        if (data.size() + m_vec_send_buffers[dest].size() >
             m_buffer_capacity) {
           async_flush(dest);
         }
 
         // add data to the to dest buffer
-        m_vec_send_buffers[dest]->insert(m_vec_send_buffers[dest]->end(),
+        m_vec_send_buffers[dest].insert(m_vec_send_buffers[dest].end(),
                                          data.begin(), data.end());
       } else {  // Large message
         send_large_message(data, dest);
@@ -210,12 +206,12 @@ class comm::impl {
   void async_flush(int dest) {
     if (dest != m_comm_rank) {
       // Skip dest == m_comm_rank;   Only kill messages go to self.
-      if (m_vec_send_buffers[dest]->size() == 0) return;
-      auto buffer = allocate_buffer();
-      std::swap(buffer, m_vec_send_buffers[dest]);
-      ASSERT_MPI(MPI_Send(buffer->data(), buffer->size(), MPI_BYTE, dest, 0,
+      if (m_vec_send_buffers[dest].size() > 0){
+        ASSERT_MPI(MPI_Send(m_vec_send_buffers[dest].data(), m_vec_send_buffers[dest].size(), MPI_BYTE, dest, 0,
                           m_comm_async));
-      free_buffer(buffer);
+      }
+      m_vec_send_buffers[dest].clear();
+      m_vec_send_buffers[dest].shrink_to_fit();
     }
   }
 
@@ -543,7 +539,7 @@ class comm::impl {
   int      m_comm_rank;
   size_t   m_buffer_capacity;
 
-  std::vector<std::shared_ptr<std::vector<char>>> m_vec_send_buffers;
+  std::vector<std::vector<char>>                  m_vec_send_buffers;
 
   std::mutex                                      m_vec_free_buffers_mutex;
   std::vector<std::shared_ptr<std::vector<char>>> m_vec_free_buffers;
