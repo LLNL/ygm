@@ -136,7 +136,6 @@ if(${YGM_INSTALL})
 
         install(EXPORT cerealTargets
                 FILE cerealTargets.cmake
-                NAMESPACE cereal::
                 DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/cereal/cmake)
 
         install(DIRECTORY ${PROJECT_BINARY_DIR}/_deps/cereal-src/include/cereal
