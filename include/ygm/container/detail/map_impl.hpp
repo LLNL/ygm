@@ -60,7 +60,9 @@ class map_impl {
 
   void async_insert_if_missing(const key_type &key, const value_type &value) {
     async_insert_if_missing_else_visit(
-        key, value, [](const std::pair<key_type, value_type> &kv) {});
+        key, value,
+        [](const std::pair<key_type, value_type> &kv,
+           const value_type &                     new_value) {});
   }
 
   void async_insert_multi(const key_type &key, const value_type &value) {
@@ -142,7 +144,7 @@ class map_impl {
         pmap->m_local_map.insert(std::make_pair(key, value));
       } else {
         Visitor *vis;
-        pmap->local_visit(key, *vis, args...);
+        pmap->local_visit(key, *vis, value, args...);
       }
     };
 

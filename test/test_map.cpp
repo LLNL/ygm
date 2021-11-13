@@ -109,7 +109,8 @@ int main(int argc, char **argv) {
     static int dog_visit_counter{0};
 
     smap.async_insert_if_missing_else_visit(
-        "dog", "other_dog", [](const auto &kv) { dog_visit_counter++; });
+        "dog", "other_dog",
+        [](const auto &kv, const auto &new_value) { dog_visit_counter++; });
 
     world.barrier();
 
@@ -118,7 +119,8 @@ int main(int argc, char **argv) {
     static int apple_visit_counter{0};
 
     smap.async_insert_if_missing_else_visit(
-        "apple", "orange", [](const auto &kv) { apple_visit_counter++; });
+        "apple", "orange",
+        [](const auto &kv, const auto &new_value) { apple_visit_counter++; });
 
     world.barrier();
 
@@ -127,8 +129,9 @@ int main(int argc, char **argv) {
 
     if (world.rank0()) {
       smap.async_insert_if_missing_else_visit(
-          "red", "green",
-          [](const auto &kv) { ASSERT_RELEASE(true == false); });
+          "red", "green", [](const auto &kv, const auto &new_value) {
+            ASSERT_RELEASE(true == false);
+          });
     }
   }
 

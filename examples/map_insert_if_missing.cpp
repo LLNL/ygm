@@ -22,7 +22,8 @@ int main(int argc, char **argv) {
 
   world.barrier();
 
-  auto sounds_lambda = [](auto kv_pair, const int origin_rank) {
+  auto sounds_lambda = [](auto &kv_pair, const auto &new_value,
+                          const int origin_rank) {
     std::cout << "The " << kv_pair.first << " says " << kv_pair.second
               << " for rank " << origin_rank << std::endl;
   };
