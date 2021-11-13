@@ -26,7 +26,7 @@ class comm::impl {
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_other));
     ASSERT_MPI(MPI_Comm_size(m_comm_async, &m_comm_size));
     ASSERT_MPI(MPI_Comm_rank(m_comm_async, &m_comm_rank));
-    m_buffer_capacity = buffer_capacity;
+    m_buffer_capacity_bytes = buffer_capacity;
 
     m_vec_send_buffers.resize(m_comm_size);
     // launch listener thread
@@ -65,13 +65,13 @@ class comm::impl {
       if (m_vec_send_buffers[dest].empty()) {
         m_send_dest_queue.push_back(dest);
       }
-      m_send_buffer_size += data.size();
+      m_send_buffer_bytes += data.size();
       m_vec_send_buffers[dest].insert(m_vec_send_buffers[dest].end(),
                                       data.begin(), data.end());
 
       //
       // Check if send buffer capacity has been exceeded
-      while (m_send_buffer_size > m_buffer_capacity) {
+      while (m_send_buffer_bytes > m_buffer_capacity_bytes) {
         ASSERT_DEBUG(!m_send_dest_queue.empty());
         int dest = m_send_dest_queue.front();
         m_send_dest_queue.pop_front();
@@ -97,7 +97,6 @@ class comm::impl {
       async(dest, std::forward<const SendArgs>(args)...);
     }
   }
-
 
   // //
   // // Blocking barrier
@@ -183,8 +182,6 @@ class comm::impl {
   //            last != current);
   //   ASSERT_MPI(MPI_Barrier(m_comm_barrier));
   // }
-
-
 
   int64_t local_bytes_sent() const { return m_local_bytes_sent; }
 
@@ -305,14 +302,13 @@ class comm::impl {
   }
 
  private:
-
-   void flush_send_buffer(int dest) {
+  void flush_send_buffer(int dest) {
     ASSERT_RELEASE(dest != m_comm_rank);
     if (m_vec_send_buffers[dest].size() > 0) {
       ASSERT_MPI(MPI_Send(m_vec_send_buffers[dest].data(),
                           m_vec_send_buffers[dest].size(), MPI_BYTE, dest, 0,
                           m_comm_async));
-      m_send_buffer_size -= m_vec_send_buffers[dest].size();
+      m_send_buffer_bytes -= m_vec_send_buffers[dest].size();
     }
     m_vec_send_buffers[dest].clear();
     m_vec_send_buffers[dest].shrink_to_fit();
@@ -325,9 +321,9 @@ class comm::impl {
       flush_send_buffer(dest);
       process_receive_queue();
     }
-    ASSERT_RELEASE(m_send_dest_queue.empty() && m_send_buffer_size == 0);
+    ASSERT_RELEASE(m_send_dest_queue.empty() && m_send_buffer_bytes == 0);
   }
-  
+
   void wait_local_idle() {
     process_receive_queue();
     do {
@@ -363,15 +359,17 @@ class comm::impl {
     }
   }
 
-  size_t receive_queue_peek_size() const { return m_receive_queue.size(); }
+  size_t receive_queue_peek_size() const { return m_recv_queue.size(); }
 
   std::pair<std::shared_ptr<char[]>, size_t> receive_queue_try_pop() {
-    std::scoped_lock lock(m_receive_queue_mutex);
-    if (m_receive_queue.empty()) {
+    std::scoped_lock lock(m_recv_queue_mutex);
+    if (m_recv_queue.empty()) {
+      ASSERT_RELEASE(m_recv_queue_bytes == 0);
       return std::make_pair(std::shared_ptr<char[]>{}, size_t{0});
     } else {
-      auto to_return = m_receive_queue.front();
-      m_receive_queue.pop_front();
+      auto to_return = m_recv_queue.front();
+      m_recv_queue.pop_front();
+      m_recv_queue_bytes -= to_return.second;
       return to_return;
     }
   }
@@ -379,12 +377,15 @@ class comm::impl {
   void receive_queue_push_back(const std::shared_ptr<char[]> &b, size_t size) {
     size_t current_size = 0;
     {
-      std::scoped_lock lock(m_receive_queue_mutex);
-      m_receive_queue.push_back({b, size});
-      current_size = m_receive_queue.size();
+      std::scoped_lock lock(m_recv_queue_mutex);
+      m_recv_queue.push_back({b, size});
+      current_size = m_recv_queue.size();
+      m_recv_queue_bytes += size;
     }
-    if (current_size > 16) {
-      std::this_thread::sleep_for(std::chrono::microseconds(current_size - 16));
+    if (m_recv_queue_bytes > m_buffer_capacity_bytes) {
+      // Sleep a microsecond for every KB over.
+      std::this_thread::sleep_for(std::chrono::microseconds(
+          (m_recv_queue_bytes - m_buffer_capacity_bytes) / 1024));
     }
   }
 
@@ -462,14 +463,15 @@ class comm::impl {
   MPI_Comm m_comm_other;
   int      m_comm_size;
   int      m_comm_rank;
-  size_t   m_buffer_capacity;
+  size_t   m_buffer_capacity_bytes;
 
   std::vector<std::vector<char>> m_vec_send_buffers;
-  size_t                         m_send_buffer_size = 0;
+  size_t                         m_send_buffer_bytes = 0;
   std::deque<int>                m_send_dest_queue;
 
-  std::deque<std::pair<std::shared_ptr<char[]>, size_t>> m_receive_queue;
-  std::mutex                                             m_receive_queue_mutex;
+  std::deque<std::pair<std::shared_ptr<char[]>, size_t>> m_recv_queue;
+  std::mutex                                             m_recv_queue_mutex;
+  size_t                                                 m_recv_queue_bytes = 0;
 
   std::thread m_listener;
 
