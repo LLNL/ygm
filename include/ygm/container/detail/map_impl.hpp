@@ -58,6 +58,13 @@ class map_impl {
     m_comm.async(dest, inserter, pthis, key, value);
   }
 
+  void async_insert_if_missing(const key_type &key, const value_type &value) {
+    async_insert_if_missing_else_visit(
+        key, value,
+        [](const std::pair<key_type, value_type> &kv,
+           const value_type &                     new_value) {});
+  }
+
   void async_insert_multi(const key_type &key, const value_type &value) {
     auto inserter = [](auto mailbox, auto map, const key_type &key,
                        const value_type &value) {
@@ -120,6 +127,28 @@ class map_impl {
     };
 
     m_comm.async(dest, visit_wrapper, pthis, key,
+                 std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_insert_if_missing_else_visit(const key_type &  key,
+                                          const value_type &value,
+                                          Visitor           visitor,
+                                          const VisitorArgs &... args) {
+    int  dest                      = owner(key);
+    auto insert_else_visit_wrapper = [](auto pmap, const key_type &key,
+                                        const value_type &value,
+                                        const VisitorArgs &... args) {
+      auto itr = pmap->m_local_map.find(key);
+      if (itr == pmap->m_local_map.end()) {
+        pmap->m_local_map.insert(std::make_pair(key, value));
+      } else {
+        Visitor *vis;
+        pmap->local_visit(key, *vis, value, args...);
+      }
+    };
+
+    m_comm.async(dest, insert_else_visit_wrapper, pthis, key, value,
                  std::forward<const VisitorArgs>(args)...);
   }
 
