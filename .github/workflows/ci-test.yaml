@@ -1,0 +1,81 @@
+name: CI Test
+
+on: [push, pull_request]
+
+jobs:
+  GCC9_Boost177_OpenMPI:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Dependencies
+        run: |
+          wget --no-verbose https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.bz2
+          tar -xjf boost_1_77_0.tar.bz2
+          ls boost_1_77_0
+          sudo apt-get install openmpi-bin libopenmpi-dev
+      - name: Make
+        run: |
+          echo Run 'make'
+          mpicc -show
+          g++-9 --version
+          mkdir build
+          cd build
+          cmake ../ -DCMAKE_CXX_COMPILER=g++-9
+      - name: Make test
+        run: |
+          echo Run 'make test'
+          pwd
+  # GCC10_Boost177_OpenMPI:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: Install Dependencies
+  #       run: |
+  #         wget --no-verbose https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.bz2
+  #         tar -xjf boost_1_77_0.tar.bz2
+  #         ls boost_1_77_0
+  #         sudo apt-get install openmpi-bin libopenmpi-dev
+  #     - name: Make
+  #       run: |
+  #         echo Run 'make'
+  #         mpicc -show
+  #         g++-10 --version
+  #     - name: Make test
+  #       run: |
+  #         echo Run 'make test'
+  # GCC9_Boost177_mpich:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: Install Dependencies
+  #       run: |
+  #         wget --no-verbose https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.bz2
+  #         tar -xjf boost_1_77_0.tar.bz2
+  #         ls boost_1_77_0
+  #         sudo apt-get install mpich
+  #     - name: Make
+  #       run: |
+  #         echo Run 'make'
+  #         mpicc -show
+  #         g++-9 --version
+  #     - name: Make test
+  #       run: |
+  #         echo Run 'make test'
+  # GCC10_Boost177_mpich:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: Install Dependencies
+  #       run: |
+  #         wget --no-verbose https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.bz2
+  #         tar -xjf boost_1_77_0.tar.bz2
+  #         ls boost_1_77_0
+  #         sudo apt-get install mpich
+  #     - name: Make
+  #       run: |
+  #         echo Run 'make'
+  #         mpicc -show
+  #         g++-10 --version
+  #     - name: Make test
+  #       run: |
+  #         echo Run 'make test'
