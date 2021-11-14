@@ -26,7 +26,8 @@ jobs:
         run: |
           echo Run 'make test'
           cd build
-          make test
+          which mpiexec
+          ctest -VV
   # GCC10_Boost177_OpenMPI:
   #   runs-on: ubuntu-latest
   #   steps:
