@@ -36,14 +36,15 @@ class comm::impl {
   ~impl() {
     barrier();
     // send kill signal to self (listener thread)
-    MPI_Send(NULL, 0, MPI_BYTE, m_comm_rank, 0, m_comm_async);
+    ASSERT_RELEASE(MPI_Send(NULL, 0, MPI_BYTE, m_comm_rank, 0, m_comm_async) ==
+                   MPI_SUCCESS);
     // Join listener thread.
     m_listener.join();
     // Free cloned communicator.
     ASSERT_RELEASE(MPI_Barrier(m_comm_async) == MPI_SUCCESS);
-    MPI_Comm_free(&m_comm_async);
-    MPI_Comm_free(&m_comm_barrier);
-    MPI_Comm_free(&m_comm_other);
+    ASSERT_RELEASE(MPI_Comm_free(&m_comm_async) == MPI_SUCCESS);
+    ASSERT_RELEASE(MPI_Comm_free(&m_comm_barrier) == MPI_SUCCESS);
+    ASSERT_RELEASE(MPI_Comm_free(&m_comm_other) == MPI_SUCCESS);
   }
 
   int size() const { return m_comm_size; }
