@@ -27,7 +27,7 @@ function ( add_ygm_test test_name )
     add_test( ${test_exe} "srun" "${CMAKE_CURRENT_BINARY_DIR}/${test_exe}")
   else()
     add_test( ${test_exe} ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG}
-    "4" ${MPIEXEC_PREFLAGS} "${CMAKE_CURRENT_BINARY_DIR}/${test_exe}")
+    "4" ${MPIEXEC_PREFLAGS} "--oversubscribe" "${CMAKE_CURRENT_BINARY_DIR}/${test_exe}")
   endif()
 endfunction()
 
