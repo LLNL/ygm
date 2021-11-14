@@ -26,6 +26,7 @@ jobs:
         run: |
           echo Run 'make test'
           cd build
+          export OMPI_MCA_rmaps_base_oversubscribe=1
           ctest -VV
   GCC10_Boost177_OpenMPI:
     runs-on: ubuntu-latest
@@ -50,6 +51,7 @@ jobs:
         run: |
           echo Run 'make test'
           cd build
+          export OMPI_MCA_rmaps_base_oversubscribe=1
           ctest -VV
   GCC9_Boost177_mpich:
     runs-on: ubuntu-latest
