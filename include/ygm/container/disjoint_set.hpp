@@ -18,13 +18,23 @@ class disjoint_set {
 
   disjoint_set(ygm::comm &comm) : m_impl(comm) {}
 
-  void async_make_set(const value_type &item) { m_impl.async_make_set(item); }
-
   void async_union(const value_type &a, const value_type &b) {
     m_impl.async_union(a, b);
   }
 
+  template <typename Function, typename... FunctionArgs>
+  void async_union_and_execute(const value_type &a, const value_type &b,
+                               Function fn, const FunctionArgs &... args) {
+    m_impl.async_union_and_execute(a, b, fn,
+                                   std::forward<const FunctionArgs>(args)...);
+  }
+
   void all_compress() { m_impl.all_compress(); }
+
+  template <typename Function>
+  void for_all(Function fn) {
+    m_impl.for_all(fn);
+  }
 
   std::map<value_type, value_type> all_find(
       const std::vector<value_type> &items) {

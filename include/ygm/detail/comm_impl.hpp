@@ -26,28 +26,25 @@ class comm::impl {
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_other));
     ASSERT_MPI(MPI_Comm_size(m_comm_async, &m_comm_size));
     ASSERT_MPI(MPI_Comm_rank(m_comm_async, &m_comm_rank));
-    m_buffer_capacity = buffer_capacity;
+    m_buffer_capacity_bytes = buffer_capacity;
 
-    // Allocate send buffers
-    for (int i = 0; i < m_comm_size; ++i) {
-      m_vec_send_buffers.push_back(allocate_buffer());
-    }
-
+    m_vec_send_buffers.resize(m_comm_size);
     // launch listener thread
-    m_listener = std::thread(&impl::listen, this);
+    m_listener = std::thread(&impl::listener_thread, this);
   }
 
   ~impl() {
     barrier();
     // send kill signal to self (listener thread)
-    MPI_Send(NULL, 0, MPI_BYTE, m_comm_rank, 0, m_comm_async);
+    ASSERT_RELEASE(MPI_Send(NULL, 0, MPI_BYTE, m_comm_rank, 0, m_comm_async) ==
+                   MPI_SUCCESS);
     // Join listener thread.
     m_listener.join();
     // Free cloned communicator.
     ASSERT_RELEASE(MPI_Barrier(m_comm_async) == MPI_SUCCESS);
-    MPI_Comm_free(&m_comm_async);
-    MPI_Comm_free(&m_comm_barrier);
-    MPI_Comm_free(&m_comm_other);
+    ASSERT_RELEASE(MPI_Comm_free(&m_comm_async) == MPI_SUCCESS);
+    ASSERT_RELEASE(MPI_Comm_free(&m_comm_barrier) == MPI_SUCCESS);
+    ASSERT_RELEASE(MPI_Comm_free(&m_comm_other) == MPI_SUCCESS);
   }
 
   int size() const { return m_comm_size; }
@@ -64,29 +61,28 @@ class comm::impl {
           pack_lambda(std::forward<const SendArgs>(args)...);
       m_local_bytes_sent += data.size();
 
-      if (data.size() < m_buffer_capacity) {
-        // check if buffer doesn't have enough space
-        if (data.size() + m_vec_send_buffers[dest]->size() >
-            m_buffer_capacity) {
-          async_flush(dest);
-        }
+      //
+      // add data to the to dest buffer
+      if (m_vec_send_buffers[dest].empty()) {
+        m_send_dest_queue.push_back(dest);
+      }
+      m_send_buffer_bytes += data.size();
+      m_vec_send_buffers[dest].insert(m_vec_send_buffers[dest].end(),
+                                      data.begin(), data.end());
 
-        // add data to the to dest buffer
-        m_vec_send_buffers[dest]->insert(m_vec_send_buffers[dest]->end(),
-                                         data.begin(), data.end());
-      } else {  // Large message
-        send_large_message(data, dest);
+      //
+      // Check if send buffer capacity has been exceeded
+      while (m_send_buffer_bytes > m_buffer_capacity_bytes) {
+        ASSERT_DEBUG(!m_send_dest_queue.empty());
+        int dest = m_send_dest_queue.front();
+        m_send_dest_queue.pop_front();
+        flush_send_buffer(dest);
       }
     }
     // check if listener has queued receives to process
     if (receive_queue_peek_size() > 0) {
-      receive_queue_process();
+      process_receive_queue();
     }
-  }
-
-  template <typename... SendArgs>
-  void async_preempt(int dest, const SendArgs &... args) {
-    async(dest, std::forward<const SendArgs>(args)...);
   }
 
   template <typename... SendArgs>
@@ -97,21 +93,10 @@ class comm::impl {
   }
 
   template <typename... SendArgs>
-  void async_bcast_preempt(const SendArgs &... args) {
-    bcast(std::forward<const SendArgs>(args)...);
-  }
-
-  template <typename... SendArgs>
   void async_mcast(const std::vector<int> &dests, const SendArgs &... args) {
     for (auto dest : dests) {
       async(dest, std::forward<const SendArgs>(args)...);
     }
-  }
-
-  template <typename... SendArgs>
-  void async_mcast_preempt(const std::vector<int> &dests,
-                           const SendArgs &... args) {
-    mcast(dests, std::forward<const SendArgs>(args)...);
   }
 
   // //
@@ -119,11 +104,11 @@ class comm::impl {
   // void barrier() {
   //   int64_t all_count = -1;
   //   while (all_count != 0) {
-  //     receive_queue_process();
+  //     process_receive_queue();
   //     do {
-  //       async_flush_all();
+  //       flush_all_send_buffers();
   //       std::this_thread::yield();
-  //     } while (receive_queue_process());
+  //     } while (process_receive_queue());
 
   //     int64_t local_count = m_send_count - m_recv_count;
 
@@ -133,14 +118,6 @@ class comm::impl {
   //     // std::cout << "MPI_Allreduce() " << std::endl;
   //   }
   // }
-
-  void wait_local_idle() {
-    receive_queue_process();
-    do {
-      async_flush_all();
-      std::this_thread::yield();
-    } while (receive_queue_process());
-  }
 
   void barrier() {
     while (true) {
@@ -181,8 +158,8 @@ class comm::impl {
   //   -6}; MPI_Request req = MPI_REQUEST_NULL;
 
   //   do {
-  //     receive_queue_process();
-  //     do { async_flush_all(); } while (receive_queue_process());
+  //     process_receive_queue();
+  //     do { flush_all_send_buffers(); } while (process_receive_queue());
 
   //     int64_t local_count = m_send_count - m_recv_count;
 
@@ -206,26 +183,6 @@ class comm::impl {
   //            last != current);
   //   ASSERT_MPI(MPI_Barrier(m_comm_barrier));
   // }
-
-  void async_flush(int dest) {
-    if (dest != m_comm_rank) {
-      // Skip dest == m_comm_rank;   Only kill messages go to self.
-      if (m_vec_send_buffers[dest]->size() == 0) return;
-      auto buffer = allocate_buffer();
-      std::swap(buffer, m_vec_send_buffers[dest]);
-      ASSERT_MPI(MPI_Send(buffer->data(), buffer->size(), MPI_BYTE, dest, 0,
-                          m_comm_async));
-      free_buffer(buffer);
-    }
-  }
-
-  void async_flush_all() {
-    for (int i = 0; i < size(); ++i) {
-      int dest = (rank() + i) % size();
-      async_flush(dest);
-    }
-    // TODO async_flush_bcast(); goes here
-  }
 
   int64_t local_bytes_sent() const { return m_local_bytes_sent; }
 
@@ -346,129 +303,90 @@ class comm::impl {
   }
 
  private:
+  void flush_send_buffer(int dest) {
+    ASSERT_RELEASE(dest != m_comm_rank);
+    if (m_vec_send_buffers[dest].size() > 0) {
+      ASSERT_MPI(MPI_Send(m_vec_send_buffers[dest].data(),
+                          m_vec_send_buffers[dest].size(), MPI_BYTE, dest, 0,
+                          m_comm_async));
+      m_send_buffer_bytes -= m_vec_send_buffers[dest].size();
+    }
+    m_vec_send_buffers[dest].clear();
+    m_vec_send_buffers[dest].shrink_to_fit();
+  }
+
+  void flush_all_send_buffers() {
+    while (!m_send_dest_queue.empty()) {
+      int dest = m_send_dest_queue.front();
+      m_send_dest_queue.pop_front();
+      flush_send_buffer(dest);
+      process_receive_queue();
+    }
+    ASSERT_RELEASE(m_send_dest_queue.empty() && m_send_buffer_bytes == 0);
+  }
+
+  void wait_local_idle() {
+    process_receive_queue();
+    do {
+      flush_all_send_buffers();
+      std::this_thread::yield();
+    } while (process_receive_queue());
+  }
+
   /**
    * @brief Listener thread
    *
    */
-  void listen() {
+  void listener_thread() {
     while (true) {
-      auto recv_buffer = allocate_buffer();
-      recv_buffer->resize(m_buffer_capacity);  // TODO:  does this clear?
       MPI_Status status;
-      ASSERT_MPI(MPI_Recv(recv_buffer->data(), m_buffer_capacity, MPI_BYTE,
-                          MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_async, &status));
-      int tag = status.MPI_TAG;
+      ASSERT_MPI(MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_async, &status));
 
-      if (tag == large_message_announce_tag) {
-        // Determine size and source of message
-        size_t size = *(reinterpret_cast<size_t *>(recv_buffer->data()));
-        int    src  = status.MPI_SOURCE;
+      int count{0};
+      ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &count));
 
-        // Allocate large buffer
-        auto large_recv_buff = std::make_shared<std::vector<char>>(size);
+      int source = status.MPI_SOURCE;
+      int tag    = status.MPI_TAG;
 
-        // Receive large message
-        receive_large_message(large_recv_buff, src, size);
+      std::shared_ptr<char[]> recv_buffer{new char[count]};
 
-        // Add buffer to receive queue
-        receive_queue_push_back(large_recv_buff, src);
-      } else {
-        int count;
-        ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &count))
-        // std::cout << "RANK: " << rank() << " received count: " << count
-        //           << std::endl;
-        // Resize buffer to cout MPI actually received
-        recv_buffer->resize(count);
+      ASSERT_MPI(MPI_Recv(recv_buffer.get(), count, MPI_BYTE, source, tag,
+                          m_comm_async, &status));
 
-        // Check for kill signal
-        if (status.MPI_SOURCE == m_comm_rank) break;
+      // Check for kill signal
+      if (status.MPI_SOURCE == m_comm_rank) break;
 
-        // Add buffer to receive queue
-        receive_queue_push_back(recv_buffer, status.MPI_SOURCE);
-      }
+      receive_queue_push_back(recv_buffer, count);
     }
   }
 
-  /*
-   * @brief Send a large message
-   *
-   * @param dest Destination for message
-   * @param msg Packed message to send
-   */
-  void send_large_message(const std::vector<char> &msg, const int dest) {
-    // Announce the large message and its size
-    size_t size = msg.size();
-    ASSERT_MPI(MPI_Send(&size, 8, MPI_BYTE, dest, large_message_announce_tag,
-                        m_comm_async));
+  size_t receive_queue_peek_size() const { return m_recv_queue.size(); }
 
-    // Send message
-    ASSERT_MPI(MPI_Send(msg.data(), size, MPI_BYTE, dest, large_message_tag,
-                        m_comm_async));
-  }
-
-  /*
-   * @brief Receive a large message that has been announced
-   *
-   * @param src Source of message
-   * @param msg Buffer to hold message
-   */
-  void receive_large_message(std::shared_ptr<std::vector<char>> msg,
-                             const int src, const size_t size) {
-    ASSERT_MPI(MPI_Recv(msg->data(), size, MPI_BYTE, src, large_message_tag,
-                        m_comm_async, MPI_STATUS_IGNORE));
-  }
-
-  /**
-   * @brief Allocates buffer; checks free pool first.
-   *
-   * @return std::shared_ptr<std::vector<char>>
-   */
-  std::shared_ptr<std::vector<char>> allocate_buffer() {
-    std::scoped_lock lock(m_vec_free_buffers_mutex);
-    if (m_vec_free_buffers.empty()) {
-      auto to_return = std::make_shared<std::vector<char>>();
-      to_return->reserve(m_buffer_capacity);
-      return to_return;
+  std::pair<std::shared_ptr<char[]>, size_t> receive_queue_try_pop() {
+    std::scoped_lock lock(m_recv_queue_mutex);
+    if (m_recv_queue.empty()) {
+      ASSERT_RELEASE(m_recv_queue_bytes == 0);
+      return std::make_pair(std::shared_ptr<char[]>{}, size_t{0});
     } else {
-      auto to_return = m_vec_free_buffers.back();
-      m_vec_free_buffers.pop_back();
+      auto to_return = m_recv_queue.front();
+      m_recv_queue.pop_front();
+      m_recv_queue_bytes -= to_return.second;
       return to_return;
     }
   }
 
-  /**
-   * @brief Frees a previously allocated buffer.  Adds buffer to free pool.
-   *
-   * @param b buffer to free
-   */
-  void free_buffer(std::shared_ptr<std::vector<char>> b) {
-    b->clear();
-    std::scoped_lock lock(m_vec_free_buffers_mutex);
-    m_vec_free_buffers.push_back(b);
-  }
-
-  size_t receive_queue_peek_size() const { return m_receive_queue.size(); }
-
-  std::pair<std::shared_ptr<std::vector<char>>, int> receive_queue_try_pop() {
-    std::scoped_lock lock(m_receive_queue_mutex);
-    if (m_receive_queue.empty()) {
-      return std::make_pair(std::shared_ptr<std::vector<char>>(), int(-1));
-    } else {
-      auto to_return = m_receive_queue.front();
-      m_receive_queue.pop_front();
-      return to_return;
-    }
-  }
-
-  void receive_queue_push_back(std::shared_ptr<std::vector<char>> b, int from) {
+  void receive_queue_push_back(const std::shared_ptr<char[]> &b, size_t size) {
     size_t current_size = 0;
     {
-      std::scoped_lock lock(m_receive_queue_mutex);
-      m_receive_queue.push_back(std::make_pair(b, from));
-      current_size = m_receive_queue.size();
+      std::scoped_lock lock(m_recv_queue_mutex);
+      m_recv_queue.push_back({b, size});
+      current_size = m_recv_queue.size();
+      m_recv_queue_bytes += size;
     }
-    if (current_size > 16) {
-      std::this_thread::sleep_for(std::chrono::microseconds(current_size - 16));
+    if (m_recv_queue_bytes > m_buffer_capacity_bytes) {
+      // Sleep a microsecond for every KB over.
+      std::this_thread::sleep_for(std::chrono::microseconds(
+          (m_recv_queue_bytes - m_buffer_capacity_bytes) / 1024));
     }
   }
 
@@ -478,7 +396,7 @@ class comm::impl {
     ASSERT_DEBUG(sizeof(Lambda) == 1);
     // Question: should this be std::forward(...)
     // \pp was: (l)(this, m_comm_rank, args...);
-    ygm::meta::apply_optional(l, std::make_tuple(this, m_comm_rank),
+    ygm::meta::apply_optional(l, std::make_tuple(this),
                               std::make_tuple(args...));
     return 1;
   }
@@ -490,12 +408,12 @@ class comm::impl {
         std::forward<const PackArgs>(args)...);
     ASSERT_DEBUG(sizeof(Lambda) == 1);
 
-    void (*fun_ptr)(impl *, int, cereal::YGMInputArchive &) =
-        [](impl *t, int from, cereal::YGMInputArchive &bia) {
+    void (*fun_ptr)(impl *, cereal::YGMInputArchive &) =
+        [](impl *t, cereal::YGMInputArchive &bia) {
           std::tuple<PackArgs...> ta;
           bia(ta);
           Lambda *pl;
-          auto    t1 = std::make_tuple((impl *)t, from);
+          auto    t1 = std::make_tuple((impl *)t);
 
           // \pp was: std::apply(*pl, std::tuple_cat(t1, ta));
           ygm::meta::apply_optional(*pl, std::move(t1), std::move(ta));
@@ -509,31 +427,34 @@ class comm::impl {
     return to_return;
   }
 
-  // this is used to fix address space randomization
+  /**
+   * @brief Static reference point to anchor address space randomization.
+   *
+   */
   static void reference() {}
 
-  bool receive_queue_process() {
+  /**
+   * @brief Process receive queue of messages received by the listener thread.
+   *
+   * @return True if receive queue was non-empty, else false
+   */
+  bool process_receive_queue() {
     bool received = false;
     while (true) {
-      auto buffer_source = receive_queue_try_pop();
-      auto buffer        = buffer_source.first;
-      if (buffer == nullptr) break;
-      int from = buffer_source.second;
+      auto buffer = receive_queue_try_pop();
+      if (buffer.second == 0) break;
       received = true;
-      cereal::YGMInputArchive iarchive(buffer->data(), buffer->size());
+      cereal::YGMInputArchive iarchive(buffer.first.get(), buffer.second);
       while (!iarchive.empty()) {
         int64_t iptr;
         iarchive(iptr);
         iptr += (int64_t)&reference;
-        void (*fun_ptr)(impl *, int, cereal::YGMInputArchive &);
+        void (*fun_ptr)(impl *, cereal::YGMInputArchive &);
         memcpy(&fun_ptr, &iptr, sizeof(uint64_t));
-        fun_ptr(this, from, iarchive);
+        fun_ptr(this, iarchive);
         m_recv_count++;
         m_local_rpc_calls++;
       }
-
-      // Only keep buffers of size m_buffer_capacity in pool of buffers
-      if (buffer->capacity() == m_buffer_capacity) free_buffer(buffer);
     }
     return received;
   }
@@ -543,16 +464,15 @@ class comm::impl {
   MPI_Comm m_comm_other;
   int      m_comm_size;
   int      m_comm_rank;
-  size_t   m_buffer_capacity;
+  size_t   m_buffer_capacity_bytes;
 
-  std::vector<std::shared_ptr<std::vector<char>>> m_vec_send_buffers;
+  std::vector<std::vector<char>> m_vec_send_buffers;
+  size_t                         m_send_buffer_bytes = 0;
+  std::deque<int>                m_send_dest_queue;
 
-  std::mutex                                      m_vec_free_buffers_mutex;
-  std::vector<std::shared_ptr<std::vector<char>>> m_vec_free_buffers;
-
-  std::deque<std::pair<std::shared_ptr<std::vector<char>>, int>>
-             m_receive_queue;
-  std::mutex m_receive_queue_mutex;
+  std::deque<std::pair<std::shared_ptr<char[]>, size_t>> m_recv_queue;
+  std::mutex                                             m_recv_queue_mutex;
+  size_t                                                 m_recv_queue_bytes = 0;
 
   std::thread m_listener;
 
@@ -561,17 +481,15 @@ class comm::impl {
 
   int64_t m_local_rpc_calls  = 0;
   int64_t m_local_bytes_sent = 0;
-
-  int large_message_announce_tag = 32766;
-  int large_message_tag          = 32767;
 };
 
-inline comm::comm(int *argc, char ***argv, int buffer_capacity = 16 * 1024) {
+inline comm::comm(int *argc, char ***argv,
+                  int buffer_capacity = 16 * 1024 * 1024) {
   pimpl_if = std::make_shared<detail::mpi_init_finalize>(argc, argv);
   pimpl    = std::make_shared<comm::impl>(MPI_COMM_WORLD, buffer_capacity);
 }
 
-inline comm::comm(MPI_Comm mcomm, int buffer_capacity = 16 * 1024) {
+inline comm::comm(MPI_Comm mcomm, int buffer_capacity = 16 * 1024 * 1024) {
   pimpl_if.reset();
   int flag(0);
   ASSERT_MPI(MPI_Initialized(&flag));
@@ -601,26 +519,10 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &... args) {
 }
 
 template <typename AsyncFunction, typename... SendArgs>
-inline void comm::async_preempt(int dest, AsyncFunction fn,
-                                const SendArgs &... args) {
-  static_assert(std::is_empty<AsyncFunction>::value,
-                "Only stateless lambdas are supported");
-  pimpl->async_preempt(dest, fn, std::forward<const SendArgs>(args)...);
-}
-
-template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async_bcast(AsyncFunction fn, const SendArgs &... args) {
   static_assert(std::is_empty<AsyncFunction>::value,
                 "Only stateless lambdas are supported");
   pimpl->async_bcast(fn, std::forward<const SendArgs>(args)...);
-}
-
-template <typename AsyncFunction, typename... SendArgs>
-inline void comm::async_bcast_preempt(AsyncFunction fn,
-                                      const SendArgs &... args) {
-  static_assert(std::is_empty<AsyncFunction>::value,
-                "Only stateless lambdas are supported");
-  pimpl->async_bcast_preempt(fn, std::forward<const SendArgs>(args)...);
 }
 
 template <typename AsyncFunction, typename... SendArgs>
@@ -629,15 +531,6 @@ inline void comm::async_mcast(const std::vector<int> &dests, AsyncFunction fn,
   static_assert(std::is_empty<AsyncFunction>::value,
                 "Only stateless lambdas are supported");
   pimpl->async_mcast(dests, fn, std::forward<const SendArgs>(args)...);
-}
-
-template <typename AsyncFunction, typename... SendArgs>
-inline void comm::async_mcast_preempt(const std::vector<int> &dests,
-                                      AsyncFunction           fn,
-                                      const SendArgs &... args) {
-  static_assert(std::is_empty<AsyncFunction>::value,
-                "Only stateless lambdas are supported");
-  pimpl->async_mcast_preempt(dests, fn, std::forward<const SendArgs>(args)...);
 }
 
 inline int comm::size() const { return pimpl->size(); }

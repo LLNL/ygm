@@ -29,21 +29,11 @@ class comm {
   void async(int dest, AsyncFunction fn, const SendArgs &... args);
 
   template <typename AsyncFunction, typename... SendArgs>
-  void async_preempt(int dest, AsyncFunction fn, const SendArgs &... args);
-
-  template <typename AsyncFunction, typename... SendArgs>
   void async_bcast(AsyncFunction fn, const SendArgs &... args);
-
-  template <typename AsyncFunction, typename... SendArgs>
-  void async_bcast_preempt(AsyncFunction fn, const SendArgs &... args);
 
   template <typename AsyncFunction, typename... SendArgs>
   void async_mcast(const std::vector<int> &dests, AsyncFunction fn,
                    const SendArgs &... args);
-
-  template <typename AsyncFunction, typename... SendArgs>
-  void async_mcast_preempt(const std::vector<int> &dests, AsyncFunction fn,
-                           const SendArgs &... args);
 
   //
   // Collective operations across all ranks.  Cannot be called inside OpenMP

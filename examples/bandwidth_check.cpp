@@ -3,11 +3,11 @@
 //
 // SPDX-License-Identifier: MIT
 
+#include <cstdlib>
+#include <iostream>
+#include <random>
 #include <ygm/comm.hpp>
 #include <ygm/utility.hpp>
-#include <iostream>
-#include <cstdlib>
-#include <random>
 
 // This is just an example to check bandwidth when sending messages with a no-op
 // to be done by the receiver. The #pragma omp's need to be uncommented for
@@ -16,8 +16,8 @@
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
   {
-    int num_nodes{atoi(std::getenv("SLURM_NNODES"))};
-    int num_tasks{atoi(std::getenv("SLURM_NTASKS"))};
+    int         num_nodes{atoi(std::getenv("SLURM_NNODES"))};
+    int         num_tasks{atoi(std::getenv("SLURM_NTASKS"))};
     std::string cluster_name(std::getenv("SLURM_CLUSTER_NAME"));
 
     world.cout0("Bandwidth check on ", cluster_name, " with ", num_tasks,
@@ -33,19 +33,19 @@ int main(int argc, char** argv) {
       int msg_length{1024};
 
       std::vector<int64_t> to_send;
-      for (size_t i = 0; i < msg_length; ++i) { to_send.push_back(i); }
+      for (size_t i = 0; i < msg_length; ++i) {
+        to_send.push_back(i);
+      }
 
       world.barrier();
       ygm::timer send_timer{};
 
-      std::mt19937 gen(4567 * comm_rank);
+      std::mt19937                       gen(4567 * comm_rank);
       std::uniform_int_distribution<int> dest_dist(0, comm_size - 1);
 
       for (int msg = 0; msg < msgs_per_rank; ++msg) {
         world.async(dest_dist(gen),
-                    [](auto mbox, int from, const std::vector<int64_t>& vec) {
-                      return;
-                    },
+                    [](auto mbox, const std::vector<int64_t>& vec) { return; },
                     to_send);
       }
 
@@ -64,8 +64,8 @@ int main(int argc, char** argv) {
       uint64_t msgs_per_node{1024 * 1024 * 1024};
       uint64_t msgs_per_rank = msgs_per_node * num_nodes / num_tasks;
 
-      std::vector<int> destinations;
-      std::mt19937 gen(1234 * comm_rank);
+      std::vector<int>                   destinations;
+      std::mt19937                       gen(1234 * comm_rank);
       std::uniform_int_distribution<int> dest_dist(0, comm_size - 1);
 
       for (int msg = 0; msg < msgs_per_rank; ++msg) {
@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
 
       for (uint64_t msg = 0; msg < msgs_per_rank; ++msg) {
         world.async(destinations[msg],
-                    [](auto mbox, int from, const int64_t val) { return; },
+                    [](auto mbox, const int64_t val) { return; },
                     destinations[msg]);
       }
 

@@ -73,6 +73,28 @@ int main(int argc, char **argv) {
   }
 
   //
+  // Test async_visit_group
+  {
+    ygm::container::multimap<std::string, std::string> smap(world);
+
+    // Insert from all ranks
+    smap.async_insert("dog", "bark");
+    smap.async_insert("dog", "woof");
+    smap.async_insert("cat", "meow");
+
+    world.barrier();
+
+    smap.async_visit_group(
+        "dog", [](auto pmap, const auto begin, const auto end) {
+          ASSERT_RELEASE(std::distance(begin, end) == 2 * pmap->comm().size());
+        });
+    smap.async_visit_group(
+        "cat", [](auto pmap, const auto begin, const auto end) {
+          ASSERT_RELEASE(std::distance(begin, end) == pmap->comm().size());
+        });
+  }
+
+  //
   // Test swap & async_set
   {
     ygm::container::multimap<std::string, std::string> smap(world);

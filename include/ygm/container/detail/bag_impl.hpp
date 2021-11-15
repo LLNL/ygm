@@ -22,8 +22,7 @@ class bag_impl {
   ~bag_impl() { m_comm.barrier(); }
 
   void async_insert(const value_type &item) {
-    auto inserter = [](auto mailbox, int from, auto map,
-                       const value_type &item) {
+    auto inserter = [](auto mailbox, auto map, const value_type &item) {
       map->m_local_bag.push_back(item);
     };
     int dest = (m_round_robin++ + m_comm.rank()) % m_comm.size();

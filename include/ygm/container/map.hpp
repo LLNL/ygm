@@ -34,6 +34,13 @@ class map {
     m_impl.async_insert_unique(key, value);
   }
 
+  void async_insert_if_missing(const std::pair<key_type, value_type>& kv) {
+    async_insert_if_missing(kv.first, kv.second);
+  }
+  void async_insert_if_missing(const key_type& key, const value_type& value) {
+    m_impl.async_insert_if_missing(key, value);
+  }
+
   void async_set(const key_type& key, const value_type& value) {
     async_insert(key, value);
   }
@@ -49,6 +56,15 @@ class map {
                              const VisitorArgs&... args) {
     m_impl.async_visit_if_exists(key, visitor,
                                  std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_insert_if_missing_else_visit(const key_type&   key,
+                                          const value_type& value,
+                                          Visitor           visitor,
+                                          const VisitorArgs&... args) {
+    m_impl.async_insert_if_missing_else_visit(
+        key, value, visitor, std::forward<const VisitorArgs>(args)...);
   }
 
   void async_erase(const key_type& key) { m_impl.async_erase(key); }
@@ -140,6 +156,13 @@ class multimap {
   void async_visit(const key_type& key, Visitor visitor,
                    const VisitorArgs&... args) {
     m_impl.async_visit(key, visitor, std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_visit_group(const key_type& key, Visitor visitor,
+                         const VisitorArgs&... args) {
+    m_impl.async_visit_group(key, visitor,
+                             std::forward<const VisitorArgs>(args)...);
   }
 
   template <typename Visitor, typename... VisitorArgs>

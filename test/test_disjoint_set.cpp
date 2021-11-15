@@ -13,26 +13,14 @@ int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
 
   //
-  // Test async_make_set from a single rank
-  {
-    ygm::container::disjoint_set<std::string> dset(world);
-
-    if (world.rank0()) {
-      dset.async_make_set("cat");
-      dset.async_make_set("dog");
-    }
-    ASSERT_RELEASE(dset.num_sets() == 2);
-  }
-
-  //
   // Test async_union from single rank
   {
     ygm::container::disjoint_set<std::string> dset(world);
 
     if (world.rank0()) {
-      dset.async_make_set("cat");
-      dset.async_make_set("dog");
-      dset.async_make_set("car");
+      dset.async_union("cat", "cat");
+      dset.async_union("dog", "dog");
+      dset.async_union("car", "car");
     }
 
     world.barrier();
@@ -54,9 +42,9 @@ int main(int argc, char** argv) {
     ygm::container::disjoint_set<std::string> dset(world);
 
     if (world.rank0()) {
-      dset.async_make_set("cat");
-      dset.async_make_set("dog");
-      dset.async_make_set("car");
+      dset.async_union("cat", "cat");
+      dset.async_union("dog", "dog");
+      dset.async_union("car", "car");
     }
 
     world.barrier();
@@ -76,12 +64,12 @@ int main(int argc, char** argv) {
     ygm::container::disjoint_set<int> dset(world);
 
     if (world.rank0()) {
-      dset.async_make_set(0);
-      dset.async_make_set(1);
-      dset.async_make_set(2);
-      dset.async_make_set(3);
-      dset.async_make_set(4);
-      dset.async_make_set(5);
+      dset.async_union(0, 0);
+      dset.async_union(1, 1);
+      dset.async_union(2, 2);
+      dset.async_union(3, 3);
+      dset.async_union(4, 4);
+      dset.async_union(5, 5);
     }
 
     world.barrier();
@@ -121,12 +109,12 @@ int main(int argc, char** argv) {
     ygm::container::disjoint_set<int> dset(world);
 
     if (world.rank0()) {
-      dset.async_make_set(0);
-      dset.async_make_set(1);
-      dset.async_make_set(2);
-      dset.async_make_set(3);
-      dset.async_make_set(4);
-      dset.async_make_set(5);
+      dset.async_union(0, 0);
+      dset.async_union(1, 1);
+      dset.async_union(2, 2);
+      dset.async_union(3, 3);
+      dset.async_union(4, 4);
+      dset.async_union(5, 5);
     }
 
     world.barrier();
@@ -160,5 +148,45 @@ int main(int argc, char** argv) {
     ASSERT_RELEASE(reps_final[2] == reps_final[3]);
     ASSERT_RELEASE(reps_final[3] == reps_final[4]);
     ASSERT_RELEASE(reps_final[4] == reps_final[5]);
+  }
+
+  //
+  // Test for_all
+  {
+    ygm::container::disjoint_set<int> dset(world);
+    int                               num_items = 4;
+
+    int counter{0};
+
+    for (int i = 0; i < num_items; ++i) {
+      dset.async_union(i, i);
+    }
+
+    dset.for_all([&counter](const auto& item_rep_pair) {
+      ASSERT_RELEASE(item_rep_pair.first == item_rep_pair.second);
+      ++counter;
+    });
+
+    ASSERT_RELEASE(world.all_reduce_sum(counter) == num_items);
+  }
+
+  // Test async_union_and_execute
+  {
+    ygm::container::disjoint_set<int> dset(world);
+
+    static int counter{0};
+
+    dset.async_union_and_execute(0, 1,
+                                 [](const int u, const int v) { counter++; });
+    dset.async_union_and_execute(0, 2,
+                                 [](const int u, const int v) { counter++; });
+    dset.async_union_and_execute(1, 2,
+                                 [](const int u, const int v) { counter++; });
+    dset.async_union_and_execute(3, 4,
+                                 [](const int u, const int v) { counter++; });
+
+    world.barrier();
+
+    ASSERT_RELEASE(world.all_reduce_sum(counter) == 3);
   }
 }

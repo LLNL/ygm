@@ -5,6 +5,10 @@
 
 #pragma once
 
+#if !__has_include(<boost/json/src.hpp>)
+#error BOOST >= 1.75 is required for Boost.JSON
+#endif
+
 #include <string>
 #include <variant>
 

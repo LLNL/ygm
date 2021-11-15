@@ -6,44 +6,24 @@
 #
 # This function adds an mpi example.
 #
-function ( add_mpi_example example_name )
+function ( add_ygm_example example_name )
   set(example_source "${example_name}.cpp")
   set(example_exe    "${example_name}")
   add_executable(${example_exe} ${example_source})
-  include_link_mpi(${example_exe})
-  target_link_libraries(${example_exe} cereal)
-  if(UNIX AND NOT APPLE)
-    target_link_libraries(${example_exe} rt)
-  endif()
-  include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+  target_link_libraries(${example_exe} ygm)
 endfunction()
 
-find_package(OpenMP)
-
-
-
-
-#
-# This function adds an MPI + OpenMP example.
-#
-function ( add_mpi_omp_example example_name )
-  set(example_source "${example_name}.cpp")
-  set(example_exe    "${example_name}")
-  add_executable(${example_exe} ${example_source})
-  include_link_mpi(${example_exe})
-  target_link_libraries(${example_exe}  OpenMP::OpenMP_CXX)
-  target_link_libraries(${example_exe} cereal)
-  if(UNIX AND NOT APPLE)
-    target_link_libraries(${example_exe} rt)
-  endif()
-  include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-endfunction()
-
-add_mpi_omp_example(howdy_world)
-add_mpi_omp_example(howdy_world_recursive)
-add_mpi_omp_example(bandwidth_check)
-add_mpi_omp_example(bag_insert_rate)
-add_mpi_omp_example(word_counter)
-add_mpi_omp_example(lambda_optional_arguments)
-add_mpi_omp_example(map_visit_optional_arguments)
-add_mpi_omp_example(map_set)
+add_ygm_example(howdy_world)
+add_ygm_example(howdy_world_recursive)
+add_ygm_example(bandwidth_check)
+add_ygm_example(bag_insert_rate)
+add_ygm_example(word_counter)
+add_ygm_example(lambda_optional_arguments)
+add_ygm_example(map_visit_optional_arguments)
+add_ygm_example(map_set)
+add_ygm_example(map_visit)
+add_ygm_example(map_insert_if_missing)
+add_ygm_example(multimap_visit_group)
+add_ygm_example(disjoint_set_cc)
+add_ygm_example(disjoint_set_spanning_tree)
+add_ygm_example(disjoint_set_async_union_and_execute)
