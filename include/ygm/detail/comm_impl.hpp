@@ -57,18 +57,15 @@ class comm::impl {
       local_receive(std::forward<const SendArgs>(args)...);
     } else {
       m_send_count++;
-      std::vector<char> data =
-          pack_lambda(std::forward<const SendArgs>(args)...);
-      m_local_bytes_sent += data.size();
 
       //
       // add data to the to dest buffer
       if (m_vec_send_buffers[dest].empty()) {
         m_send_dest_queue.push_back(dest);
       }
-      m_send_buffer_bytes += data.size();
-      m_vec_send_buffers[dest].insert(m_vec_send_buffers[dest].end(),
-                                      data.begin(), data.end());
+      size_t bytes = pack_lambda(m_vec_send_buffers[dest], std::forward<const SendArgs>(args)...);
+      m_local_bytes_sent += bytes;
+      m_send_buffer_bytes += bytes;
 
       //
       // Check if send buffer capacity has been exceeded
@@ -402,8 +399,8 @@ class comm::impl {
   }
 
   template <typename Lambda, typename... PackArgs>
-  std::vector<char> pack_lambda(Lambda l, const PackArgs &... args) {
-    std::vector<char>             to_return;
+  size_t pack_lambda(std::vector<char>& packed, Lambda l, const PackArgs &... args) {
+    size_t size_before = packed.size();
     const std::tuple<PackArgs...> tuple_args(
         std::forward<const PackArgs>(args)...);
     ASSERT_DEBUG(sizeof(Lambda) == 1);
@@ -419,12 +416,11 @@ class comm::impl {
           ygm::meta::apply_optional(*pl, std::move(t1), std::move(ta));
         };
 
-    cereal::YGMOutputArchive oarchive(to_return);  // Create an output archive
+    cereal::YGMOutputArchive oarchive(packed);  // Create an output archive
                                                    // // oarchive(fun_ptr);
     int64_t iptr = (int64_t)fun_ptr - (int64_t)&reference;
     oarchive(iptr, tuple_args);
-
-    return to_return;
+    return packed.size() - size_before;
   }
 
   /**
