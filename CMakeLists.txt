@@ -120,11 +120,6 @@ if(${YGM_INSTALL})
 
     # List libraries to be installed
     set(YGM_EXPORT_TARGETS ygm)
-    if(NOT cereal_FOUND)
-        # If cereal is not installed in the system, include the cloned headers 
-        # as a dependency.
-        set(YGM_EXPORT_TARGETS ${YGM_EXPORT_TARGETS} cereal::cereal)
-    endif()
 
     install(TARGETS ${PROJECT_NAME}
             EXPORT ${PROJECT_NAME}Targets
@@ -139,7 +134,6 @@ if(${YGM_INSTALL})
 
     install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ygm
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-
 
     # create version file
     write_basic_package_version_file(
