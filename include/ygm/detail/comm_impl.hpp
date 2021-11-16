@@ -63,7 +63,8 @@ class comm::impl {
       if (m_vec_send_buffers[dest].empty()) {
         m_send_dest_queue.push_back(dest);
       }
-      size_t bytes = pack_lambda(m_vec_send_buffers[dest], std::forward<const SendArgs>(args)...);
+      size_t bytes = pack_lambda(m_vec_send_buffers[dest],
+                                 std::forward<const SendArgs>(args)...);
       m_local_bytes_sent += bytes;
       m_send_buffer_bytes += bytes;
 
@@ -309,7 +310,7 @@ class comm::impl {
       m_send_buffer_bytes -= m_vec_send_buffers[dest].size();
     }
     m_vec_send_buffers[dest].clear();
-    m_vec_send_buffers[dest].shrink_to_fit();
+    // m_vec_send_buffers[dest].shrink_to_fit();
   }
 
   void flush_all_send_buffers() {
@@ -399,8 +400,9 @@ class comm::impl {
   }
 
   template <typename Lambda, typename... PackArgs>
-  size_t pack_lambda(std::vector<char>& packed, Lambda l, const PackArgs &... args) {
-    size_t size_before = packed.size();
+  size_t pack_lambda(std::vector<char> &packed, Lambda l,
+                     const PackArgs &... args) {
+    size_t                        size_before = packed.size();
     const std::tuple<PackArgs...> tuple_args(
         std::forward<const PackArgs>(args)...);
     ASSERT_DEBUG(sizeof(Lambda) == 1);
@@ -417,7 +419,7 @@ class comm::impl {
         };
 
     cereal::YGMOutputArchive oarchive(packed);  // Create an output archive
-                                                   // // oarchive(fun_ptr);
+                                                // // oarchive(fun_ptr);
     int64_t iptr = (int64_t)fun_ptr - (int64_t)&reference;
     oarchive(iptr, tuple_args);
     return packed.size() - size_before;
