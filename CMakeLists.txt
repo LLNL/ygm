@@ -155,7 +155,7 @@ if(${YGM_INSTALL})
 
 endif()
 
-
+option(JUST_INSTALL_YGM "Skip executable compilation" OFF)
 if(JUST_INSTALL_YGM)
     return()
 endif()
