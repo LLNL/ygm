@@ -45,8 +45,18 @@ add_ygm_test(test_multiset)
 add_ygm_test(test_counting_set)
 add_ygm_test(test_disjoint_set)
 add_ygm_test(test_container_serialization)
+add_ygm_test(test_line_parser)
+add_ygm_test(test_csv_parser)
+
 
 if (Boost_FOUND)
   add_ygm_seq_test(test_cereal_boost_json)
+  add_ygm_test(test_ndjson_parser)
   target_include_directories(SEQ_test_cereal_boost_json PUBLIC ${Boost_INCLUDE_DIRS})
+  target_include_directories(MPI_test_ndjson_parser PUBLIC ${Boost_INCLUDE_DIRS})
 endif ()
+
+#
+# Copy the testing data directory
+#
+file(COPY data DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
