@@ -310,7 +310,6 @@ class comm::impl {
       m_send_buffer_bytes -= m_vec_send_buffers[dest].size();
     }
     m_vec_send_buffers[dest].clear();
-    // m_vec_send_buffers[dest].shrink_to_fit();
   }
 
   void flush_all_send_buffers() {
