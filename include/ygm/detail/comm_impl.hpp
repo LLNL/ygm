@@ -97,94 +97,32 @@ class comm::impl {
     }
   }
 
-  // //
-  // // Blocking barrier
-  // void barrier() {
-  //   int64_t all_count = -1;
-  //   while (all_count != 0) {
-  //     process_receive_queue();
-  //     do {
-  //       flush_all_send_buffers();
-  //       std::this_thread::yield();
-  //     } while (process_receive_queue());
-
-  //     int64_t local_count = m_send_count - m_recv_count;
-
-  //     ASSERT_MPI(MPI_Allreduce(&local_count, &all_count, 1, MPI_INT64_T,
-  //                              MPI_SUM, m_comm_barrier));
-  //     std::this_thread::yield();
-  //     // std::cout << "MPI_Allreduce() " << std::endl;
-  //   }
-  // }
-
+  /**
+   * @brief Full communicator barrier
+   *
+   */
   void barrier() {
-  restartbarrier:
-    while (true) {
-      wait_local_idle();
-      MPI_Request req = MPI_REQUEST_NULL;
-      int64_t     first_all_count{-1};
-      int64_t     first_local_count = m_send_count - m_recv_count;
-      ASSERT_MPI(MPI_Iallreduce(&first_local_count, &first_all_count, 1,
-                                MPI_INT64_T, MPI_SUM, m_comm_barrier, &req));
-
-      while (true) {
-        int test_flag{-1};
-        ASSERT_MPI(MPI_Test(&req, &test_flag, MPI_STATUS_IGNORE));
-        if (test_flag) {
-          if (first_all_count == 0) {
-            // double check
-            int64_t second_all_count{-1};
-            int64_t second_local_count = m_send_count - m_recv_count;
-            ASSERT_MPI(MPI_Allreduce(&second_local_count, &second_all_count, 1,
-                                     MPI_INT64_T, MPI_SUM, m_comm_barrier));
-            if (second_all_count == 0) {
-              if (first_local_count == second_local_count) {
-                return;
-              } else {
-                goto restartbarrier;
-              }
-            }
-          }
-          break;  // failed, start over
-        } else {
-          wait_local_idle();
-        }
-      }
+    flush_all_local_and_process_incoming();
+    std::pair<uint64_t, uint64_t> previous_counts{1, 2};
+    std::pair<uint64_t, uint64_t> current_counts{3, 4};
+    while (!(current_counts.first == current_counts.second &&
+             previous_counts == current_counts)) {
+      // if (current_counts.first == current_counts.second) {
+      previous_counts = current_counts;
+      //}
+      current_counts = barrier_reduce_counts();
     }
   }
 
-  // //  SOMETHING WRONG :(
-  // // Non-blocking barrier loop
-  // void barrier() {
-  //   std::pair<int64_t, int64_t> last{-1, -2}, current{-3, -4}, local{-5,
-  //   -6}; MPI_Request req = MPI_REQUEST_NULL;
-
-  //   do {
-  //     process_receive_queue();
-  //     do { flush_all_send_buffers(); } while (process_receive_queue());
-
-  //     int64_t local_count = m_send_count - m_recv_count;
-
-  //     if (req == MPI_REQUEST_NULL) {
-  //       last = current;
-  //       current = {-3, -4};
-  //       local = std::make_pair(m_send_count, m_recv_count);
-  //       ASSERT_MPI(MPI_Iallreduce(&local, &current, 2, MPI_INT64_T,
-  //       MPI_SUM,
-  //                                 m_comm_barrier, &req));
-  //     } else {
-  //       int flag{-1};
-  //       ASSERT_MPI(MPI_Test(&req, &flag, MPI_STATUS_IGNORE));
-  //       if (flag) {
-  //         req = MPI_REQUEST_NULL;
-  //       } else {
-  //         std::this_thread::yield();
-  //       }
-  //     }
-  //   } while (req != MPI_REQUEST_NULL || current.first != current.second ||
-  //            last != current);
-  //   ASSERT_MPI(MPI_Barrier(m_comm_barrier));
-  // }
+  /**
+   * @brief Registers a callback that will be executed prior to the barrier
+   * completion
+   *
+   * @param fn callback function
+   */
+  void register_pre_barrier_callback(const std::function<void()> &fn) {
+    m_pre_barrier_callbacks.push_back(fn);
+  }
 
   int64_t local_bytes_sent() const { return m_local_bytes_sent; }
 
@@ -305,6 +243,28 @@ class comm::impl {
   }
 
  private:
+  std::pair<uint64_t, uint64_t> barrier_reduce_counts() {
+    uint64_t local_counts[2]  = {m_recv_count, m_send_count};
+    uint64_t global_counts[2] = {0, 0};
+
+    MPI_Request req = MPI_REQUEST_NULL;
+    ASSERT_MPI(MPI_Iallreduce(local_counts, global_counts, 2, MPI_UINT64_T,
+                              MPI_SUM, m_comm_barrier, &req));
+    int mpi_test_flag{0};
+    while (!mpi_test_flag) {
+      ASSERT_MPI(MPI_Test(&req, &mpi_test_flag, MPI_STATUS_IGNORE));
+      if (!mpi_test_flag) {
+        flush_all_local_and_process_incoming();
+      }
+    }
+    return {global_counts[0], global_counts[1]};
+  }
+
+  /**
+   * @brief Flushes send buffer to dest
+   *
+   * @param dest
+   */
   void flush_send_buffer(int dest) {
     ASSERT_RELEASE(dest != m_comm_rank);
     if (m_vec_send_buffers[dest].size() > 0) {
@@ -316,22 +276,34 @@ class comm::impl {
     m_vec_send_buffers[dest].clear();
   }
 
-  void flush_all_send_buffers() {
-    while (!m_send_dest_queue.empty()) {
-      int dest = m_send_dest_queue.front();
-      m_send_dest_queue.pop_front();
-      flush_send_buffer(dest);
-      process_receive_queue();
-    }
-    ASSERT_RELEASE(m_send_dest_queue.empty() && m_send_buffer_bytes == 0);
-  }
+  /**
+   * @brief Flushes all local state and buffers.
+   * Notifies any registered barrier watchers.
+   */
+  void flush_all_local_and_process_incoming() {
+    // Keep flushing until all local work is complete
+    bool did_something = true;
+    while (did_something) {
+      did_something = process_receive_queue();
+      //
+      //  Notify registered barrier watchers
+      while (!m_pre_barrier_callbacks.empty()) {
+        did_something            = true;
+        std::function<void()> fn = m_pre_barrier_callbacks.front();
+        m_pre_barrier_callbacks.pop_front();
+        fn();
+      }
 
-  void wait_local_idle() {
-    process_receive_queue();
-    do {
-      flush_all_send_buffers();
-      std::this_thread::yield();
-    } while (process_receive_queue());
+      //
+      //  Flush each send buffer
+      while (!m_send_dest_queue.empty()) {
+        did_something = true;
+        int dest      = m_send_dest_queue.front();
+        m_send_dest_queue.pop_front();
+        flush_send_buffer(dest);
+        process_receive_queue();
+      }
+    }
   }
 
   /**
@@ -477,8 +449,10 @@ class comm::impl {
 
   std::thread m_listener;
 
-  int64_t m_recv_count = 0;
-  int64_t m_send_count = 0;
+  std::deque<std::function<void()>> m_pre_barrier_callbacks;
+
+  uint64_t m_recv_count = 0;
+  uint64_t m_send_count = 0;
 
   int64_t m_local_rpc_calls  = 0;
   int64_t m_local_bytes_sent = 0;
@@ -560,6 +534,10 @@ inline int64_t comm::global_rpc_calls() const {
 inline void comm::reset_rpc_call_counter() { pimpl->reset_rpc_call_counter(); }
 
 inline void comm::barrier() { pimpl->barrier(); }
+
+inline void comm::register_pre_barrier_callback(const std::function<void()> &fn) {
+  pimpl->register_pre_barrier_callback(fn);
+}
 
 template <typename T>
 inline T comm::all_reduce_sum(const T &t) const {
