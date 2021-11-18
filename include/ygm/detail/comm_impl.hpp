@@ -118,6 +118,7 @@ class comm::impl {
   // }
 
   void barrier() {
+  restartbarrier:
     while (true) {
       wait_local_idle();
       MPI_Request req = MPI_REQUEST_NULL;
@@ -137,8 +138,11 @@ class comm::impl {
             ASSERT_MPI(MPI_Allreduce(&second_local_count, &second_all_count, 1,
                                      MPI_INT64_T, MPI_SUM, m_comm_barrier));
             if (second_all_count == 0) {
-              ASSERT_RELEASE(first_local_count == second_local_count);
-              return;
+              if (first_local_count == second_local_count) {
+                return;
+              } else {
+                goto restartbarrier;
+              }
             }
           }
           break;  // failed, start over
