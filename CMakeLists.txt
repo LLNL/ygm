@@ -29,9 +29,9 @@ if(YGM_MAIN_PROJECT)
     # Docs only available if this is the main app
     find_package(Doxygen)
     if(Doxygen_FOUND)
-	#add_subdirectory(docs)
+    #add_subdirectory(docs)
     else()
-	message(STATUS "Doxygen not found, not building docs")
+    message(STATUS "Doxygen not found, not building docs")
     endif()
 endif()
 
@@ -65,20 +65,35 @@ include(FetchContent)
 #
 # Cereal
 #
-find_package(cereal QUIET)
+set(ygm_cereal_VERSION 1.3.0)
+find_package(cereal CONFIG QUIET)
 if (NOT cereal_FOUND)
+    # Currently cereal version 1.3.0 has an outdate CMakeLists.txt, so we need to use this commit
     FetchContent_Declare(
         cereal
         GIT_REPOSITORY https://github.com/USCiLab/cereal
         GIT_TAG        af0700efb25e7dc7af637b9e6f970dbb94813bff
     )
+    # Do not compile any cereal tests
     set(JUST_INSTALL_CEREAL ON)
+    # Install cereal at ${CMAKE_INSTALL_PREFIX}
+    set(CEREAL_INSTALL ON)
     FetchContent_MakeAvailable(cereal)
     message(STATUS "YGM cloned cereal dependency: " ${cereal_SOURCE_DIR})
+    target_link_libraries(ygm INTERFACE cereal::cereal)
 else()
     message(STATUS "YGM found cereal dependency: " ${cereal_DIR})
+    # cereal installed with spack creates library target "cereal", whereas 
+    # installing from source creates target "cereal::cereal". This is the only
+    # simple way I could figure out how to differentiate the two, but this will 
+    # cause problems if a spack instance installs headers to a path that does
+    # not include the substring "spack". 
+    if (${cereal_DIR} MATCHES ".*spack.*")
+        target_link_libraries(ygm INTERFACE cereal)
+    else()
+        target_link_libraries(ygm INTERFACE cereal::cereal)
+    endif()
 endif()
-target_link_libraries(ygm INTERFACE cereal)
 
 #
 # Boost
@@ -105,50 +120,42 @@ if(${YGM_INSTALL})
 
     # List libraries to be installed
     set(YGM_EXPORT_TARGETS ygm)
-    if(NOT cereal_FOUND)
-        # If cereal is not installed in the system, include the cloned headers as a dependency.
-	set(YGM_EXPORT_TARGETS ${YGM_EXPORT_TARGETS} cereal)
-    endif()
 
-    install(TARGETS ${YGM_EXPORT_TARGETS}
-	    EXPORT ${PROJECT_NAME}Targets
-	    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+    install(TARGETS ${PROJECT_NAME}
+            EXPORT ${PROJECT_NAME}Targets
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
     install(EXPORT ${PROJECT_NAME}Targets
             FILE ${PROJECT_NAME}Targets.cmake
-	    NAMESPACE ${PROJECT_NAME}::
-	    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake)
+            NAMESPACE ${PROJECT_NAME}::
+            DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake)
 
-    install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ygm DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-
-    if(NOT cereal_FOUND)
-    	# if we cloned cereal, install the headers
-        install(DIRECTORY ${PROJECT_BINARY_DIR}/_deps/cereal-src/include/cereal
-	        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    endif()
+    install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ygm
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
     # create version file
     write_basic_package_version_file(
         "${PROJECT_NAME}ConfigVersion.cmake"
-	VERSION ${PROJECT_VERSION}
-	COMPATIBILITY ExactVersion)
+          VERSION ${PROJECT_VERSION}
+          COMPATIBILITY ExactVersion)
 
     # create config file
     configure_package_config_file(
         "${PROJECT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in"
-	"${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-	INSTALL_DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake)
+        "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+        INSTALL_DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake)
 
     install(FILES
-            "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-	    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
-	    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake)
+        "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+        "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake)
+
 
 endif()
 
-
+option(JUST_INSTALL_YGM "Skip executable compilation" OFF)
 if(JUST_INSTALL_YGM)
     return()
 endif()
