@@ -1,8 +1,8 @@
 @PACKAGE_INIT@
 
-include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@Targets.cmake")
-check_required_components("@PROJECT_NAME@")
-
 find_package(Threads REQUIRED)
 find_package(MPI REQUIRED)
 find_package(cereal QUIET) # If cereal not found, hopefully included via FetchContent
+
+include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@Targets.cmake")
+check_required_components("@PROJECT_NAME@")
