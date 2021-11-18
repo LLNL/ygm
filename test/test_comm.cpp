@@ -15,6 +15,7 @@ int main(int argc, char** argv) {
   {
     size_t               counter{};
     ygm::ygm_ptr<size_t> pcounter(&counter);
+    world.barrier();
     if (world.rank0()) {
       for (int dest = 0; dest < world.size(); ++dest) {
         world.async(dest, [](auto pcounter) { (*pcounter)++; }, pcounter);
@@ -29,7 +30,7 @@ int main(int argc, char** argv) {
   {
     size_t               counter{};
     ygm::ygm_ptr<size_t> pcounter(&counter);
-
+    world.barrier();
     for (int dest = 0; dest < world.size(); ++dest) {
       world.async(dest, [](auto pcounter) { (*pcounter)++; }, pcounter);
     }
@@ -42,6 +43,7 @@ int main(int argc, char** argv) {
   {
     size_t               counter{};
     ygm::ygm_ptr<size_t> pcounter(&counter);
+    world.barrier();
     if (world.rank0()) {
       world.async_bcast([](auto pcounter) { (*pcounter)++; }, pcounter);
     }
@@ -55,6 +57,7 @@ int main(int argc, char** argv) {
   {
     size_t               counter{};
     ygm::ygm_ptr<size_t> pcounter(&counter);
+    world.barrier();
     if (world.rank0()) {
       std::vector<int> dests;
       for (int dest = 0; dest < world.size(); dest += 2) {
