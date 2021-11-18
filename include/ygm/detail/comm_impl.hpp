@@ -107,9 +107,7 @@ class comm::impl {
     std::pair<uint64_t, uint64_t> current_counts{3, 4};
     while (!(current_counts.first == current_counts.second &&
              previous_counts == current_counts)) {
-      // if (current_counts.first == current_counts.second) {
       previous_counts = current_counts;
-      //}
       current_counts = barrier_reduce_counts();
     }
   }
@@ -252,10 +250,8 @@ class comm::impl {
                               MPI_SUM, m_comm_barrier, &req));
     int mpi_test_flag{0};
     while (!mpi_test_flag) {
+      flush_all_local_and_process_incoming();
       ASSERT_MPI(MPI_Test(&req, &mpi_test_flag, MPI_STATUS_IGNORE));
-      if (!mpi_test_flag) {
-        flush_all_local_and_process_incoming();
-      }
     }
     return {global_counts[0], global_counts[1]};
   }
