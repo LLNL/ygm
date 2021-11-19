@@ -18,7 +18,8 @@ int main(int argc, char** argv) {
     world.barrier();
     if (world.rank0()) {
       for (int dest = 0; dest < world.size(); ++dest) {
-        world.async(dest, [](auto pcounter) { (*pcounter)++; }, pcounter);
+        world.async(
+            dest, [](auto pcounter) { (*pcounter)++; }, pcounter);
       }
     }
     world.barrier();
@@ -32,10 +33,11 @@ int main(int argc, char** argv) {
     ygm::ygm_ptr<size_t> pcounter(&counter);
     world.barrier();
     for (int dest = 0; dest < world.size(); ++dest) {
-      world.async(dest, [](auto pcounter) { (*pcounter)++; }, pcounter);
+      world.async(
+          dest, [](auto pcounter) { (*pcounter)++; }, pcounter);
     }
     world.barrier();
-    ASSERT_RELEASE(counter == world.size());
+    ASSERT_RELEASE(counter == (size_t)world.size());
   }
 
   //
@@ -63,7 +65,8 @@ int main(int argc, char** argv) {
       for (int dest = 0; dest < world.size(); dest += 2) {
         dests.push_back(dest);
       }
-      world.async_mcast(dests, [](auto pcounter) { (*pcounter)++; }, pcounter);
+      world.async_mcast(
+          dests, [](auto pcounter) { (*pcounter)++; }, pcounter);
     }
 
     world.barrier();
@@ -78,13 +81,14 @@ int main(int argc, char** argv) {
   // Test reductions
   {
     auto max = world.all_reduce_max(size_t(world.rank()));
-    ASSERT_RELEASE(max == world.size() - 1);
+    ASSERT_RELEASE(max == (size_t)world.size() - 1);
 
     auto min = world.all_reduce_min(size_t(world.rank()));
     ASSERT_RELEASE(min == 0);
 
     auto sum = world.all_reduce_sum(size_t(world.rank()));
-    ASSERT_RELEASE(sum == ((world.size() - 1) * world.size()) / 2);
+    ASSERT_RELEASE(sum ==
+                   (((size_t)world.size() - 1) * (size_t)world.size()) / 2);
 
     size_t id  = world.rank();
     auto   red = world.all_reduce(id, [](size_t a, size_t b) {
@@ -102,7 +106,7 @@ int main(int argc, char** argv) {
         return b;
       }
     });
-    ASSERT_RELEASE(red2 == world.size() - 1);
+    ASSERT_RELEASE(red2 == (size_t)world.size() - 1);
   }
   return 0;
 }

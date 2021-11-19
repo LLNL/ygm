@@ -355,11 +355,10 @@ class comm::impl {
 
   void receive_queue_push_back(const std::shared_ptr<std::byte[]> &b,
                                size_t                              size) {
-    size_t current_size = 0;
     {
       std::scoped_lock lock(m_recv_queue_mutex);
       m_recv_queue.push_back({b, size});
-      current_size = m_recv_queue.size();
+      m_recv_queue.size();
       m_recv_queue_bytes += size;
     }
     if (m_recv_queue_bytes > m_buffer_capacity_bytes) {
@@ -392,7 +391,7 @@ class comm::impl {
         [](impl *t, cereal::YGMInputArchive &bia) {
           std::tuple<PackArgs...> ta;
           bia(ta);
-          Lambda *pl;
+          Lambda *pl = nullptr;
           auto    t1 = std::make_tuple((impl *)t);
 
           // \pp was: std::apply(*pl, std::tuple_cat(t1, ta));
