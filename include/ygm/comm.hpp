@@ -5,9 +5,9 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <vector>
-#include <functional>
 #include <ygm/detail/mpi.hpp>
 
 namespace ygm {
@@ -40,6 +40,17 @@ class comm {
   // Collective operations across all ranks.  Cannot be called inside OpenMP
   // region.
 
+  /**
+   * @brief Control Flow Barrier
+   * Only blocks the control flow until all processes in the communicator have
+   * called it. See:  MPI_Barrier()
+   */
+  void cf_barrier();
+
+  /**
+   * @brief Full communicator barrier
+   *
+   */
   void barrier();
 
   /**

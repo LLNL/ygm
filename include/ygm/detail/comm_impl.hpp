@@ -98,6 +98,13 @@ class comm::impl {
   }
 
   /**
+   * @brief Control Flow Barrier
+   * Only blocks the control flow until all processes in the communicator have
+   * called it. See:  MPI_Barrier()
+   */
+  void cf_barrier() { ASSERT_MPI(MPI_Barrier(m_comm_barrier)); }
+
+  /**
    * @brief Full communicator barrier
    *
    */
@@ -108,8 +115,10 @@ class comm::impl {
     while (!(current_counts.first == current_counts.second &&
              previous_counts == current_counts)) {
       previous_counts = current_counts;
-      current_counts = barrier_reduce_counts();
+      current_counts  = barrier_reduce_counts();
     }
+    ASSERT_RELEASE(m_pre_barrier_callbacks.empty());
+    ASSERT_RELEASE(m_send_dest_queue.empty());
   }
 
   /**
@@ -156,7 +165,7 @@ class comm::impl {
 
   template <typename T>
   void mpi_send(const T &data, int dest, int tag, MPI_Comm comm) const {
-    std::vector<char>        packed;
+    std::vector<std::byte>   packed;
     cereal::YGMOutputArchive oarchive(packed);
     oarchive(data);
     size_t packed_size = packed.size();
@@ -168,8 +177,8 @@ class comm::impl {
 
   template <typename T>
   T mpi_recv(int source, int tag, MPI_Comm comm) const {
-    std::vector<char> packed;
-    size_t            packed_size{0};
+    std::vector<std::byte> packed;
+    size_t                 packed_size{0};
     ASSERT_MPI(MPI_Recv(&packed_size, 1, detail::mpi_typeof(packed_size),
                         source, tag, comm, MPI_STATUS_IGNORE));
     packed.resize(packed_size);
@@ -184,7 +193,7 @@ class comm::impl {
 
   template <typename T>
   T mpi_bcast(const T &to_bcast, int root, MPI_Comm comm) const {
-    std::vector<char>        packed;
+    std::vector<std::byte>   packed;
     cereal::YGMOutputArchive oarchive(packed);
     if (rank() == root) {
       oarchive(to_bcast);
@@ -317,7 +326,7 @@ class comm::impl {
       int source = status.MPI_SOURCE;
       int tag    = status.MPI_TAG;
 
-      std::shared_ptr<char[]> recv_buffer{new char[count]};
+      std::shared_ptr<std::byte[]> recv_buffer{new std::byte[count]};
 
       ASSERT_MPI(MPI_Recv(recv_buffer.get(), count, MPI_BYTE, source, tag,
                           m_comm_async, &status));
@@ -331,11 +340,11 @@ class comm::impl {
 
   size_t receive_queue_peek_size() const { return m_recv_queue.size(); }
 
-  std::pair<std::shared_ptr<char[]>, size_t> receive_queue_try_pop() {
+  std::pair<std::shared_ptr<std::byte[]>, size_t> receive_queue_try_pop() {
     std::scoped_lock lock(m_recv_queue_mutex);
     if (m_recv_queue.empty()) {
       ASSERT_RELEASE(m_recv_queue_bytes == 0);
-      return std::make_pair(std::shared_ptr<char[]>{}, size_t{0});
+      return std::make_pair(std::shared_ptr<std::byte[]>{}, size_t{0});
     } else {
       auto to_return = m_recv_queue.front();
       m_recv_queue.pop_front();
@@ -344,7 +353,8 @@ class comm::impl {
     }
   }
 
-  void receive_queue_push_back(const std::shared_ptr<char[]> &b, size_t size) {
+  void receive_queue_push_back(const std::shared_ptr<std::byte[]> &b,
+                               size_t                              size) {
     size_t current_size = 0;
     {
       std::scoped_lock lock(m_recv_queue_mutex);
@@ -371,7 +381,7 @@ class comm::impl {
   }
 
   template <typename Lambda, typename... PackArgs>
-  size_t pack_lambda(std::vector<char> &packed, Lambda l,
+  size_t pack_lambda(std::vector<std::byte> &packed, Lambda l,
                      const PackArgs &... args) {
     size_t                        size_before = packed.size();
     const std::tuple<PackArgs...> tuple_args(
@@ -435,13 +445,13 @@ class comm::impl {
   int      m_comm_rank;
   size_t   m_buffer_capacity_bytes;
 
-  std::vector<std::vector<char>> m_vec_send_buffers;
-  size_t                         m_send_buffer_bytes = 0;
-  std::deque<int>                m_send_dest_queue;
+  std::vector<std::vector<std::byte>> m_vec_send_buffers;
+  size_t                              m_send_buffer_bytes = 0;
+  std::deque<int>                     m_send_dest_queue;
 
-  std::deque<std::pair<std::shared_ptr<char[]>, size_t>> m_recv_queue;
-  std::mutex                                             m_recv_queue_mutex;
-  size_t                                                 m_recv_queue_bytes = 0;
+  std::deque<std::pair<std::shared_ptr<std::byte[]>, size_t>> m_recv_queue;
+  std::mutex m_recv_queue_mutex;
+  size_t     m_recv_queue_bytes = 0;
 
   std::thread m_listener;
 
@@ -531,7 +541,10 @@ inline void comm::reset_rpc_call_counter() { pimpl->reset_rpc_call_counter(); }
 
 inline void comm::barrier() { pimpl->barrier(); }
 
-inline void comm::register_pre_barrier_callback(const std::function<void()> &fn) {
+inline void comm::cf_barrier() { pimpl->cf_barrier(); }
+
+inline void comm::register_pre_barrier_callback(
+    const std::function<void()> &fn) {
   pimpl->register_pre_barrier_callback(fn);
 }
 
