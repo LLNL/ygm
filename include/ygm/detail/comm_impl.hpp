@@ -14,7 +14,7 @@
 
 #include <ygm/detail/mpi.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
-#include <ygm/meta/functional.hpp>
+#include <ygm/detail/meta/functional.hpp>
 
 namespace ygm {
 
