@@ -5,15 +5,15 @@
 
 #pragma once
 
-#include <cstring>
-#include <vector>
-#include <ygm/detail/assert.hpp>
 #include <cereal/cereal.hpp>
-#include <cereal/types/set.hpp>
 #include <cereal/types/map.hpp>
+#include <cereal/types/set.hpp>
 #include <cereal/types/string.hpp>
 #include <cereal/types/tuple.hpp>
 #include <cereal/types/vector.hpp>
+#include <cstring>
+#include <vector>
+#include <ygm/detail/assert.hpp>
 
 namespace cereal {
 // ######################################################################
@@ -36,7 +36,7 @@ class YGMOutputArchive
   //! Construct, outputting to the provided stream
   /*! @param stream The stream to output to.  Can be a stringstream, a file
      stream, or even cout! */
-  YGMOutputArchive(std::vector<char> &stream)
+  YGMOutputArchive(std::vector<std::byte> &stream)
       : OutputArchive<YGMOutputArchive, AllowEmptyClassElision>(this),
         vec_data(stream) {}
 
@@ -44,7 +44,7 @@ class YGMOutputArchive
 
   //! Writes size bytes of data to the output stream
   void saveBinary(const void *data, std::streamsize size) {
-    const char *cdata = reinterpret_cast<const char *>(data);
+    const std::byte *cdata = reinterpret_cast<const std::byte *>(data);
     vec_data.insert(vec_data.end(), cdata, cdata + size);
 
     // if (writtenSize != size)
@@ -54,7 +54,7 @@ class YGMOutputArchive
   }
 
  private:
-  std::vector<char> &vec_data;
+  std::vector<std::byte> &vec_data;
 };
 
 // ######################################################################
@@ -72,7 +72,7 @@ class YGMInputArchive
     : public InputArchive<YGMInputArchive, AllowEmptyClassElision> {
  public:
   //! Construct, loading from the provided stream
-  YGMInputArchive(char *data, size_t capacity)
+  YGMInputArchive(std::byte *data, size_t capacity)
       : InputArchive<YGMInputArchive, AllowEmptyClassElision>(this),
         m_pdata(data),
         m_capacity(capacity) {}
@@ -97,9 +97,9 @@ class YGMInputArchive
   }
 
  private:
-  char *m_pdata;
-  size_t m_position = 0;
-  size_t m_capacity = 0;
+  std::byte *m_pdata;
+  size_t     m_position = 0;
+  size_t     m_capacity = 0;
 };
 
 // ######################################################################
@@ -135,7 +135,7 @@ inline CEREAL_ARCHIVE_RESTRICT(YGMInputArchive, YGMOutputArchive)
 
 //! Saving binary data
 template <class T>
-inline void CEREAL_SAVE_FUNCTION_NAME(YGMOutputArchive &ar,
+inline void CEREAL_SAVE_FUNCTION_NAME(YGMOutputArchive &   ar,
                                       BinaryData<T> const &bd) {
   ar.saveBinary(bd.data, static_cast<std::streamsize>(bd.size));
 }

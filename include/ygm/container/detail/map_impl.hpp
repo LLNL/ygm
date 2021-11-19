@@ -26,17 +26,17 @@ class map_impl {
 
   Partitioner partitioner;
 
-  map_impl(ygm::comm &comm) : m_comm(comm), pthis(this), m_default_value{} {
+  map_impl(ygm::comm &comm) : m_default_value{}, m_comm(comm), pthis(this) {
     m_comm.barrier();
   }
 
   map_impl(ygm::comm &comm, const value_type &dv)
-      : m_comm(comm), pthis(this), m_default_value(dv) {
+      : m_default_value(dv), m_comm(comm), pthis(this) {
     m_comm.barrier();
   }
 
   map_impl(const self_type &rhs)
-      : m_comm(rhs.m_comm), pthis(this), m_default_value(rhs.m_default_value) {
+      : m_default_value(rhs.m_default_value), m_comm(rhs.m_comm), pthis(this) {
     m_comm.barrier();
     m_local_map.insert(std::begin(rhs.m_local_map), std::end(rhs.m_local_map));
     m_comm.barrier();
@@ -86,7 +86,7 @@ class map_impl {
         range = pmap->m_local_map.equal_range(key);
         ASSERT_DEBUG(range.first != range.second);
       }
-      Visitor *vis;
+      Visitor *vis = nullptr;
       pmap->local_visit(key, *vis, args...);
     };
 
@@ -106,7 +106,7 @@ class map_impl {
         range = pmap->m_local_map.equal_range(key);
         ASSERT_DEBUG(range.first != range.second);
       }
-      Visitor *vis;
+      Visitor *vis = nullptr;
       ygm::meta::apply_optional(
           *vis, std::make_tuple(pmap),
           std::forward_as_tuple(range.first, range.second, args...));
@@ -122,7 +122,7 @@ class map_impl {
     int  dest          = owner(key);
     auto visit_wrapper = [](auto pcomm, auto pmap, const key_type &key,
                             const VisitorArgs &... args) {
-      Visitor *vis;
+      Visitor *vis = nullptr;
       pmap->local_visit(key, *vis, args...);
     };
 
@@ -143,7 +143,7 @@ class map_impl {
       if (itr == pmap->m_local_map.end()) {
         pmap->m_local_map.insert(std::make_pair(key, value));
       } else {
-        Visitor *vis;
+        Visitor *vis = nullptr;
         pmap->local_visit(key, *vis, value, args...);
       }
     };

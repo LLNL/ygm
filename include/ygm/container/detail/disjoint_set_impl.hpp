@@ -106,7 +106,7 @@ class disjoint_set_impl {
           pdset->local_set_parent(my_item, other_item);
 
           // Perform user function after merge
-          Function *f;
+          Function *f = nullptr;
           ygm::meta::apply_optional(
               *f, std::make_tuple(pdset),
               std::forward_as_tuple(orig_a, orig_b, args...));
@@ -320,7 +320,7 @@ class disjoint_set_impl {
       }
     };
 
-    for (int i = 0; i < items.size(); ++i) {
+    for (size_t i = 0; i < items.size(); ++i) {
       int dest = owner(items[i]);
       m_comm.async(dest, find_rep_functor(), pthis, p_to_return, items[i],
                    m_comm.rank(), items[i]);

@@ -27,10 +27,10 @@ int main(int argc, char **argv) {
   world.cout0("Performing unions in random order");
 
   size_t num_local_unions =
-      num_unions / world.size() + (world.rank() < num_unions % world.size());
+      num_unions / (size_t)world.size() + ((size_t)world.rank() < num_unions % (size_t)world.size());
   size_t local_offset =
-      (num_unions / world.size()) * world.rank() +
-      std::min<size_t>(world.rank(), num_unions % world.size());
+      (num_unions / (size_t)world.size()) * (size_t)world.rank() +
+      std::min<size_t>((size_t)world.rank(), num_unions % (size_t)world.size());
 
   std::vector<size_t> my_unions;
 
