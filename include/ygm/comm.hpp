@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <vector>
 #include <ygm/detail/mpi.hpp>
@@ -38,10 +39,27 @@ class comm {
   //
   // Collective operations across all ranks.  Cannot be called inside OpenMP
   // region.
-  // TODO:  Add guards to check for openmp region.
-  //
 
+  /**
+   * @brief Control Flow Barrier
+   * Only blocks the control flow until all processes in the communicator have
+   * called it. See:  MPI_Barrier()
+   */
+  void cf_barrier();
+
+  /**
+   * @brief Full communicator barrier
+   *
+   */
   void barrier();
+
+  /**
+   * @brief Registers a callback that will be executed prior to the barrier
+   * completion
+   *
+   * @param fn callback function
+   */
+  void register_pre_barrier_callback(const std::function<void()> &fn);
 
   template <typename T>
   T all_reduce_sum(const T &t) const;
