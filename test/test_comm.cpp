@@ -13,9 +13,8 @@ int main(int argc, char** argv) {
   //
   // Test Rank 0 async to all others
   {
-    size_t               counter{};
-    ygm::ygm_ptr<size_t> pcounter(&counter);
-    world.barrier();
+    size_t counter{};
+    auto   pcounter = world.make_ygm_ptr(counter);
     if (world.rank0()) {
       for (int dest = 0; dest < world.size(); ++dest) {
         world.async(
@@ -29,9 +28,8 @@ int main(int argc, char** argv) {
   //
   // Test all ranks async to all others
   {
-    size_t               counter{};
-    ygm::ygm_ptr<size_t> pcounter(&counter);
-    world.barrier();
+    size_t counter{};
+    auto   pcounter = world.make_ygm_ptr(counter);
     for (int dest = 0; dest < world.size(); ++dest) {
       world.async(
           dest, [](auto pcounter) { (*pcounter)++; }, pcounter);
@@ -43,9 +41,8 @@ int main(int argc, char** argv) {
   //
   // Test async_bcast
   {
-    size_t               counter{};
-    ygm::ygm_ptr<size_t> pcounter(&counter);
-    world.barrier();
+    size_t counter{};
+    auto   pcounter = world.make_ygm_ptr(counter);
     if (world.rank0()) {
       world.async_bcast([](auto pcounter) { (*pcounter)++; }, pcounter);
     }
@@ -57,9 +54,8 @@ int main(int argc, char** argv) {
   //
   // Test async_mcast
   {
-    size_t               counter{};
-    ygm::ygm_ptr<size_t> pcounter(&counter);
-    world.barrier();
+    size_t counter{};
+    auto   pcounter = world.make_ygm_ptr(counter);
     if (world.rank0()) {
       std::vector<int> dests;
       for (int dest = 0; dest < world.size(); dest += 2) {

@@ -27,19 +27,18 @@ class map_impl {
   Partitioner partitioner;
 
   map_impl(ygm::comm &comm) : m_default_value{}, m_comm(comm), pthis(this) {
-    m_comm.barrier();
+    pthis.check(m_comm);
   }
 
   map_impl(ygm::comm &comm, const value_type &dv)
       : m_default_value(dv), m_comm(comm), pthis(this) {
-    m_comm.barrier();
+    pthis.check(m_comm);
   }
 
   map_impl(const self_type &rhs)
       : m_default_value(rhs.m_default_value), m_comm(rhs.m_comm), pthis(this) {
-    m_comm.barrier();
     m_local_map.insert(std::begin(rhs.m_local_map), std::end(rhs.m_local_map));
-    m_comm.barrier();
+    pthis.check(m_comm);
   }
 
   ~map_impl() { m_comm.barrier(); }
