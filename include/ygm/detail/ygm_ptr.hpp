@@ -24,6 +24,8 @@ class ygm_ptr {
     // If ranks create ygm_ptr in different order, big problem.
     idx = sptrs.size();
     sptrs.push_back(t);
+    // TODO:   Modify ygm_ptr have a comm in the constructor and do:
+    // ASSERT_RELEASE(idx == comm.all_reduce_min(idx));
   }
 
   ygm_ptr(const ygm::ygm_ptr<T> &t) { idx = t.idx; }
@@ -42,6 +44,8 @@ class ygm_ptr {
   static std::vector<T *> sptrs;
 };
 
+//
+// todo, move this function to comm::make_ptr()
 template <typename T>
 ygm_ptr<T> make_ygm_pointer(T &t) {
   return ygm_ptr(&t);

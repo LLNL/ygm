@@ -25,9 +25,6 @@ int main(int argc, char** argv) {
     world.cout0("Checking bag insert rate on ", cluster_name, " with ",
                 num_tasks, " tasks on ", num_nodes, " nodes.\n");
 
-    int comm_rank = world.rank();
-    int comm_size = world.size();
-
     {  // Insert vectors uint64_t's
       world.cout0("Insertion rate for vectors");
 
@@ -38,7 +35,7 @@ int main(int argc, char** argv) {
       ygm::container::bag<std::vector<uint64_t>> my_bag(world);
 
       std::vector<uint64_t> to_send;
-      for (int i = 0; i < vec_length; ++i) { to_send.push_back(i); }
+      for (size_t i = 0; i < vec_length; ++i) { to_send.push_back(i); }
 
       world.barrier();
       ygm::timer bag_timer{};

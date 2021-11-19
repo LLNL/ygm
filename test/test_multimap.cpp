@@ -34,9 +34,9 @@ int main(int argc, char **argv) {
     smap.async_insert("apple", "orange");
     smap.async_insert("red", "green");
 
-    ASSERT_RELEASE(smap.count("dog") == world.size());
-    ASSERT_RELEASE(smap.count("apple") == world.size());
-    ASSERT_RELEASE(smap.count("red") == world.size());
+    ASSERT_RELEASE(smap.count("dog") == (size_t)world.size());
+    ASSERT_RELEASE(smap.count("apple") == (size_t)world.size());
+    ASSERT_RELEASE(smap.count("red") == (size_t)world.size());
   }
 
   //
@@ -106,13 +106,13 @@ int main(int argc, char **argv) {
       smap2.swap(smap);
       ASSERT_RELEASE(smap2.size() == 0);
     }
-    ASSERT_RELEASE(smap.size() == 3 * world.size());
-    ASSERT_RELEASE(smap.count("dog") == world.size());
-    ASSERT_RELEASE(smap.count("apple") == world.size());
-    ASSERT_RELEASE(smap.count("red") == world.size());
+    ASSERT_RELEASE(smap.size() == 3 * (size_t)world.size());
+    ASSERT_RELEASE(smap.count("dog") == (size_t)world.size());
+    ASSERT_RELEASE(smap.count("apple") == (size_t)world.size());
+    ASSERT_RELEASE(smap.count("red") == (size_t)world.size());
     smap.async_insert("car", "truck");
-    ASSERT_RELEASE(smap.size() == 4 * world.size());
-    ASSERT_RELEASE(smap.count("car") == world.size());
+    ASSERT_RELEASE(smap.size() == 4 * (size_t)world.size());
+    ASSERT_RELEASE(smap.count("car") == (size_t)world.size());
   }
 
   //
@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
     world.barrier();
     auto values = smap.local_get("foo");
     if (smap.is_mine("foo")) {
-      ASSERT_RELEASE(values.size() == 4 * world.size());
+      ASSERT_RELEASE(values.size() == 4 * (size_t)world.size());
     } else {
       ASSERT_RELEASE(values.size() == 0);
     }

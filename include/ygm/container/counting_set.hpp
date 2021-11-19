@@ -13,11 +13,11 @@ namespace ygm::container {
 
 template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
           typename Compare = std::less<Key>,
-          class Alloc = std::allocator<std::pair<const Key, size_t>>>
+          class Alloc      = std::allocator<std::pair<const Key, size_t>>>
 class counting_set {
-public:
-  using self_type = counting_set<Key, Partitioner, Compare, Alloc>;
-  using key_type = Key;
+ public:
+  using self_type  = counting_set<Key, Partitioner, Compare, Alloc>;
+  using key_type   = Key;
   using value_type = size_t;
   const size_t count_cache_size = 1024 * 1024;
 
@@ -29,25 +29,18 @@ public:
 
   // void async_erase(const key_type& key) { cache_erase(key); }
 
-  template <typename Function> void for_all(Function fn) {
-    count_cache_flush_all();
+  template <typename Function>
+  void for_all(Function fn) {
     m_map.for_all(fn);
   }
 
-  void clear() {
-    count_cache_flush_all();
-    m_map.clear();
-  }
+  void clear() { m_map.clear(); }
 
-  size_t size() {
-    count_cache_flush_all();
-    return m_map.size();
-  }
+  size_t size() { return m_map.size(); }
 
   size_t count(const key_type &key) {
-    count_cache_flush_all();
     m_map.comm().barrier();
-    auto vals = m_map.local_get(key);
+    auto   vals = m_map.local_get(key);
     size_t local_count{0};
     for (auto v : vals) {
       local_count += v;
@@ -56,7 +49,6 @@ public:
   }
 
   size_t count_all() {
-    count_cache_flush_all();
     size_t local_count{0};
     for_all([&local_count](const auto &kv) { local_count += kv.second; });
     return m_map.comm().all_reduce_sum(local_count);
@@ -66,38 +58,35 @@ public:
 
   template <typename STLKeyContainer>
   std::map<key_type, value_type> all_gather(const STLKeyContainer &keys) {
-    count_cache_flush_all();
     return m_map.all_gather(keys);
   }
 
   std::map<key_type, value_type> all_gather(const std::vector<key_type> &keys) {
-    count_cache_flush_all();
     return m_map.all_gather(keys);
   }
 
-  void serialize(const std::string &fname) {
-    count_cache_flush_all();
-    m_map.serialize(fname);
-  }
-  void deserialize(const std::string &fname) {
-    count_cache_flush_all();
-    m_map.deserialize(fname);
-  }
+  void serialize(const std::string &fname) { m_map.serialize(fname); }
+  void deserialize(const std::string &fname) { m_map.deserialize(fname); }
 
-private:
+ private:
   void cache_erase(const key_type &key) {
     size_t slot = std::hash<key_type>{}(key) % count_cache_size;
     if (m_count_cache[slot].second != -1 && m_count_cache[slot].first == key) {
       // Key was cached, clear cache
       m_count_cache[slot].second = -1;
-      m_count_cache[slot].first = key_type();
+      m_count_cache[slot].first  = key_type();
     }
     m_map.async_erase(key);
   }
   void cache_insert(const key_type &key) {
+    if (m_cache_empty) {
+      m_cache_empty = false;
+      m_map.comm().register_pre_barrier_callback(
+          [this]() { this->count_cache_flush_all(); });
+    }
     size_t slot = std::hash<key_type>{}(key) % count_cache_size;
     if (m_count_cache[slot].second == -1) {
-      m_count_cache[slot].first = key;
+      m_count_cache[slot].first  = key;
       m_count_cache[slot].second = 1;
     } else {
       // flush slot, fill with key
@@ -107,7 +96,7 @@ private:
       } else {
         count_cache_flush(slot);
         ASSERT_DEBUG(m_count_cache[slot].second == -1);
-        m_count_cache[slot].first = key;
+        m_count_cache[slot].first  = key;
         m_count_cache[slot].second = 1;
       }
     }
@@ -117,14 +106,16 @@ private:
   }
 
   void count_cache_flush(size_t slot) {
-    auto key = m_count_cache[slot].first;
+    auto key          = m_count_cache[slot].first;
     auto cached_count = m_count_cache[slot].second;
     ASSERT_DEBUG(cached_count > 0);
-    m_map.async_visit(key,
-                      [](std::pair<const key_type, size_t> &key_count,
-                         int32_t to_add) { key_count.second += to_add; },
-                      cached_count);
-    m_count_cache[slot].first = key_type();
+    m_map.async_visit(
+        key,
+        [](std::pair<const key_type, size_t> &key_count, int32_t to_add) {
+          key_count.second += to_add;
+        },
+        cached_count);
+    m_count_cache[slot].first  = key_type();
     m_count_cache[slot].second = -1;
   }
 
@@ -134,12 +125,14 @@ private:
         count_cache_flush(i);
       }
     }
+    m_cache_empty = true;
   }
   counting_set() = delete;
 
-  std::vector<std::pair<Key, int32_t>> m_count_cache;
+  std::vector<std::pair<Key, int32_t>>              m_count_cache;
+  bool                                              m_cache_empty = true;
   map<Key, value_type, Partitioner, Compare, Alloc> m_map;
-  typename ygm::ygm_ptr<self_type> pthis;
+  typename ygm::ygm_ptr<self_type>                  pthis;
 };
 
-} // namespace ygm::container
+}  // namespace ygm::container
