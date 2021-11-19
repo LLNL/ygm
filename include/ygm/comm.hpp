@@ -89,7 +89,7 @@ class comm {
   int64_t global_rpc_calls() const;
   void    reset_rpc_call_counter();
 
-  std::ostream &cout0() {
+  std::ostream &cout0() const {
     static std::ostringstream dummy;
     dummy.clear();
     if (rank() == 0) {
@@ -98,7 +98,7 @@ class comm {
     return dummy;
   }
 
-  std::ostream &cerr0() {
+  std::ostream &cerr0() const {
     static std::ostringstream dummy;
     dummy.clear();
     if (rank() == 0) {
@@ -107,12 +107,12 @@ class comm {
     return dummy;
   }
 
-  std::ostream &cout() {
+  std::ostream &cout() const {
     std::cout << rank() << ": ";
     return std::cout;
   }
 
-  std::ostream &cerr() {
+  std::ostream &cerr() const {
     std::cerr << rank() << ": ";
     return std::cout;
   }
@@ -120,24 +120,24 @@ class comm {
   bool rank0() const { return rank() == 0; }
 
   template <typename... Args>
-  void cout(Args &&... args) {
+  void cout(Args &&... args) const {
     (cout() << ... << args) << std::endl;
   }
 
   template <typename... Args>
-  void cerr(Args &&... args) {
+  void cerr(Args &&... args) const {
     (cerr() << ... << args) << std::endl;
   }
 
   template <typename... Args>
-  void cout0(Args &&... args) {
+  void cout0(Args &&... args) const {
     if (rank0()) {
       (std::cout << ... << args) << std::endl;
     }
   }
 
   template <typename... Args>
-  void cerr0(Args &&... args) {
+  void cerr0(Args &&... args) const {
     if (rank0()) {
       (std::cerr << ... << args) << std::endl;
     }
