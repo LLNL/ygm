@@ -62,7 +62,7 @@ buffers before YGM begins flushing sends. Here, we will make a buffer with 32MB 
 ygm::comm world(&argc, &argv, 32*1024*1024);
 ```
 
-Next, we need a lambda to send through YGM. We'll do a simple hello_world type of lambda.
+Next, we need a lambda to send through YGM. We'll do a simple hello\_world type of lambda.
 ``` C++
 auto hello_world_lambda = [](const std::string &name) {
 	std::cout << "Hello " << name << std::endl;
@@ -73,9 +73,12 @@ Finally, we use this lambda inside of our `async` calls. In this case, we will h
 telling it to greet the world
 ``` C++
 if (world.rank0()) {
-	world.async(1, hello_world_lambda, "world");
+	world.async(1, hello_world_lambda, std::string("world"));
 }
 ```
+
+The full, compilable version of this example is found [here](/examples/hello_world.cpp). Running it prints a single
+"Hello world".
 
 # Potential Pitfalls
 
