@@ -59,22 +59,22 @@ At the beginning of the program, a YGM communicator must be constructed. It will
 `MPI_Init`, and it has a third optional argument that specifies the aggregate size (in bytes) of allowed for all send
 buffers before YGM begins flushing sends. Here, we will make a buffer with 32MB of aggregate send buffer space.
 ``` C++
-	ygm::comm world(&argc, &argv, 32*1024*1024);
+ygm::comm world(&argc, &argv, 32*1024*1024);
 ```
 
 Next, we need a lambda to send through YGM. We'll do a simple hello_world type of lambda.
 ``` C++
-	auto hello_world_lambda = [](const std::string &name) {
-		std::cout << "Hello " << name << std::endl;
-	};
+auto hello_world_lambda = [](const std::string &name) {
+	std::cout << "Hello " << name << std::endl;
+};
 ```
 
 Finally, we use this lambda inside of our `async` calls. In this case, we will have rank 0 send a message to rank 1,
 telling it to greet the world
 ``` C++
-	if (world.rank0()) {
-		world.async(1, hello_world_lambda, "world");
-	}
+if (world.rank0()) {
+	world.async(1, hello_world_lambda, "world");
+}
 ```
 
 # Potential Pitfalls
