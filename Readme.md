@@ -16,7 +16,7 @@ any interaction with receivers. YGM features
 insertions to occur from any rank. Data is accessed through collective `for_all` operations that execute a user-provided
 function on every stored object, or, when a particular piece of data's location is known, `visit`-type operations that
 perform a user-provided function only on the desired data. These containers are found
-[here](/include/ygm/containers/)
+[here](/include/ygm/container/).
 
 # Getting Started
 
