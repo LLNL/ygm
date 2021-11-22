@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <iomanip>
 #include <string>
 #include <variant>
 #include <vector>
@@ -45,16 +46,15 @@ class csv_field {
     return to_return;
   }
 
-  const std::string& as_string() const { return m_f; }
+  const std::string &as_string() const { return m_f; }
 
  private:
-  friend std::ostream & operator<<(std::ostream &os, const csv_field& f);
-  std::string m_f;
+  friend std::ostream &operator<<(std::ostream &os, const csv_field &f);
+  std::string          m_f;
 };
 
-std::ostream & operator<<(std::ostream &os, const csv_field& f)
-{
-    return os << f.as_string();
+std::ostream &operator<<(std::ostream &os, const csv_field &f) {
+  return os << f.as_string();
 }
 
 std::vector<csv_field> parse_csv_line(const std::string line) {
