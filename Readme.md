@@ -21,7 +21,7 @@ perform a user-provided function only on the desired data. These containers are 
 # Getting Started
 
 ## Requirements
-* C++17 - GCC versions 9+ are tested. Your mileage may vary with other compilers.
+* C++17 - GCC versions 8+ are tested. Your mileage may vary with other compilers.
 * [Cereal](https://github.com/USCiLab/cereal) - C++ serialization library
 * MPI
 
