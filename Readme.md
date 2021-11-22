@@ -1,8 +1,4 @@
 # What is YGM?
-YGM is a general-purpose, pseudo-asynchronous communication library built on top of MPI in C++. YGM's utility is
-provided through its mailbox abstraction which are used for point-to-point and broadcast communications. When using YGM,
-individual cores queue messages into a mailbox instead of
-directly sending them.
 
 YGM is an asynchronous communication library designed for irregular communication patterns. It is built on a
 communicator abstraction, much like MPI, but communication is handled asynchronously and is initiated by senders without
@@ -56,7 +52,7 @@ To begin, headers for a YGM communicator are needed
 ```
 
 At the beginning of the program, a YGM communicator must be constructed. It will be given `argc` and `argv` like
-`MPI_Init`, and it has a third optional argument that specifies the aggregate size (in bytes) of allowed for all send
+`MPI_Init`, and it has an optional third argument that specifies the aggregate size (in bytes) allowed for all send
 buffers before YGM begins flushing sends. Here, we will make a buffer with 32MB of aggregate send buffer space.
 ``` C++
 ygm::comm world(&argc, &argv, 32*1024*1024);
