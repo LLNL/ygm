@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -118,27 +119,25 @@ class line_parser {
                                       std::get<1>(remaining_files.back());
               size_t& cur_position = std::get<1>(remaining_files.back());
               if (file_remaining > remaining_budget) {
-                m_comm.async(
-                    rank,
-                    [](const std::string& fname, size_t bytes_begin,
-                       size_t bytes_end) {
-                      my_file_paths.push_back(
-                          {fs::path(fname), bytes_begin, bytes_end});
-                    },
-                    (std::string)std::get<0>(remaining_files.back()),
-                    cur_position, cur_position + remaining_budget);
+                m_comm.async(rank,
+                             [](const std::string& fname, size_t bytes_begin,
+                                size_t bytes_end) {
+                               my_file_paths.push_back(
+                                   {fs::path(fname), bytes_begin, bytes_end});
+                             },
+                             (std::string)std::get<0>(remaining_files.back()),
+                             cur_position, cur_position + remaining_budget);
                 cur_position += remaining_budget;
                 remaining_budget = 0;
               } else if (file_remaining <= remaining_budget) {
-                m_comm.async(
-                    rank,
-                    [](const std::string& fname, size_t bytes_begin,
-                       size_t bytes_end) {
-                      my_file_paths.push_back(
-                          {fs::path(fname), bytes_begin, bytes_end});
-                    },
-                    (std::string)std::get<0>(remaining_files.back()),
-                    cur_position, std::get<2>(remaining_files.back()));
+                m_comm.async(rank,
+                             [](const std::string& fname, size_t bytes_begin,
+                                size_t bytes_end) {
+                               my_file_paths.push_back(
+                                   {fs::path(fname), bytes_begin, bytes_end});
+                             },
+                             (std::string)std::get<0>(remaining_files.back()),
+                             cur_position, std::get<2>(remaining_files.back()));
                 remaining_budget -= file_remaining;
                 remaining_files.pop_back();
               }

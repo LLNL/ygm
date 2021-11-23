@@ -10,8 +10,8 @@
 #endif
 
 #include <ygm/comm.hpp>
-#include <ygm/io/csv_parser.hpp>
 #include <ygm/detail/cereal_boost_json.hpp>
+#include <ygm/io/csv_parser.hpp>
 
 namespace ygm::io {
 std::size_t json_erase(boost::json::object &           obj,
@@ -50,8 +50,9 @@ class ndjson_parser {
   template <typename Function>
   void for_all(Function fn) {
     using namespace ygm::io::detail;
-    m_lp.for_all(
-        [fn](const std::string &line) { fn(boost::json::parse(line)); });
+    m_lp.for_all([fn](const std::string &line) {
+      fn(boost::json::parse(line).as_object());
+    });
   }
 
  private:
