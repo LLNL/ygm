@@ -7,7 +7,7 @@ any interaction with receivers. YGM features
 * **Fire-and-Forget RPC Semantics** - A sender provides the function and function arguments for execution on a specified
   destination rank through an `async` call. This function will complete on the destination rank at an unspecified time
   in the future, but YGM does not explicitly make the sender aware of this completion.
-* **Pre-built Storage Containers** - YGM provides a collection of distributed storage containers with asynchronous
+* **Storage Containers** - YGM provides a collection of distributed storage containers with asynchronous
   interfaces, used for many common distributed memory operations. Containers are designed to partition data, allowing
 insertions to occur from any rank. Data is accessed through collective `for_all` operations that execute a user-provided
 function on every stored object, or, when a particular piece of data's location is known, `visit`-type operations that
@@ -84,7 +84,7 @@ has different requirements.
 
 ### Remote Lambdas
 A *remote lambda* is any lambda that may potentially be executed on a different rank. These lambdas are identified as
-being those given to a `ygm::communicator` or any of the storage containers through a function prefixed by `async`.
+being those given to a `ygm::comm` or any of the storage containers through a function prefixed by `async_`.
 
 The defining feature of remote lambdas is they **must not** capture any variables; all variables must be provided as
 arguments. This limitation is due to the lack of
@@ -95,7 +95,7 @@ A *local lambda* is any lambda that is guaranteed not to be sent to a remote ran
 those given to a `for_all` operation on a storage container.
 
 The defining feature of local lambdas is that all arguments besides what is stored in the container must be captured.
-Internally, these lambdas are given to a [`std::for_each`](https://en.cppreference.com/w/cpp/algorithm/for_each) that
+Internally, these lambdas may be given to a [`std::for_each`](https://en.cppreference.com/w/cpp/algorithm/for_each) that
 iterates over the container's elements stored locally on each rank.
 
 # License
