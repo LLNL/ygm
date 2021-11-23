@@ -22,7 +22,7 @@ class set_impl {
 
   Partitioner partitioner;
 
-  set_impl(ygm::comm &comm) : m_comm(comm), pthis(this) { m_comm.barrier(); }
+  set_impl(ygm::comm &comm) : m_comm(comm), pthis(this) { pthis.check(m_comm); }
 
   ~set_impl() { m_comm.barrier(); }
 

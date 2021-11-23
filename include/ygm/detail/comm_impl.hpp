@@ -14,6 +14,7 @@
 
 #include <ygm/detail/mpi.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
+#include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/meta/functional.hpp>
 
 namespace ygm {
@@ -129,6 +130,13 @@ class comm::impl {
    */
   void register_pre_barrier_callback(const std::function<void()> &fn) {
     m_pre_barrier_callbacks.push_back(fn);
+  }
+
+  template <typename T>
+  ygm_ptr<T> make_ygm_ptr(T &t) {
+    ygm_ptr<T> to_return(&t);
+    to_return.check(*this);
+    return to_return;
   }
 
   int64_t local_bytes_sent() const { return m_local_bytes_sent; }
@@ -541,6 +549,11 @@ inline void comm::reset_rpc_call_counter() { pimpl->reset_rpc_call_counter(); }
 inline void comm::barrier() { pimpl->barrier(); }
 
 inline void comm::cf_barrier() { pimpl->cf_barrier(); }
+
+template <typename T>
+inline ygm_ptr<T> comm::make_ygm_ptr(T &t) {
+  return pimpl->make_ygm_ptr(t);
+}
 
 inline void comm::register_pre_barrier_callback(
     const std::function<void()> &fn) {

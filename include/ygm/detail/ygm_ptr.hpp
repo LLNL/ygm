@@ -9,6 +9,8 @@
 
 namespace ygm {
 
+class comm;
+
 template <typename T>
 class ygm_ptr {
  public:
@@ -18,21 +20,30 @@ class ygm_ptr {
 
   T &operator*() const { return *sptrs[idx]; }
 
+  /**
+   * @brief Construct a new ygm ptr object
+   *
+   * @warning The user is responsible for ensuring all processes have completed
+   * constructing a ygm_ptr before using in an async manner.   For example, use
+   * ygm_ptr::check(comm&);
+   *
+   * @param t
+   */
   ygm_ptr(T *t) {
-    // TODO:  Should probably have a barrier in here.  Or, in a wrapper
-    // function.
-    // If ranks create ygm_ptr in different order, big problem.
     idx = sptrs.size();
     sptrs.push_back(t);
-    // TODO:   Modify ygm_ptr have a comm in the constructor and do:
-    // ASSERT_RELEASE(idx == comm.all_reduce_min(idx));
   }
 
   ygm_ptr(const ygm::ygm_ptr<T> &t) { idx = t.idx; }
 
   T *get_raw_pointer() { return operator->(); }
 
-  uint32_t index() { return idx; }
+  uint32_t index() const { return idx; }
+
+  template <typename Comm>
+  void check(Comm &c) const {
+    ASSERT_RELEASE(idx == c.all_reduce_min(idx));
+  }
 
   template <class Archive>
   void serialize(Archive &archive) {
@@ -43,13 +54,6 @@ class ygm_ptr {
   uint32_t                idx;
   static std::vector<T *> sptrs;
 };
-
-//
-// todo, move this function to comm::make_ptr()
-template <typename T>
-ygm_ptr<T> make_ygm_pointer(T &t) {
-  return ygm_ptr(&t);
-}
 
 template <typename T>
 std::vector<T *> ygm_ptr<T>::sptrs;

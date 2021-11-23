@@ -13,9 +13,9 @@ int main(int argc, char** argv) {
 
   // Test Rank 0 large message to all ranks
   {
-    size_t               large_msg_size = 1024;
-    size_t               counter{};
-    ygm::ygm_ptr<size_t> pcounter(&counter);
+    size_t large_msg_size = 1024;
+    size_t counter{};
+    auto   pcounter = world.make_ygm_ptr(counter);
     if (world.rank() == 0) {
       std::vector<size_t> large_msg(large_msg_size);
       for (int dest = 0; dest < world.size(); ++dest) {

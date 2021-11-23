@@ -17,7 +17,7 @@ class bag_impl {
   using value_type = Item;
   using self_type  = bag_impl<Item, Alloc>;
 
-  bag_impl(ygm::comm &comm) : m_comm(comm), pthis(this) { m_comm.barrier(); }
+  bag_impl(ygm::comm &comm) : m_comm(comm), pthis(this) { pthis.check(m_comm); }
 
   ~bag_impl() { m_comm.barrier(); }
 
