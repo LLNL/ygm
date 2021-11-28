@@ -1,0 +1,151 @@
+name: CI Test
+
+on: [push, pull_request]
+
+jobs:
+  GCC8_Boost177_OpenMPI:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Dependencies
+        run: |
+          mkdir build
+          cd build
+          wget --no-verbose https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.bz2
+          tar -xjf boost_1_77_0.tar.bz2
+          sudo apt-get install openmpi-bin libopenmpi-dev gcc-8 g++-8
+      - name: Make
+        run: |
+          echo Run 'make'
+          mpicc -show
+          g++-8 --version
+          cd build
+          cmake ../ -DCMAKE_CXX_COMPILER=g++-8 -DBOOST_ROOT=$PWD/boost_1_77_0
+          make
+      - name: Make test
+        run: |
+          echo Run 'make test'
+          cd build
+          export OMPI_MCA_rmaps_base_oversubscribe=1
+          ctest -VV
+  GCC9_NoBoost_OpenMPI:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Dependencies
+        run: |
+          mkdir build
+          cd build
+          sudo apt-get install openmpi-bin libopenmpi-dev
+      - name: Make
+        run: |
+          echo Run 'make'
+          mpicc -show
+          g++-9 --version
+          cd build
+          cmake ../ -DCMAKE_CXX_COMPILER=g++-9
+          make
+      - name: Make test
+        run: |
+          echo Run 'make test'
+          cd build
+          export OMPI_MCA_rmaps_base_oversubscribe=1
+          ctest -VV
+  GCC9_Boost177_OpenMPI:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Dependencies
+        run: |
+          mkdir build
+          cd build
+          wget --no-verbose https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.bz2
+          tar -xjf boost_1_77_0.tar.bz2
+          sudo apt-get install openmpi-bin libopenmpi-dev
+      - name: Make
+        run: |
+          echo Run 'make'
+          mpicc -show
+          g++-9 --version
+          cd build
+          cmake ../ -DCMAKE_CXX_COMPILER=g++-9 -DBOOST_ROOT=$PWD/boost_1_77_0
+          make
+      - name: Make test
+        run: |
+          echo Run 'make test'
+          cd build
+          export OMPI_MCA_rmaps_base_oversubscribe=1
+          ctest -VV
+  GCC10_Boost177_OpenMPI:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Dependencies
+        run: |
+          mkdir build
+          cd build
+          wget --no-verbose https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.bz2
+          tar -xjf boost_1_77_0.tar.bz2
+          sudo apt-get install openmpi-bin libopenmpi-dev
+      - name: Make
+        run: |
+          echo Run 'make'
+          mpicc -show
+          g++-10 --version
+          cd build
+          cmake ../ -DCMAKE_CXX_COMPILER=g++-10 -DBOOST_ROOT=$PWD/boost_1_77_0
+          make
+      - name: Make test
+        run: |
+          echo Run 'make test'
+          cd build
+          export OMPI_MCA_rmaps_base_oversubscribe=1
+          ctest -VV
+  GCC9_Boost177_mpich:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Dependencies
+        run: |
+          mkdir build
+          cd build
+          wget --no-verbose https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.bz2
+          tar -xjf boost_1_77_0.tar.bz2
+          sudo apt-get install mpich
+      - name: Make
+        run: |
+          echo Run 'make'
+          mpicc -show
+          g++-9 --version
+          cd build
+          cmake ../ -DCMAKE_CXX_COMPILER=g++-9 -DBOOST_ROOT=$PWD/boost_1_77_0
+          make
+      - name: Make test
+        run: |
+          echo Run 'make test'
+          cd build
+          ctest -VV
+  GCC10_Boost177_mpich:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Dependencies
+        run: |
+          mkdir build
+          cd build
+          wget --no-verbose https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.bz2
+          tar -xjf boost_1_77_0.tar.bz2
+          sudo apt-get install mpich
+      - name: Make
+        run: |
+          echo Run 'make'
+          mpicc -show
+          g++-10 --version
+          cd build
+          cmake ../ -DCMAKE_CXX_COMPILER=g++-10 -DBOOST_ROOT=$PWD/boost_1_77_0
+          make
+      - name: Make test
+        run: |
+          echo Run 'make test'
+          cd build
+          ctest -VV

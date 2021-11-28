@@ -26,26 +26,25 @@ class map_impl {
 
   Partitioner partitioner;
 
-  map_impl(ygm::comm &comm) : m_comm(comm), pthis(this), m_default_value{} {
-    m_comm.barrier();
+  map_impl(ygm::comm &comm) : m_default_value{}, m_comm(comm), pthis(this) {
+    pthis.check(m_comm);
   }
 
   map_impl(ygm::comm &comm, const value_type &dv)
-      : m_comm(comm), pthis(this), m_default_value(dv) {
-    m_comm.barrier();
+      : m_default_value(dv), m_comm(comm), pthis(this) {
+    pthis.check(m_comm);
   }
 
   map_impl(const self_type &rhs)
-      : m_comm(rhs.m_comm), pthis(this), m_default_value(rhs.m_default_value) {
-    m_comm.barrier();
+      : m_default_value(rhs.m_default_value), m_comm(rhs.m_comm), pthis(this) {
     m_local_map.insert(std::begin(rhs.m_local_map), std::end(rhs.m_local_map));
-    m_comm.barrier();
+    pthis.check(m_comm);
   }
 
   ~map_impl() { m_comm.barrier(); }
 
   void async_insert_unique(const key_type &key, const value_type &value) {
-    auto inserter = [](auto mailbox, int from, auto map, const key_type &key,
+    auto inserter = [](auto mailbox, auto map, const key_type &key,
                        const value_type &value) {
       auto itr = map->m_local_map.find(key);
       if (itr != map->m_local_map.end()) {
@@ -58,8 +57,15 @@ class map_impl {
     m_comm.async(dest, inserter, pthis, key, value);
   }
 
+  void async_insert_if_missing(const key_type &key, const value_type &value) {
+    async_insert_if_missing_else_visit(
+        key, value,
+        [](const std::pair<key_type, value_type> &kv,
+           const value_type &                     new_value) {});
+  }
+
   void async_insert_multi(const key_type &key, const value_type &value) {
-    auto inserter = [](auto mailbox, int from, auto map, const key_type &key,
+    auto inserter = [](auto mailbox, auto map, const key_type &key,
                        const value_type &value) {
       map->m_local_map.insert(std::make_pair(key, value));
     };
@@ -69,18 +75,40 @@ class map_impl {
 
   template <typename Visitor, typename... VisitorArgs>
   void async_visit(const key_type &key, Visitor visitor,
-                   const VisitorArgs &...args) {
+                   const VisitorArgs &... args) {
     int  dest          = owner(key);
-    auto visit_wrapper = [](auto pcomm, int from, auto pmap,
-                            const key_type &key, const VisitorArgs &...args) {
+    auto visit_wrapper = [](auto pcomm, auto pmap, const key_type &key,
+                            const VisitorArgs &... args) {
       auto range = pmap->m_local_map.equal_range(key);
       if (range.first == range.second) {  // check if not in range
         pmap->m_local_map.insert(std::make_pair(key, pmap->m_default_value));
         range = pmap->m_local_map.equal_range(key);
         ASSERT_DEBUG(range.first != range.second);
       }
-      Visitor *vis;
-      pmap->local_visit(key, *vis, from, args...);
+      Visitor *vis = nullptr;
+      pmap->local_visit(key, *vis, args...);
+    };
+
+    m_comm.async(dest, visit_wrapper, pthis, key,
+                 std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_visit_group(const key_type &key, Visitor visitor,
+                         const VisitorArgs &... args) {
+    int  dest          = owner(key);
+    auto visit_wrapper = [](auto pcomm, auto pmap, const key_type &key,
+                            const VisitorArgs &... args) {
+      auto range = pmap->m_local_map.equal_range(key);
+      if (range.first == range.second) {  // check if not in range
+        pmap->m_local_map.insert(std::make_pair(key, pmap->m_default_value));
+        range = pmap->m_local_map.equal_range(key);
+        ASSERT_DEBUG(range.first != range.second);
+      }
+      Visitor *vis = nullptr;
+      ygm::meta::apply_optional(
+          *vis, std::make_tuple(pmap),
+          std::forward_as_tuple(range.first, range.second, args...));
     };
 
     m_comm.async(dest, visit_wrapper, pthis, key,
@@ -89,22 +117,45 @@ class map_impl {
 
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_if_exists(const key_type &key, Visitor visitor,
-                             const VisitorArgs &...args) {
+                             const VisitorArgs &... args) {
     int  dest          = owner(key);
-    auto visit_wrapper = [](auto pcomm, int from, auto pmap,
-                            const key_type &key, const VisitorArgs &...args) {
-      Visitor *vis;
-      pmap->local_visit(key, *vis, from, args...);
+    auto visit_wrapper = [](auto pcomm, auto pmap, const key_type &key,
+                            const VisitorArgs &... args) {
+      Visitor *vis = nullptr;
+      pmap->local_visit(key, *vis, args...);
     };
 
     m_comm.async(dest, visit_wrapper, pthis, key,
                  std::forward<const VisitorArgs>(args)...);
   }
 
+  template <typename Visitor, typename... VisitorArgs>
+  void async_insert_if_missing_else_visit(const key_type &  key,
+                                          const value_type &value,
+                                          Visitor           visitor,
+                                          const VisitorArgs &... args) {
+    int  dest                      = owner(key);
+    auto insert_else_visit_wrapper = [](auto pmap, const key_type &key,
+                                        const value_type &value,
+                                        const VisitorArgs &... args) {
+      auto itr = pmap->m_local_map.find(key);
+      if (itr == pmap->m_local_map.end()) {
+        pmap->m_local_map.insert(std::make_pair(key, value));
+      } else {
+        Visitor *vis = nullptr;
+        pmap->local_visit(key, *vis, value, args...);
+      }
+    };
+
+    m_comm.async(dest, insert_else_visit_wrapper, pthis, key, value,
+                 std::forward<const VisitorArgs>(args)...);
+  }
+
   void async_erase(const key_type &key) {
     int  dest          = owner(key);
-    auto erase_wrapper = [](auto pcomm, int from, auto pmap,
-                            const key_type &key) { pmap->local_erase(key); };
+    auto erase_wrapper = [](auto pcomm, auto pmap, const key_type &key) {
+      pmap->local_erase(key);
+    };
 
     m_comm.async(dest, erase_wrapper, pthis, key);
   }
@@ -146,7 +197,7 @@ class map_impl {
 
     auto fetcher = [](auto pcomm, int from, const key_type &key, auto pmap,
                       auto pcont) {
-      auto returner = [](auto pcomm, int from, const key_type &key,
+      auto returner = [](auto pcomm, const key_type &key,
                          const std::vector<value_type> &values, auto pcont) {
         for (const auto &v : values) {
           pcont->insert(std::make_pair(key, v));
@@ -159,7 +210,7 @@ class map_impl {
     m_comm.barrier();
     for (const auto &key : keys) {
       int o = owner(key);
-      m_comm.async(o, fetcher, key, pthis, preturn);
+      m_comm.async(o, fetcher, m_comm.rank(), key, pthis, preturn);
     }
     m_comm.barrier();
   }
@@ -217,11 +268,11 @@ class map_impl {
   }
 
   template <typename Function, typename... VisitorArgs>
-  void local_visit(const key_type &key, Function &fn, const int from,
-                   const VisitorArgs &...args) {
+  void local_visit(const key_type &key, Function &fn,
+                   const VisitorArgs &... args) {
     auto range = m_local_map.equal_range(key);
     for (auto itr = range.first; itr != range.second; ++itr) {
-      ygm::meta::apply_optional(fn, std::make_tuple(pthis, from),
+      ygm::meta::apply_optional(fn, std::make_tuple(pthis),
                                 std::forward_as_tuple(*itr, args...));
     }
   }

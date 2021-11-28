@@ -5,9 +5,11 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <vector>
 #include <ygm/detail/mpi.hpp>
+#include <ygm/detail/ygm_ptr.hpp>
 
 namespace ygm {
 
@@ -29,29 +31,39 @@ class comm {
   void async(int dest, AsyncFunction fn, const SendArgs &... args);
 
   template <typename AsyncFunction, typename... SendArgs>
-  void async_preempt(int dest, AsyncFunction fn, const SendArgs &... args);
-
-  template <typename AsyncFunction, typename... SendArgs>
   void async_bcast(AsyncFunction fn, const SendArgs &... args);
-
-  template <typename AsyncFunction, typename... SendArgs>
-  void async_bcast_preempt(AsyncFunction fn, const SendArgs &... args);
 
   template <typename AsyncFunction, typename... SendArgs>
   void async_mcast(const std::vector<int> &dests, AsyncFunction fn,
                    const SendArgs &... args);
 
-  template <typename AsyncFunction, typename... SendArgs>
-  void async_mcast_preempt(const std::vector<int> &dests, AsyncFunction fn,
-                           const SendArgs &... args);
-
   //
   // Collective operations across all ranks.  Cannot be called inside OpenMP
   // region.
-  // TODO:  Add guards to check for openmp region.
-  //
 
+  /**
+   * @brief Control Flow Barrier
+   * Only blocks the control flow until all processes in the communicator have
+   * called it. See:  MPI_Barrier()
+   */
+  void cf_barrier();
+
+  /**
+   * @brief Full communicator barrier
+   *
+   */
   void barrier();
+
+  template <typename T>
+  ygm_ptr<T> make_ygm_ptr(T &t);
+
+  /**
+   * @brief Registers a callback that will be executed prior to the barrier
+   * completion
+   *
+   * @param fn callback function
+   */
+  void register_pre_barrier_callback(const std::function<void()> &fn);
 
   template <typename T>
   T all_reduce_sum(const T &t) const;
@@ -81,7 +93,7 @@ class comm {
   int64_t global_rpc_calls() const;
   void    reset_rpc_call_counter();
 
-  std::ostream &cout0() {
+  std::ostream &cout0() const {
     static std::ostringstream dummy;
     dummy.clear();
     if (rank() == 0) {
@@ -90,7 +102,7 @@ class comm {
     return dummy;
   }
 
-  std::ostream &cerr0() {
+  std::ostream &cerr0() const {
     static std::ostringstream dummy;
     dummy.clear();
     if (rank() == 0) {
@@ -99,12 +111,12 @@ class comm {
     return dummy;
   }
 
-  std::ostream &cout() {
+  std::ostream &cout() const {
     std::cout << rank() << ": ";
     return std::cout;
   }
 
-  std::ostream &cerr() {
+  std::ostream &cerr() const {
     std::cerr << rank() << ": ";
     return std::cout;
   }
@@ -112,24 +124,24 @@ class comm {
   bool rank0() const { return rank() == 0; }
 
   template <typename... Args>
-  void cout(Args &&... args) {
+  void cout(Args &&... args) const {
     (cout() << ... << args) << std::endl;
   }
 
   template <typename... Args>
-  void cerr(Args &&... args) {
+  void cerr(Args &&... args) const {
     (cerr() << ... << args) << std::endl;
   }
 
   template <typename... Args>
-  void cout0(Args &&... args) {
+  void cout0(Args &&... args) const {
     if (rank0()) {
       (std::cout << ... << args) << std::endl;
     }
   }
 
   template <typename... Args>
-  void cerr0(Args &&... args) {
+  void cerr0(Args &&... args) const {
     if (rank0()) {
       (std::cerr << ... << args) << std::endl;
     }

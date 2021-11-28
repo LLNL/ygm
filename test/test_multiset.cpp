@@ -26,7 +26,9 @@ int main(int argc, char** argv) {
     ASSERT_RELEASE(sset.count("red") == 1);
     sset.async_erase("dog");
     ASSERT_RELEASE(sset.size() == 2);
-    if (world.rank() == 0) { sset.async_erase("apple"); }
+    if (world.rank() == 0) {
+      sset.async_erase("apple");
+    }
     ASSERT_RELEASE(sset.size() == 1);
     ASSERT_RELEASE(sset.count("dog") == 0);
     ASSERT_RELEASE(sset.count("apple") == 0);
@@ -41,9 +43,9 @@ int main(int argc, char** argv) {
     sset.async_insert("apple");
     sset.async_insert("red");
 
-    ASSERT_RELEASE(sset.count("dog") == world.size());
-    ASSERT_RELEASE(sset.count("apple") == world.size());
-    ASSERT_RELEASE(sset.count("red") == world.size());
+    ASSERT_RELEASE(sset.count("dog") == (size_t)world.size());
+    ASSERT_RELEASE(sset.count("apple") == (size_t)world.size());
+    ASSERT_RELEASE(sset.count("red") == (size_t)world.size());
   }
 
   //
@@ -58,13 +60,13 @@ int main(int argc, char** argv) {
       sset2.swap(sset);
       ASSERT_RELEASE(sset2.size() == 0);
     }
-    ASSERT_RELEASE(sset.size() == 3 * world.size());
-    ASSERT_RELEASE(sset.count("dog") == world.size());
-    ASSERT_RELEASE(sset.count("apple") == world.size());
-    ASSERT_RELEASE(sset.count("red") == world.size());
+    ASSERT_RELEASE(sset.size() == 3 * (size_t)world.size());
+    ASSERT_RELEASE(sset.count("dog") == (size_t)world.size());
+    ASSERT_RELEASE(sset.count("apple") == (size_t)world.size());
+    ASSERT_RELEASE(sset.count("red") == (size_t)world.size());
     sset.async_insert("car");
-    ASSERT_RELEASE(sset.size() == 4 * world.size());
-    ASSERT_RELEASE(sset.count("car") == world.size());
+    ASSERT_RELEASE(sset.size() == 4 * (size_t)world.size());
+    ASSERT_RELEASE(sset.count("car") == (size_t)world.size());
   }
 
   return 0;

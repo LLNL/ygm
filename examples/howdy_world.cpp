@@ -17,7 +17,8 @@ int main(int argc, char** argv) {
 
   if (world.rank() == 0) {
     for (int dest = 0; dest < world.size(); ++dest) {
-      world.async(dest, howdy, std::string("Can you hear me now?"));
+      world.async(dest, howdy, world.rank(),
+                  std::string("Can you hear me now?"));
     }
   }
   return 0;

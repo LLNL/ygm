@@ -5,6 +5,10 @@
 
 #pragma once
 
+#if !__has_include(<boost/json/src.hpp>)
+#error BOOST >= 1.75 is required for Boost.JSON
+#endif
+
 #include <string>
 #include <variant>
 
@@ -16,7 +20,7 @@
 namespace cereal {
 
 namespace {
-namespace bj = boost::json;
+namespace bj = ::boost::json;
 }
 
 /// \brief Boost JSON value kind
@@ -33,7 +37,7 @@ enum class bjson_value_kind : int8_t {
 
 /// \brief Save function for boost::json::value.
 template <class Archive>
-inline void CEREAL_SAVE_FUNCTION_NAME(Archive         &archive,
+inline void CEREAL_SAVE_FUNCTION_NAME(Archive &        archive,
                                       const bj::value &value) {
   if (value.is_null()) {
     archive(bjson_value_kind::null);
@@ -89,7 +93,7 @@ inline void CEREAL_LOAD_FUNCTION_NAME(Archive &archive, bj::value &value) {
 
 /// \brief Save function for boost::json::object.
 template <class Archive>
-inline void CEREAL_SAVE_FUNCTION_NAME(Archive          &archive,
+inline void CEREAL_SAVE_FUNCTION_NAME(Archive &         archive,
                                       const bj::object &object) {
   archive(make_size_tag(static_cast<std::size_t>(object.size())));
 
@@ -128,7 +132,7 @@ inline void CEREAL_LOAD_FUNCTION_NAME(Archive &archive, bj::object &object) {
 
 /// \brief Save function for boost::json::array.
 template <class Archive>
-inline void CEREAL_SAVE_FUNCTION_NAME(Archive         &archive,
+inline void CEREAL_SAVE_FUNCTION_NAME(Archive &        archive,
                                       const bj::array &array) {
   archive(make_size_tag(static_cast<std::size_t>(array.size())));
 

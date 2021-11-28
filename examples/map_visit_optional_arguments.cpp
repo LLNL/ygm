@@ -17,16 +17,20 @@ int main(int argc, char **argv) {
 
   world.barrier();
 
-  auto visit_lambda = [](auto pmap, int from, auto kv_pair) {
-    std::cout << "Rank " << from << " is asking for a lookup\n"
+  auto visit_lambda = [](auto pmap, auto kv_pair) {
+    std::cout << "Rank " << pmap->comm().rank() << " is receiving a lookup\n"
               << "\tKey: " << kv_pair.first << " Value: " << kv_pair.second
               << "\n\tGoing to ask rank 0 to say something." << std::endl;
 
     // Send message to rank 0 to introduce himself
-    pmap->comm().async(0, [](auto pcomm, int from) {
-      std::cout << "Hi. I'm rank " << pcomm->rank() << ". Rank " << from
-                << " wanted me to say something." << std::endl;
-    });
+    pmap->comm().async(0,
+                       [](auto pcomm, int from) {
+                         std::cout << "Hi. I'm rank " << pcomm->rank()
+                                   << ". Rank " << from
+                                   << " wanted me to say something."
+                                   << std::endl;
+                       },
+                       pmap->comm().rank());
   };
 
   // Send lookup from odd-numbered ranks
