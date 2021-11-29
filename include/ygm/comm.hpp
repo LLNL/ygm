@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 #include <ygm/detail/mpi.hpp>
+#include <ygm/detail/ygm_ptr.hpp>
 
 namespace ygm {
 
@@ -52,6 +53,9 @@ class comm {
    *
    */
   void barrier();
+
+  template <typename T>
+  ygm_ptr<T> make_ygm_ptr(T &t);
 
   /**
    * @brief Registers a callback that will be executed prior to the barrier

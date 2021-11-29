@@ -13,6 +13,7 @@ function ( add_ygm_example example_name )
   target_link_libraries(${example_exe} ygm)
 endfunction()
 
+add_ygm_example(hello_world)
 add_ygm_example(howdy_world)
 add_ygm_example(howdy_world_recursive)
 add_ygm_example(bandwidth_check)

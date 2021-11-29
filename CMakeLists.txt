@@ -57,7 +57,7 @@ target_compile_features(ygm INTERFACE cxx_std_17)
 #
 find_package(MPI REQUIRED)
 find_package(Threads REQUIRED)
-target_link_libraries(ygm INTERFACE MPI::MPI_CXX Threads::Threads)
+target_link_libraries(ygm INTERFACE MPI::MPI_CXX Threads::Threads stdc++fs)
 
 # prepare to FetchContent
 include(FetchContent)
