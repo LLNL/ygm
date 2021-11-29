@@ -71,7 +71,8 @@ include(FetchContent)
 set(ygm_cereal_VERSION 1.3.0)
 find_package(cereal CONFIG QUIET)
 if (NOT cereal_FOUND)
-    # Currently cereal version 1.3.0 has an outdate CMakeLists.txt, so we need to use this commit
+    # Currently cereal version 1.3.0 has an outdated CMakeLists.txt, so we need 
+    # to use this specific commit for now.
     FetchContent_Declare(
         cereal
         GIT_REPOSITORY https://github.com/USCiLab/cereal
@@ -85,12 +86,15 @@ if (NOT cereal_FOUND)
         set(JUST_INSTALL_CEREAL ON)
         # Install cereal at ${CMAKE_INSTALL_PREFIX}
         set(CEREAL_INSTALL ${YGM_INSTALL})
-        FetchContent_MakeAvailable(cereal)
+        # Populate cereal
+        FetchContent_POPULATE(cereal)
+        # Include cereal root cmake boilerplate
+        add_subdirectory(${cereal_SOURCE_DIR})
         message(STATUS "YGM cloned cereal dependency: " ${cereal_SOURCE_DIR})
     endif()
     target_link_libraries(ygm INTERFACE cereal::cereal)
 else()
-    message(STATUS "YGM found cereal dependency: " ${cereal_DIR})
+    message(STATUS "YGM found installed cereal dependency: " ${cereal_DIR})
     # cereal installed with spack creates library target "cereal", whereas 
     # installing from source creates target "cereal::cereal". This is the only
     # simple way I could figure out how to differentiate the two, but this will 
