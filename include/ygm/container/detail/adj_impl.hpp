@@ -48,7 +48,7 @@ class adj_impl {
   ~adj_impl() { m_comm.barrier(); }
 
   void async_insert(const key_type& row, const key_type& col, const value_type& value) {
-    auto inserter = [](auto mailbox, int from, auto padj,
+    auto inserter = [](auto mailbox, auto padj,
                        const key_type &row, const key_type &col,
                        const value_type &value) {
       padj->m_map[row].insert(std::make_pair(col, value));
@@ -86,10 +86,10 @@ class adj_impl {
   void async_visit_if_exists(const key_type &row, const key_type &col,
           Visitor visitor, const VisitorArgs &...args) {
 
-    auto visit_wrapper = [](auto pcomm, int from, auto padj,
-                            const key_type &row, const key_type &col, const VisitorArgs &...args) {
+    auto visit_wrapper = [](auto pcomm, auto padj, const key_type &row, 
+                            const key_type &col, const VisitorArgs &...args) {
       Visitor *vis;
-      padj->local_visit(row, col, *vis, from, args...);
+      padj->local_visit(row, col, *vis, args...);
     };
 
     int dest = owner(row);
@@ -99,13 +99,13 @@ class adj_impl {
 
   template <typename Function, typename... VisitorArgs>
   void local_visit(const key_type &row, const key_type &col,
-                   Function &fn, const int from, const VisitorArgs &...args) {
+                   Function &fn, const VisitorArgs &...args) {
     /* Fetch the row map, key: col id, value: val. */
     inner_map_type &inner_map = m_map[row];
     value_type value          = inner_map[col];
 
     /* Assuming this changes the value at row, col. */
-    ygm::meta::apply_optional(fn, std::make_tuple(pthis, from),
+    ygm::meta::apply_optional(fn, std::make_tuple(pthis),
                                 std::forward_as_tuple(row, col, value, args...));
   }
 
@@ -114,10 +114,10 @@ class adj_impl {
                              const VisitorArgs &...args) {
 
     int  dest = owner(key);
-    auto visit_wrapper = [](auto pcomm, int from, auto padj,
+    auto visit_wrapper = [](auto pcomm, auto padj,
                             const key_type &key, const VisitorArgs &...args) {
       Visitor *vis;
-      padj->adj_local_for_all(key, *vis, from, args...);
+      padj->adj_local_for_all(key, *vis, args...);
     };
 
     m_comm.async(dest, visit_wrapper, pthis, key,
@@ -125,7 +125,7 @@ class adj_impl {
   }
 
   template <typename Function, typename... VisitorArgs>
-  void adj_local_for_all(const key_type &key, Function fn, const int from,
+  void adj_local_for_all(const key_type &key, Function fn,
                    const VisitorArgs &...args) {
     auto &inner_map = m_map[key];
     for (auto itr = inner_map.begin(); itr != inner_map.end(); ++itr) {
@@ -142,12 +142,12 @@ class adj_impl {
                               Visitor visitor, const VisitorArgs &...args) {
 
     std::cout << "Inside the adj impl." << std::endl;
-    auto visit_wrapper = [](auto pcomm, int from, auto padj,
+    auto visit_wrapper = [](auto pcomm, auto padj,
                        const key_type &row, const key_type &col,
                        const value_type &value, const VisitorArgs &...args) {
       //Apply Visitor.. 
       Visitor *vis;
-      padj->local_visit_or_insert(row, col, value, *vis, from, args...); 
+      padj->local_visit_or_insert(row, col, value, *vis, args...); 
     };
 
     int dest = owner(row);
@@ -158,7 +158,7 @@ class adj_impl {
   /* Do we really need a value here? */
   template <typename Function, typename... VisitorArgs>
   void local_visit_or_insert(const key_type &row, const key_type &col, const value_type &value,
-                   Function &fn, const int from, const VisitorArgs &...args) {
+                   Function &fn, const VisitorArgs &...args) {
     std::cout << "Inside the local adj impl, lambda reached." << row << col << std::endl;
     /* Fetch the row map, key: col id, value: val. */
     inner_map_type &inner_map = m_map[row];
@@ -167,7 +167,7 @@ class adj_impl {
       inner_map.insert(std::make_pair(col, value));
     } else {
       value_type value = inner_map[col];
-      ygm::meta::apply_optional(fn, std::make_tuple(pthis, from),
+      ygm::meta::apply_optional(fn, std::make_tuple(pthis),
                                 std::forward_as_tuple(row, col, value, args...));
     }
   }

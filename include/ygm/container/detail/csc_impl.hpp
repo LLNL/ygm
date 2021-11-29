@@ -15,7 +15,7 @@
 #include <ygm/container/detail/adj_impl.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
 
-#include <ygm/container/detail/algorithms/spmv.hpp>
+//#include <ygm/container/detail/algorithms/spmv.hpp>
 
 namespace ygm::container::detail {
 
@@ -34,12 +34,12 @@ class csc_impl {
 
   Partitioner partitioner;
 
-  csc_impl(ygm::comm &comm) : m_adj(comm), m_comm(comm), pthis(this), m_default_value{} {
+  csc_impl(ygm::comm &comm) : m_csc(comm), m_comm(comm), pthis(this), m_default_value{} {
     m_comm.barrier();
   }
 
   csc_impl(ygm::comm &comm, const value_type &dv)
-      : m_adj(comm), m_comm(comm), pthis(this), m_default_value(dv) {
+      : m_csc(comm), m_comm(comm), pthis(this), m_default_value(dv) {
     m_comm.barrier();
   }
 
@@ -53,7 +53,7 @@ class csc_impl {
   ~csc_impl() { m_comm.barrier(); }
 
   void async_insert(const key_type& row, const key_type& col, const value_type& value) {
-    m_adj.async_insert(col, row, value);
+    m_csc.async_insert(col, row, value);
   }
 
   ygm::comm &comm() { return m_comm; }
@@ -63,7 +63,7 @@ class csc_impl {
     * how do you control parameters? */
   template <typename Function>
   void for_all(Function fn) {
-    m_adj.for_all(fn);
+    m_csc.for_all(fn);
   }
 
   template <typename... VisitorArgs>
@@ -74,7 +74,7 @@ class csc_impl {
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_if_exists(const key_type &row, const key_type &col, 
           Visitor visitor, const VisitorArgs &...args) {
-    m_adj.async_visit_if_exists(col, row, visitor, std::forward<const VisitorArgs>(args)...);
+    m_csc.async_visit_if_exists(col, row, visitor, std::forward<const VisitorArgs>(args)...);
   }
 
   template <typename Visitor, typename... VisitorArgs>
@@ -84,7 +84,7 @@ class csc_impl {
       * should this actually be enclosed within adj? */
     /*  this means adj should have row and col adj, 
       * and not a single instance inside the csc impl.. */
-    auto &m_map     = m_adj.adj();
+    auto &m_map     = m_csc.adj();
     auto &inner_map = m_map.find(col)->second;
     for (auto itr = inner_map.begin(); itr != inner_map.end(); ++itr) {
       key_type row  = itr->first;
@@ -96,22 +96,23 @@ class csc_impl {
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_col_const(const key_type &col, Visitor visitor,
                              const VisitorArgs &...args) {
-    m_adj.async_visit_const(col, visitor, std::forward<const VisitorArgs>(args)...);
+    m_csc.async_visit_const(col, visitor, std::forward<const VisitorArgs>(args)...);
   }
 
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_or_insert(const key_type& row, const key_type& col, const value_type &value, 
                                 Visitor visitor, const VisitorArgs&... args) {
-    //m_csr.async_visit_or_insert(row, col, value, visitor, std::forward<const VisitorArgs>(args)...);
-    m_adj.async_visit_or_insert(col, row, value, visitor, std::forward<const VisitorArgs>(args)...);
+    m_csc.async_visit_or_insert(col, row, value, visitor, std::forward<const VisitorArgs>(args)...);
   }
 
+  #ifdef map_new_defn
   map_type spmv(map_type& x) {
     
     auto y = ygm::container::detail::algorithms::spmv(x);
     return y;
   }
-  #ifdef map_old_defn
+  #endif
+
   /* This method accepts a map-type object. */
   map_type spmv(map_type& x) {
 
@@ -151,19 +152,18 @@ class csc_impl {
 
     return y;
   }
-  #endif
 
   typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }
 
   void local_clear() { 
-    m_adj.clear(); 
+    m_csc.clear(); 
   }
 
  protected:
   csc_impl() = delete;
 
   value_type                                          m_default_value;
-  adj_impl                                            m_adj; 
+  adj_impl                                            m_csc; 
   ygm::comm                                           m_comm;
   typename ygm::ygm_ptr<self_type>                    pthis;
 };

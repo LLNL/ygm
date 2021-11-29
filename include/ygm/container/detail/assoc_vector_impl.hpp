@@ -77,11 +77,11 @@ class assoc_vector_impl {
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_or_insert(const key_type& key, const value_type& value,
                               Visitor visitor, const VisitorArgs &...args) {
-    auto visit_wrapper = [](auto pcomm, int from, auto pmap,
+    auto visit_wrapper = [](auto pcomm, auto pmap,
                        const key_type &key, const value_type &value, 
                        const VisitorArgs &...args) {
       Visitor *vis;
-      pmap->local_visit_or_insert(key, value, *vis, from, args...);
+      pmap->local_visit_or_insert(key, value, *vis, args...);
     };
     int dest = owner(key);
     m_comm.async(dest, visit_wrapper, pthis, key, value,
@@ -90,14 +90,14 @@ class assoc_vector_impl {
 
   template <typename Function, typename... VisitorArgs>
   void local_visit_or_insert(const key_type &key, const value_type &value,
-                   Function &fn, const int from, const VisitorArgs &...args) {
+                   Function &fn, const VisitorArgs &...args) {
     //std::cout << "Inside the assoc impl, lambda reached." << key << std::endl;
     if (m_local_map.find(key) == m_local_map.end()) {
       //std::cout << "In insert." << std::endl;
       m_local_map.insert(std::make_pair(key, value));
     } else {
       auto itr = m_local_map.find(key);
-      ygm::meta::apply_optional(fn, std::make_tuple(pthis, from),
+      ygm::meta::apply_optional(fn, std::make_tuple(pthis),
                                 std::forward_as_tuple(itr, args...));
     }
   }
