@@ -14,6 +14,9 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     set(YGM_MAIN_PROJECT ON)
 endif()
 
+# Controls whether to set up install boilerplate for project and depencencies
+option(YGM_INSTALL "Generate the install target" ${YGM_MAIN_PROJECT})
+
 # Only do these if this is the main project, and not if it is included through add_subdirectory
 if(YGM_MAIN_PROJECT)
 
@@ -74,12 +77,17 @@ if (NOT cereal_FOUND)
         GIT_REPOSITORY https://github.com/USCiLab/cereal
         GIT_TAG        af0700efb25e7dc7af637b9e6f970dbb94813bff
     )
-    # Do not compile any cereal tests
-    set(JUST_INSTALL_CEREAL ON)
-    # Install cereal at ${CMAKE_INSTALL_PREFIX}
-    set(CEREAL_INSTALL ON)
-    FetchContent_MakeAvailable(cereal)
-    message(STATUS "YGM cloned cereal dependency: " ${cereal_SOURCE_DIR})
+    FetchContent_GetProperties(cereal)
+    if (cereal_POPULATED)
+        message(STATUS "YGM found already populated cereal dependency: " ${cereal_SOURCE_DIR})
+    else()
+        # Do not compile any cereal tests
+        set(JUST_INSTALL_CEREAL ON)
+        # Install cereal at ${CMAKE_INSTALL_PREFIX}
+        set(CEREAL_INSTALL ${YGM_INSTALL})
+        FetchContent_MakeAvailable(cereal)
+        message(STATUS "YGM cloned cereal dependency: " ${cereal_SOURCE_DIR})
+    endif()
     target_link_libraries(ygm INTERFACE cereal::cereal)
 else()
     message(STATUS "YGM found cereal dependency: " ${cereal_DIR})
@@ -113,7 +121,6 @@ option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
 
 
 # Install ygm. Expects CMAKE_INSTALL_PREFIX to be set to a suitable directory.
-option(YGM_INSTALL "Generate the install target" ${YGM_MAIN_PROJECT})
 if(${YGM_INSTALL})
     include(GNUInstallDirs)
     include(CMakePackageConfigHelpers)
