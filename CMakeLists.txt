@@ -75,6 +75,8 @@ include(FetchContent)
 # Cereal
 #
 set(ygm_cereal_VERSION 1.3.0)
+# Would like to version this find, but the spack config file is versionless so
+# will always throw an error.
 find_package(cereal CONFIG QUIET)
 if (NOT cereal_FOUND)
     # Currently cereal version 1.3.0 has an outdated CMakeLists.txt, so we need
