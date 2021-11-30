@@ -18,28 +18,25 @@ int main(int argc, char **argv) {
 
   ygm::comm world(&argc, &argv);
 
-  using gt_type = ygm::container::map<std::string, int>;
-  using map_type = ygm::container::assoc_vector<std::string, int>;
-  using maptrix_type = ygm::container::maptrix<std::string, int>;
+  using gt_type = ygm::container::map<std::string, double>;
+  using maptrix_type = ygm::container::maptrix<std::string, double>;
 
-  map_type my_map(world);
+  gt_type my_map(world);
   maptrix_type my_maptrix(world);
-  //map_type my_map_test(world);
   
   auto my_map_ptr     = my_map.get_ygm_ptr();
   auto my_maptrix_ptr = my_maptrix.get_ygm_ptr(); 
-  //auto my_map_test_ptr = my_map_test.get_ygm_ptr();
 
-  //std::ifstream matfile("/g/g90/tom7/codebase/intern_2021/GraphBLAS/Demo/Matrix/bcsstk16");
-  //std::ifstream vecfile("/g/g90/tom7/codebase/data/vectors/map_sample_floats__4883.txt");
+  std::ifstream matfile("/g/g90/tom7/codebase/intern_2021/GraphBLAS/Demo/Matrix/bcsstk16");
+  std::ifstream vecfile("/g/g90/tom7/codebase/data/vectors/map_sample_floats__4883.txt");
 
-  std::ifstream matfile("/g/g90/tom7/codebase/intern_2021/GraphBLAS/Demo/Matrix/bcsstk16_1");
-  std::ifstream vecfile("/g/g90/tom7/codebase/data/vectors/map_sample_ints__4883.txt");
+  //std::ifstream matfile("/g/g90/tom7/codebase/intern_2021/GraphBLAS/Demo/Matrix/bcsstk16_1");
+  //std::ifstream vecfile("/g/g90/tom7/codebase/data/vectors/map_sample_ints__4883.txt");
   
   //std::ifstream matfile("/g/g90/tom7/codebase/intern_2021/GraphBLAS/Demo/Matrix/ibm32a");
   //std::ifstream vecfile("/g/g90/tom7/codebase/data/vectors/map_sample_floats__1.txt");
 
-  int value;
+  double value;
   std::string key1, key2;
   if (world.rank0()) {
 
@@ -90,15 +87,15 @@ int main(int argc, char **argv) {
   std::cout << std::setprecision(8);
 
   gt_type map_gt(world);
-  //std::ifstream gtfile("/g/g90/tom7/codebase/data/vectors/spmv_res_floats__4883.txt");
-  std::ifstream gtfile("/g/g90/tom7/codebase/data/vectors/spmv_res_ints__4883.txt");
+  std::ifstream gtfile("/g/g90/tom7/codebase/data/vectors/spmv_res_floats__4883.txt");
+  //std::ifstream gtfile("/g/g90/tom7/codebase/data/vectors/spmv_res_ints__4883.txt");
   if (world.rank0()) {
     while (gtfile >> key1 >> value) {
       map_gt.async_insert(key1, value);
     }
   }
 
-  map_type norm_map(world);
+  gt_type norm_map(world);
   norm_map.async_insert(std::string("dist"), 0);
 
   auto gt_ptr       = map_gt.get_ygm_ptr();
@@ -118,14 +115,16 @@ int main(int argc, char **argv) {
       diff = diff * diff;
       //std::cout << gt_val << " " << res_val << std::endl;
 
-      auto accumulate_lambda = [](auto row_id_val, auto update_val) {
-        auto row_id = row_id_val->first;
-        auto value =  row_id_val->second;
+      auto accumulate_lambda = [](auto &row_id_val, const auto &update_val) {
+        auto row_id = row_id_val.first;
+        auto value =  row_id_val.second;
         auto append_val = value + update_val;
         //std::cout << "Key: " << row_id << " " << value << " " << update_val << " " << append_val << std::endl;
-        row_id_val->second = row_id_val->second + update_val;
+        row_id_val.second = row_id_val.second + update_val;
       };
-      norm_map_ptr->async_visit_or_insert(std::string("dist"), diff, accumulate_lambda, diff);
+
+      //norm_map_ptr->async_visit_or_insert(std::string("dist"), diff, accumulate_lambda, diff);
+      norm_map_ptr->async_insert_if_missing_else_visit(std::string("dist"), diff, accumulate_lambda);
     };
 
     gt_ptr->async_visit(res_key, visit_ground, res_val, norm_map_ptr);

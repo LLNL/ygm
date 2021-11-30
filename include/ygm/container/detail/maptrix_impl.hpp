@@ -15,6 +15,8 @@
 #include <ygm/container/detail/csr_impl.hpp>
 #include <ygm/container/detail/csc_impl.hpp>
 
+#include <ygm/container/detail/algorithms/spmv.hpp>
+
 namespace ygm::container::detail {
 
 template <typename Key, typename Value,
@@ -26,11 +28,13 @@ class maptrix_impl {
   using key_type   = Key;
   using value_type = Value;
   using self_type  = maptrix_impl<Key, Value, Partitioner, Compare, Alloc>;
-  using inner_map_type = std::map<Key, Value>;
+
+  //using map_type   = ygm::container::assoc_vector<key_type, value_type>;
   //using adj_impl   = detail::adj_impl<key_type, value_type, Partitioner, Compare, Alloc>;
+
   using csr_impl   = detail::csr_impl<key_type, value_type, Partitioner, Compare, Alloc>;
   using csc_impl   = detail::csc_impl<key_type, value_type, Partitioner, Compare, Alloc>;
-  using map_type   = ygm::container::assoc_vector<key_type, value_type>;
+  using map_type   = ygm::container::map<key_type, value_type>;
 
   Partitioner partitioner;
 
@@ -97,7 +101,7 @@ class maptrix_impl {
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_col_const(const key_type &col, Visitor visitor,
                              const VisitorArgs &...args) {
-    m_csc.async_visit_const(col, visitor, std::forward<const VisitorArgs>(args)...);
+    m_csc.async_visit_col_const(col, visitor, std::forward<const VisitorArgs>(args)...);
   }
 
   template <typename Visitor, typename... VisitorArgs>
@@ -107,7 +111,10 @@ class maptrix_impl {
   }
 
   map_type spmv(map_type& x) {
-    return m_csc.spmv(x);
+    //auto y = ygm::container::detail::algorithms::spmv(this, x);
+    auto y = ygm::container::detail::algorithms::spmv(pthis, x);
+    //auto y = spmv(pthis, x);
+    return y;
   }
 
   typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }

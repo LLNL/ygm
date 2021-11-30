@@ -19,7 +19,8 @@ class maptrix {
   using key_type    = Key;
   using value_type  = Value;
   using self_type   = maptrix<Key, Value, Partitioner, Compare, Alloc>;
-  using map_type    = ygm::container::assoc_vector<key_type, value_type>;
+  using map_type    = ygm::container::map<key_type, value_type>;
+  //using map_type    = ygm::container::assoc_vector<key_type, value_type>;
   using impl_type   =
       detail::maptrix_impl<key_type, value_type, Partitioner, Compare, Alloc>;
   maptrix() = delete;

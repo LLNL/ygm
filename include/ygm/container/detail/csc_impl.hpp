@@ -7,11 +7,15 @@
 
 #include <map>
 #include <fstream>
+
 #include <ygm/comm.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/types/utility.hpp>
+
+#include <ygm/container/map.hpp>
 #include <ygm/container/assoc_vector.hpp>
+
 #include <ygm/container/detail/adj_impl.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
 
@@ -28,9 +32,10 @@ class csc_impl {
   using key_type    = Key;
   using value_type  = Value;
   using self_type   = csc_impl<Key, Value, Partitioner, Compare, Alloc>;
-  using map_type    = ygm::container::assoc_vector<key_type, value_type>;
+
+  using map_type    = ygm::container::map<key_type, value_type>;
+  //using map_type    = ygm::container::assoc_vector<key_type, value_type>;
   using adj_impl    = detail::adj_impl<key_type, value_type, Partitioner, Compare, Alloc>;
-  using inner_map_type  = std::map<Key, Value>;
 
   Partitioner partitioner;
 
@@ -105,7 +110,7 @@ class csc_impl {
     m_csc.async_visit_or_insert(col, row, value, visitor, std::forward<const VisitorArgs>(args)...);
   }
 
-  #ifdef map_new_defn
+  #ifdef map_old_def
   map_type spmv(map_type& x) {
     
     auto y = ygm::container::detail::algorithms::spmv(x);
@@ -113,6 +118,7 @@ class csc_impl {
   }
   #endif
 
+  #ifdef map_new_defn
   /* This method accepts a map-type object. */
   map_type spmv(map_type& x) {
 
@@ -134,14 +140,15 @@ class csc_impl {
 
         auto element_wise = A_value * x_value;
 
-        auto append_lambda = [](auto rv_pair, auto update_val) {
-          auto row_id = rv_pair->first;
-          auto value  = rv_pair->second;
+        auto append_lambda = [](auto &rv_pair, const auto &update_val) {
+          auto row_id = rv_pair.first;
+          auto value  = rv_pair.second;
           auto append_val = value + update_val;
-          rv_pair->second = rv_pair->second + update_val;
+          rv_pair.second = rv_pair.second + update_val;
         };
 
-        y_ptr->async_visit_or_insert(row, element_wise, append_lambda, element_wise);
+        //y_ptr->async_visit_or_insert(row, element_wise, append_lambda, element_wise);
+        y_ptr->async_insert_if_missing_else_visit(row, element_wise, append_lambda);
       }; 
       
       A_ptr->async_visit_col_const(col, csc_visit_lambda, col_value, y_ptr);
@@ -152,6 +159,7 @@ class csc_impl {
 
     return y;
   }
+  #endif
 
   typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }
 
