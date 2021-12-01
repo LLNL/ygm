@@ -31,7 +31,7 @@ The tl;dr guidance is:
 - Create a descriptively named branch 
 (`feature/myfeature`, `iss/##`, `hotfix/bugname`, etc) in your fork off of 
 the `develop` branch
-- Commit code, following our guidelines
+- Commit code, following our [guidelines](#formatting-guidelines)
 - Create a [pull request](https://github.com/LLNL/ygm/compare) from your branch 
 targeting the LLNL `develop` branch
 
