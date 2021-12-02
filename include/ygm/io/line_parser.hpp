@@ -159,9 +159,11 @@ class line_parser {
         ifs.imbue(std::locale::classic());
         std::string line;
         if (bytes_begin > 0) {
-          ifs.seekg(bytes_begin);
+          ifs.seekg(bytes_begin - 1);
           if (ifs.peek() != '\n') {
             std::getline(ifs, line);
+          } else {
+            ifs.get();
           }
         }
         while (ifs.tellg() <= bytes_end && std::getline(ifs, line)) {
