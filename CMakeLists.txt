@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.14)
 
 project(
     ygm
-    VERSION 0.2
+    VERSION 0.3
     DESCRIPTION "HPC Communication Library"
     LANGUAGES CXX
 )
