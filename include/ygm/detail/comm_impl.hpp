@@ -12,10 +12,10 @@
 #include <thread>
 #include <vector>
 
+#include <ygm/detail/meta/functional.hpp>
 #include <ygm/detail/mpi.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
-#include <ygm/detail/meta/functional.hpp>
 
 namespace ygm {
 
@@ -54,6 +54,8 @@ class comm::impl {
   template <typename... SendArgs>
   void async(int dest, const SendArgs &... args) {
     ASSERT_DEBUG(dest < m_comm_size);
+    static size_t recursion_detector = 0;
+    ++recursion_detector;
     if (dest == m_comm_rank) {
       local_receive(std::forward<const SendArgs>(args)...);
     } else {
@@ -78,10 +80,12 @@ class comm::impl {
         flush_send_buffer(dest);
       }
     }
-    // check if listener has queued receives to process
-    if (receive_queue_peek_size() > 0) {
+    // If not experiencing recursion, check if listener has queued receives to
+    // process
+    if (recursion_detector == 1 && receive_queue_peek_size() > 0) {
       process_receive_queue();
     }
+    --recursion_detector;
   }
 
   template <typename... SendArgs>
