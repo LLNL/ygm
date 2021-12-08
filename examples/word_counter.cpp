@@ -7,7 +7,6 @@
 #include <sstream>
 #include <ygm/comm.hpp>
 #include <ygm/container/counting_set.hpp>
-#include <ygm/detail/ygm_ptr.hpp>
 
 // President Abraham Lincoln's Gettysburg Address,
 // with punctuation and capitalization removed.
@@ -38,7 +37,7 @@ const char *gettysburg =
 int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
 
-  auto iss = std::istringstream{gettysburg};
+  auto        iss = std::istringstream{gettysburg};
   std::string word;
 
   ygm::container::counting_set<std::string> word_counter(world);

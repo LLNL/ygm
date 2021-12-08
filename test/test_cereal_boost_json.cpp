@@ -29,7 +29,7 @@ std::string json_string = R"(
 )";
 
 int main() {
-  std::vector<char> buffer;
+  std::vector<std::byte> buffer;
   {
     const bj::value          value = bj::parse(json_string);
     cereal::YGMOutputArchive archive(buffer);

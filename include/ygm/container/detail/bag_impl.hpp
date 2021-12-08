@@ -17,13 +17,12 @@ class bag_impl {
   using value_type = Item;
   using self_type  = bag_impl<Item, Alloc>;
 
-  bag_impl(ygm::comm &comm) : m_comm(comm), pthis(this) { m_comm.barrier(); }
+  bag_impl(ygm::comm &comm) : m_comm(comm), pthis(this) { pthis.check(m_comm); }
 
   ~bag_impl() { m_comm.barrier(); }
 
   void async_insert(const value_type &item) {
-    auto inserter = [](auto mailbox, int from, auto map,
-                       const value_type &item) {
+    auto inserter = [](auto mailbox, auto map, const value_type &item) {
       map->m_local_bag.push_back(item);
     };
     int dest = (m_round_robin++ + m_comm.rank()) % m_comm.size();

@@ -31,6 +31,6 @@ int main(int argc, char** argv) {
     bbag.async_insert("dog");
     bbag.async_insert("apple");
     bbag.async_insert("red");
-    ASSERT_RELEASE(bbag.size() == 3 * world.size());
+    ASSERT_RELEASE(bbag.size() == 3 * (size_t)world.size());
   }
 }

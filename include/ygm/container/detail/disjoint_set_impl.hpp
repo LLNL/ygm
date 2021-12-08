@@ -20,24 +20,10 @@ class disjoint_set_impl {
   Partitioner partitioner;
 
   disjoint_set_impl(ygm::comm &comm) : m_comm(comm), pthis(this) {
-    m_comm.barrier();
+    pthis.check(m_comm);
   }
 
   ~disjoint_set_impl() { m_comm.barrier(); }
-
-  void async_make_set(const value_type &item) {
-    auto inserter = [](auto dset, const value_type &item) {
-      auto itr = dset->m_local_item_parent_map.find(item);
-
-      // Only insert if no entry exists
-      if (itr == dset->m_local_item_parent_map.end()) {
-        dset->m_local_item_parent_map.insert(std::make_pair(item, item));
-      }
-    };
-
-    int dest = owner(item);
-    m_comm.async(dest, inserter, pthis, item);
-  }
 
   void async_union(const value_type &a, const value_type &b) {
     // Walking up parent trees can be expressed as a recursive operation
@@ -79,24 +65,113 @@ class disjoint_set_impl {
       m_comm.async(main_dest, simul_parent_walk_functor(), pthis, a, b);
       // Side-effect of looking up parent of b is setting b's parent to be
       // itself if b has no parent
-      m_comm.async(sub_dest,
-                   [](self_ygm_ptr_type pdset, const value_type &item) {
-                     pdset->local_get_parent(item);
-                   },
-                   pthis, b);
+      m_comm.async(
+          sub_dest,
+          [](self_ygm_ptr_type pdset, const value_type &item) {
+            pdset->local_get_parent(item);
+          },
+          pthis, b);
     }
     // Visit b first
     else if (a < b) {
       int main_dest = owner(b);
       int sub_dest  = owner(a);
       m_comm.async(main_dest, simul_parent_walk_functor(), pthis, b, a);
-      m_comm.async(sub_dest,
-                   [](self_ygm_ptr_type pdset, const value_type &item) {
-                     pdset->local_get_parent(item);
-                   },
-                   pthis, a);
+      m_comm.async(
+          sub_dest,
+          [](self_ygm_ptr_type pdset, const value_type &item) {
+            pdset->local_get_parent(item);
+          },
+          pthis, a);
     } else {
-      return;
+      // Set item as own parent
+      m_comm.async(
+          owner(a),
+          [](self_ygm_ptr_type pdset, const value_type &item) {
+            pdset->local_get_parent(item);
+          },
+          pthis, a);
+    }
+  }
+
+  template <typename Function, typename... FunctionArgs>
+  void async_union_and_execute(const value_type &a, const value_type &b,
+                               Function fn, const FunctionArgs &... args) {
+    // Walking up parent trees can be expressed as a recursive operation
+    struct simul_parent_walk_functor {
+      void operator()(self_ygm_ptr_type pdset, const value_type &my_item,
+                      const value_type &other_item, const value_type &orig_a,
+                      const value_type &orig_b, const FunctionArgs &... args) {
+        const auto my_parent = pdset->local_get_parent(my_item);
+
+        // Found root
+        if (my_parent == my_item) {
+          pdset->local_set_parent(my_item, other_item);
+
+          // Perform user function after merge
+          Function *f = nullptr;
+          ygm::meta::apply_optional(
+              *f, std::make_tuple(pdset),
+              std::forward_as_tuple(orig_a, orig_b, args...));
+
+          return;
+        }
+
+        // Switch branches
+        if (my_parent < other_item) {
+          int dest = pdset->owner(other_item);
+          pdset->comm().async(dest, simul_parent_walk_functor(), pdset,
+                              other_item, my_parent, orig_a, orig_b, args...);
+        }
+        // Keep walking up current branch
+        else if (my_parent > other_item) {
+          pdset->local_set_parent(my_item, other_item);  // Splicing
+          int dest = pdset->owner(my_parent);
+          pdset->comm().async(dest, simul_parent_walk_functor(), pdset,
+                              my_parent, other_item, orig_a, orig_b, args...);
+        }
+        // Paths converged. Sets were already merged.
+        else {
+          return;
+        }
+      }
+    };
+
+    // Visit a first
+    if (a > b) {
+      int main_dest = owner(a);
+      int sub_dest  = owner(b);
+      m_comm.async(main_dest, simul_parent_walk_functor(), pthis, a, b, a, b,
+                   args...);
+      // Side-effect of looking up parent of b is setting b's parent to be
+      // itself if b has no parent
+      m_comm.async(
+          sub_dest,
+          [](self_ygm_ptr_type pdset, const value_type &item) {
+            pdset->local_get_parent(item);
+          },
+          pthis, b);
+    }
+    // Visit b first
+    else if (a < b) {
+      int main_dest = owner(b);
+      int sub_dest  = owner(a);
+      m_comm.async(main_dest, simul_parent_walk_functor(), pthis, b, a, a, b,
+                   args...);
+      m_comm.async(
+          sub_dest,
+          [](self_ygm_ptr_type pdset, const value_type &item) {
+            pdset->local_get_parent(item);
+          },
+          pthis, a);
+    } else {
+      // Set item as own parent
+      m_comm.async(
+          owner(a),
+          [](self_ygm_ptr_type pdset, const value_type &item) {
+            pdset->local_get_parent(item);
+          },
+          pthis, a);
     }
   }
 
@@ -121,42 +196,44 @@ class disjoint_set_impl {
       const value_type &grandparent = p_dset->local_get_parent(parent);
 
       if (active_set.count(parent)) {
-        p_dset->comm().async(inquiring_rank,
-                             [](auto p_dset, const value_type &parent,
-                                const value_type &grandparent) {
-                               auto &inquiry_tuple = parent_lookup_map[parent];
-                               std::get<1>(inquiry_tuple) = grandparent;
-                               std::get<2>(inquiry_tuple) = true;
-                               std::get<3>(inquiry_tuple) = true;
+        p_dset->comm().async(
+            inquiring_rank,
+            [](auto p_dset, const value_type &parent,
+               const value_type &grandparent) {
+              auto &inquiry_tuple        = parent_lookup_map[parent];
+              std::get<1>(inquiry_tuple) = grandparent;
+              std::get<2>(inquiry_tuple) = true;
+              std::get<3>(inquiry_tuple) = true;
 
-                               // Process all waiting lookups
-                               auto &child_vec = std::get<0>(inquiry_tuple);
-                               for (const auto &child : child_vec) {
-                                 p_dset->local_set_parent(child, grandparent);
-                               }
+              // Process all waiting lookups
+              auto &child_vec = std::get<0>(inquiry_tuple);
+              for (const auto &child : child_vec) {
+                p_dset->local_set_parent(child, grandparent);
+              }
 
-                               child_vec.clear();
-                             },
-                             p_dset, parent, grandparent);
+              child_vec.clear();
+            },
+            p_dset, parent, grandparent);
       } else {
-        p_dset->comm().async(inquiring_rank,
-                             [](auto p_dset, const value_type &parent,
-                                const value_type &grandparent) {
-                               auto &inquiry_tuple = parent_lookup_map[parent];
-                               std::get<1>(inquiry_tuple) = grandparent;
-                               std::get<2>(inquiry_tuple) = true;
-                               std::get<3>(inquiry_tuple) = false;
+        p_dset->comm().async(
+            inquiring_rank,
+            [](auto p_dset, const value_type &parent,
+               const value_type &grandparent) {
+              auto &inquiry_tuple        = parent_lookup_map[parent];
+              std::get<1>(inquiry_tuple) = grandparent;
+              std::get<2>(inquiry_tuple) = true;
+              std::get<3>(inquiry_tuple) = false;
 
-                               // Process all waiting lookups
-                               auto &child_vec = std::get<0>(inquiry_tuple);
-                               for (const auto &child : child_vec) {
-                                 p_dset->local_set_parent(child, grandparent);
-                                 active_set_to_remove.push_back(child);
-                               }
+              // Process all waiting lookups
+              auto &child_vec = std::get<0>(inquiry_tuple);
+              for (const auto &child : child_vec) {
+                p_dset->local_set_parent(child, grandparent);
+                active_set_to_remove.push_back(child);
+              }
 
-                               child_vec.clear();
-                             },
-                             p_dset, parent, grandparent);
+              child_vec.clear();
+            },
+            p_dset, parent, grandparent);
       }
     };
 
@@ -203,6 +280,14 @@ class disjoint_set_impl {
     }
   }
 
+  template <typename Function>
+  void for_all(Function fn) {
+    all_compress();
+
+    std::for_each(m_local_item_parent_map.begin(),
+                  m_local_item_parent_map.end(), fn);
+  }
+
   std::map<value_type, value_type> all_find(
       const std::vector<value_type> &items) {
     m_comm.barrier();
@@ -243,7 +328,7 @@ class disjoint_set_impl {
       }
     };
 
-    for (int i = 0; i < items.size(); ++i) {
+    for (size_t i = 0; i < items.size(); ++i) {
       int dest = owner(items[i]);
       m_comm.async(dest, find_rep_functor(), pthis, p_to_return, items[i],
                    m_comm.rank(), items[i]);
