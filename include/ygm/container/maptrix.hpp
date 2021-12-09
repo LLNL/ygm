@@ -18,11 +18,12 @@ class maptrix {
  public:
   using key_type    = Key;
   using value_type  = Value;
-  using self_type   = maptrix<Key, Value, Partitioner, Compare, Alloc>;
+  using self_type   = maptrix<key_type, value_type, Partitioner, Compare, Alloc>;
   using map_type    = ygm::container::map<key_type, value_type>;
   //using map_type    = ygm::container::assoc_vector<key_type, value_type>;
   using impl_type   =
       detail::maptrix_impl<key_type, value_type, Partitioner, Compare, Alloc>;
+
   maptrix() = delete;
 
   maptrix(ygm::comm& comm) : m_impl(comm) {}
@@ -33,6 +34,7 @@ class maptrix {
 
   ygm::comm& comm() { return m_impl.comm(); }
 
+  /* async_insert accepts a directed graph. */
   void async_insert(const key_type& row, const key_type& col, const value_type& value) {
     m_impl.async_insert(row, col, value);
   }
@@ -75,8 +77,8 @@ class maptrix {
     return m_impl.get_ygm_ptr();
   }
 
-  map_type spmv(map_type& x) {
-    return m_impl.spmv(x);
+  void swap(self_type &s) {
+    m_impl.swap(s);
   }
 
   /*****************************************************************************************/
@@ -92,3 +94,5 @@ class maptrix {
   impl_type m_impl;
 };
 }  // namespace ygm::container
+
+#include <ygm/container/detail/algorithms/spmv.hpp>

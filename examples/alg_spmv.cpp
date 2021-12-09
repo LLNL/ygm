@@ -14,12 +14,15 @@
 #include <ygm/container/maptrix.hpp>
 #include <ygm/container/assoc_vector.hpp>
 
+//using namespace ygm::container; 
+
 int main(int argc, char **argv) {
 
   ygm::comm world(&argc, &argv);
 
   using gt_type = ygm::container::map<std::string, double>;
   using maptrix_type = ygm::container::maptrix<std::string, double>;
+  namespace ns_spmv = ygm::container::detail::algorithms;
 
   gt_type my_map(world);
   maptrix_type my_maptrix(world);
@@ -40,13 +43,6 @@ int main(int argc, char **argv) {
   std::string key1, key2;
   if (world.rank0()) {
 
-    auto acc_lambda = [](auto row_id_val, auto update_val) {
-      auto row_id = row_id_val->first;
-      auto value  = row_id_val->second;
-      auto append_val = value + update_val;
-      row_id_val->second = row_id_val->second + update_val;
-    };
-
     while (matfile >> key1 >> key2 >> value) {
       my_maptrix.async_insert(key1, key2, value);
     }
@@ -57,7 +53,7 @@ int main(int argc, char **argv) {
   }
 
   #ifdef dbg
-  auto ijk_lambda = [&my_maptrix](auto row, auto col, auto value) {
+  auto ijk_lambda = [&my_maptrix](const auto &row, const auto &col, const auto &value) {
     auto &mptrx_comm = my_maptrix.comm();
     int rank         = mptrx_comm.rank();
     std::cout << "[MPTRX]: In rank: " << rank << ", key1: " << row << ", key2: " << col << ", val: " << value << std::endl;
@@ -65,7 +61,7 @@ int main(int argc, char **argv) {
   my_maptrix.for_all(ijk_lambda);
   world.barrier();
 
-  auto map_lambda = [](auto res_kv_pair) {
+  auto map_lambda = [](const auto &res_kv_pair) {
     std::cout << "[In map lambda] key: " << res_kv_pair.first << ", col: " << res_kv_pair.second << std::endl;
   };
   my_map.for_all(map_lambda);
@@ -73,7 +69,8 @@ int main(int argc, char **argv) {
   #endif
 
   /* Perform the SpMV operation here. */
-  auto map_res = my_maptrix.spmv(my_map);
+  //auto map_res = my_maptrix.spmv(my_map);
+  auto map_res = ns_spmv::spmv(my_maptrix, my_map);
 
   #ifdef dbg
   auto print_res_lambda = [](auto res_kv_pair) {

@@ -15,8 +15,6 @@
 #include <ygm/container/detail/csr_impl.hpp>
 #include <ygm/container/detail/csc_impl.hpp>
 
-#include <ygm/container/detail/algorithms/spmv.hpp>
-
 namespace ygm::container::detail {
 
 template <typename Key, typename Value,
@@ -56,7 +54,7 @@ class maptrix_impl {
 
   ~maptrix_impl() { m_comm.barrier(); }
 
-  void async_insert(const key_type& row, const key_type& col, const value_type& value) {
+  void async_insert(const key_type &row, const key_type &col, const value_type &value) {
     m_csr.async_insert(row, col, value);
     m_csc.async_insert(row, col, value);
   }
@@ -82,20 +80,40 @@ class maptrix_impl {
     m_csc.async_visit_if_exists(row, col, visitor, std::forward<const VisitorArgs>(args)...);
   }
 
+  #ifdef abc
   template <typename Visitor, typename... VisitorArgs>
-  void async_visit_col_mutate(const key_type& col, Visitor visitor,
+  void async_visit_col_mutate(const key_type &col, Visitor visitor,
                              const VisitorArgs&... args) {
     /* Accessing the adj map in maptrix -- 
       * should this actually be enclosed within adj? */
-    /*  this means adj should have row and col adj, 
+    /* this means adj should have row and col adj, 
       * and not a single instance inside the maptrix impl.. */
+    /*
     auto &m_map     = m_csc.adj();
     auto &inner_map = m_map.find(col)->second;
     for (auto itr = inner_map.begin(); itr != inner_map.end(); ++itr) {
       key_type row  = itr->first;
       pthis->async_visit_if_exists(row, col, 
                   visitor, std::forward<const VisitorArgs>(args)...);
-    }    
+    }
+    */ 
+    //std::cout << "in maptrix: Vtx: " << col << std::endl;
+    //m_csr.async_visit_col_mutate(col, visitor, std::forward<const VisitorArgs>(args)...);
+    m_csc.async_visit_col_mutate(col, visitor, std::forward<const VisitorArgs>(args)...);
+  }
+  #endif
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_visit_col_mutate(const key_type &col, Visitor visitor,
+                             const VisitorArgs&... args) {
+    auto &m_map     = m_csc.csc();
+    auto &inner_map = m_map.find(col)->second;
+    for (auto itr = inner_map.begin(); itr != inner_map.end(); ++itr) {
+      key_type row  = itr->first;
+      //std::cout << row << " " << col << std::endl;
+      m_csc.async_visit_if_exists(row, col, visitor, std::forward<const VisitorArgs>(args)...);
+      m_csr.async_visit_if_exists(row, col, visitor, std::forward<const VisitorArgs>(args)...);
+    }
   }
 
   template <typename Visitor, typename... VisitorArgs>
@@ -105,16 +123,9 @@ class maptrix_impl {
   }
 
   template <typename Visitor, typename... VisitorArgs>
-  void async_visit_or_insert(const key_type& row, const key_type& col, const value_type &value, 
+  void async_visit_or_insert(const key_type &row, const key_type &col, const value_type &value, 
                                 Visitor visitor, const VisitorArgs&... args) {
     m_csc.async_visit_or_insert(row, col, value, visitor, std::forward<const VisitorArgs>(args)...);
-  }
-
-  map_type spmv(map_type& x) {
-    //auto y = ygm::container::detail::algorithms::spmv(this, x);
-    auto y = ygm::container::detail::algorithms::spmv(pthis, x);
-    //auto y = spmv(pthis, x);
-    return y;
   }
 
   typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }
@@ -124,6 +135,10 @@ class maptrix_impl {
     m_csc.clear(); 
   }
 
+  void swap(self_type &s) {
+    m_csr.swap(s.csr);
+    m_csc.swap(s.csc);
+  }
 
  protected:
   maptrix_impl() = delete;

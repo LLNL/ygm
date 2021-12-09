@@ -31,10 +31,10 @@ class csc_impl {
  public:
   using key_type    = Key;
   using value_type  = Value;
+  using inner_map_type = std::map<Key, Value>;
   using self_type   = csc_impl<Key, Value, Partitioner, Compare, Alloc>;
 
   using map_type    = ygm::container::map<key_type, value_type>;
-  //using map_type    = ygm::container::assoc_vector<key_type, value_type>;
   using adj_impl    = detail::adj_impl<key_type, value_type, Partitioner, Compare, Alloc>;
 
   Partitioner partitioner;
@@ -57,9 +57,11 @@ class csc_impl {
 
   ~csc_impl() { m_comm.barrier(); }
 
-  void async_insert(const key_type& row, const key_type& col, const value_type& value) {
+  void async_insert(const key_type &row, const key_type &col, const value_type &value) {
     m_csc.async_insert(col, row, value);
   }
+
+  std::map<key_type, inner_map_type, Compare> &csc() { return m_csc.adj(); }
 
   ygm::comm &comm() { return m_comm; }
 
@@ -82,6 +84,7 @@ class csc_impl {
     m_csc.async_visit_if_exists(col, row, visitor, std::forward<const VisitorArgs>(args)...);
   }
 
+  #ifdef testingg
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_col_mutate(const key_type& col, Visitor visitor,
                              const VisitorArgs&... args) {
@@ -89,13 +92,32 @@ class csc_impl {
       * should this actually be enclosed within adj? */
     /*  this means adj should have row and col adj, 
       * and not a single instance inside the csc impl.. */
+    //std::cout << "In mutate: " << col << std::endl;
     auto &m_map     = m_csc.adj();
-    auto &inner_map = m_map.find(col)->second;
-    for (auto itr = inner_map.begin(); itr != inner_map.end(); ++itr) {
-      key_type row  = itr->first;
-      pthis->async_visit_if_exists(row, col, 
-                  visitor, std::forward<const VisitorArgs>(args)...);
-    }    
+
+    //auto &inner_map = m_map.find(col)->second;
+    //for (auto itr = inner_map.begin(); itr != inner_map.end(); ++itr) {
+      //key_type row     = itr->first;
+      //value_type value = itr->second;
+      //std::cout << "In mutate: " << col << " " << row << " " << value << std::endl;
+      //pthis->async_visit_if_exists(row, col,
+                  //visitor, std::forward<const VisitorArgs>(args)...);
+    //} 
+
+    auto &inner_map = m_map.find(col)->second;;
+    for (auto i_itr = inner_map.begin(); i_itr != inner_map.end(); ++i_itr) {
+      auto row      = i_itr->first; 
+      auto value    = i_itr->second;
+      //std::cout << "In mutate: " << col << " " << row << " " << value << std::endl;
+      m_csc.async_visit_if_exists(col, row, visitor, std::forward<const VisitorArgs>(args)...);
+    }
+  }
+  #endif
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_visit_col_mutate(const key_type &col, Visitor visitor,
+                             const VisitorArgs&... args) {
+    m_csc.async_visit_mutate(col, visitor, std::forward<const VisitorArgs>(args)...);
   }
 
   template <typename Visitor, typename... VisitorArgs>
@@ -110,15 +132,13 @@ class csc_impl {
     m_csc.async_visit_or_insert(col, row, value, visitor, std::forward<const VisitorArgs>(args)...);
   }
 
-  #ifdef map_old_def
+  #ifdef spmv_old_def
   map_type spmv(map_type& x) {
     
     auto y = ygm::container::detail::algorithms::spmv(x);
     return y;
   }
-  #endif
 
-  #ifdef map_new_defn
   /* This method accepts a map-type object. */
   map_type spmv(map_type& x) {
 
@@ -165,6 +185,10 @@ class csc_impl {
 
   void local_clear() { 
     m_csc.clear(); 
+  }
+
+  void swap(self_type &s) {
+    m_csc.swap(s);
   }
 
  protected:

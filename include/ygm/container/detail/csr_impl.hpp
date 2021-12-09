@@ -50,7 +50,7 @@ class csr_impl {
 
   ~csr_impl() { m_comm.barrier(); }
 
-  void async_insert(const key_type& row, const key_type& col, const value_type& value) {
+  void async_insert(const key_type &row, const key_type &col, const value_type &value) {
     m_csr.async_insert(row, col, value);
   }
 
@@ -69,19 +69,29 @@ class csr_impl {
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_if_exists(const key_type &row, const key_type &col, 
           Visitor visitor, const VisitorArgs &...args) {
-    m_csr.async_visit_if_exists(col, row, visitor, std::forward<const VisitorArgs>(args)...);
+    m_csr.async_visit_if_exists(row, col, visitor, std::forward<const VisitorArgs>(args)...);
   }
 
   template <typename Visitor, typename... VisitorArgs>
-  void async_visit_or_insert(const key_type& row, const key_type& col, const value_type &value, 
+  void async_visit_or_insert(const key_type &row, const key_type &col, const value_type &value, 
                                 Visitor visitor, const VisitorArgs&... args) {
     m_csr.async_visit_or_insert(row, col, value, visitor, std::forward<const VisitorArgs>(args)...);
   }
+
+  //template <typename Visitor, typename... VisitorArgs>
+  //void async_visit_col_mutate(const key_type& row, Visitor visitor,
+                             //const VisitorArgs&... args) {
+    //m_csr.async_visit_mutate(row, visitor, std::forward<const VisitorArgs>(args)...);
+  //}
 
   typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }
 
   void local_clear() { 
     m_csr.clear(); 
+  }
+
+  void swap(self_type &s) {
+    m_csr.swap(s);
   }
 
  protected:

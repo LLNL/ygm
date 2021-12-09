@@ -11,23 +11,25 @@
 #include <ygm/detail/ygm_ptr.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/types/utility.hpp>
-#include <ygm/container/maptrix.hpp>
 #include <ygm/container/map.hpp>
-//#include <ygm/container/detail/maptrix_impl.hpp>
+#include <ygm/container/maptrix.hpp>
 
 namespace ygm::container::detail::algorithms {
 
+  //Create times op.
+
+  //template <typename Key, typename Value, typename OpPlus, typename OpMultiply>
   template <typename Key, typename Value>
   ygm::container::map<Key, Value> spmv(
-    //ygm::container::maptrix<Key, Value> &A, ygm::container::map<Key, Value> &x) {
-    //ygm::ygm_ptr<auto> &A_ptr, ygm::container::map<Key, Value> &x) {
-    auto &A_ptr, ygm::container::map<Key, Value> &x) {
+    ygm::container::maptrix<Key, Value> &A, ygm::container::map<Key, Value> &x) {
+    //ygm::container::maptrix<Key, Value> &A, ygm::container::map<Key, Value> &x,
+    //    OpPlus plus_op=std::plus<Value>(), OpMultiply times_op=std::times) {
     
     using key_type    = Key;
     using value_type  = Value;
     using map_type    = ygm::container::map<key_type, value_type>;
 
-    //auto A_ptr = A->get_ygm_ptr();
+    auto A_ptr = A.get_ygm_ptr();
     auto A_comm = A_ptr->comm();
 
     map_type y(A_comm);
@@ -66,4 +68,4 @@ namespace ygm::container::detail::algorithms {
     return y;
   }
 
-} // namespace ygm::container::detail
+} // namespace ygm::container::detail::algorithms

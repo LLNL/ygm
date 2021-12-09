@@ -47,7 +47,7 @@ class adj_impl {
 
   ~adj_impl() { m_comm.barrier(); }
 
-  void async_insert(const key_type& row, const key_type& col, const value_type& value) {
+  void async_insert(const key_type &row, const key_type &col, const value_type &value) {
     auto inserter = [](auto mailbox, auto padj,
                        const key_type &row, const key_type &col,
                        const value_type &value) {
@@ -102,7 +102,7 @@ class adj_impl {
                    Function &fn, const VisitorArgs &...args) {
     /* Fetch the row map, key: col id, value: val. */
     inner_map_type &inner_map = m_map[row];
-    value_type value          = inner_map[col];
+    value_type &value         = inner_map[col];
 
     /* Assuming this changes the value at row, col. */
     ygm::meta::apply_optional(fn, std::make_tuple(pthis),
@@ -138,10 +138,10 @@ class adj_impl {
   }
 
   template <typename Visitor, typename... VisitorArgs>
-  void async_visit_or_insert(const key_type& row, const key_type& col, const value_type& value, 
+  void async_visit_or_insert(const key_type &row, const key_type &col, const value_type &value, 
                               Visitor visitor, const VisitorArgs &...args) {
 
-    std::cout << "Inside the adj impl." << std::endl;
+    //std::cout << "Inside the adj impl." << std::endl;
     auto visit_wrapper = [](auto pcomm, auto padj,
                        const key_type &row, const key_type &col,
                        const value_type &value, const VisitorArgs &...args) {
@@ -159,17 +159,35 @@ class adj_impl {
   template <typename Function, typename... VisitorArgs>
   void local_visit_or_insert(const key_type &row, const key_type &col, const value_type &value,
                    Function &fn, const VisitorArgs &...args) {
-    std::cout << "Inside the local adj impl, lambda reached." << row << col << std::endl;
+    //std::cout << "Inside the local adj impl, lambda reached." << row << col << std::endl;
     /* Fetch the row map, key: col id, value: val. */
     inner_map_type &inner_map = m_map[row];
     if (inner_map.find(col) == inner_map.end()) {
-      std::cout << "In insert." << std::endl;
+      //std::cout << "In insert." << std::endl;
       inner_map.insert(std::make_pair(col, value));
     } else {
       value_type value = inner_map[col];
       ygm::meta::apply_optional(fn, std::make_tuple(pthis),
                                 std::forward_as_tuple(row, col, value, args...));
     }
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_visit_mutate(const key_type &outer_key, Visitor visitor,
+                             const VisitorArgs&... args) {
+    auto &inner_map = m_map.find(outer_key)->second;
+    for (auto i_itr = inner_map.begin(); i_itr != inner_map.end(); ++i_itr) {
+      auto inner_key = i_itr->first; 
+      auto value     = i_itr->second;
+      //std::cout << "In adj_impl: " << col << " " << row << " " << value << std::endl;
+      pthis->async_visit_if_exists(outer_key, inner_key, visitor, std::forward<const VisitorArgs>(args)...);
+    }
+  }
+
+  void swap(self_type &s) {
+    m_comm.barrier();
+    std::swap(m_default_value, s.m_default_value);
+    m_map.swap(s.m_map);
   }
 
  protected: 
