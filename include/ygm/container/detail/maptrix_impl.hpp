@@ -88,7 +88,6 @@ class maptrix_impl {
       * should this actually be enclosed within adj? */
     /* this means adj should have row and col adj, 
       * and not a single instance inside the maptrix impl.. */
-    /*
     auto &m_map     = m_csc.adj();
     auto &inner_map = m_map.find(col)->second;
     for (auto itr = inner_map.begin(); itr != inner_map.end(); ++itr) {
@@ -96,9 +95,7 @@ class maptrix_impl {
       pthis->async_visit_if_exists(row, col, 
                   visitor, std::forward<const VisitorArgs>(args)...);
     }
-    */ 
-    //std::cout << "in maptrix: Vtx: " << col << std::endl;
-    //m_csr.async_visit_col_mutate(col, visitor, std::forward<const VisitorArgs>(args)...);
+    m_csr.async_visit_col_mutate(col, visitor, std::forward<const VisitorArgs>(args)...);
     m_csc.async_visit_col_mutate(col, visitor, std::forward<const VisitorArgs>(args)...);
   }
   #endif
@@ -110,7 +107,6 @@ class maptrix_impl {
     auto &inner_map = m_map.find(col)->second;
     for (auto itr = inner_map.begin(); itr != inner_map.end(); ++itr) {
       key_type row  = itr->first;
-      //std::cout << row << " " << col << std::endl;
       m_csc.async_visit_if_exists(row, col, visitor, std::forward<const VisitorArgs>(args)...);
       m_csr.async_visit_if_exists(row, col, visitor, std::forward<const VisitorArgs>(args)...);
     }
