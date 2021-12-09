@@ -6,12 +6,12 @@
 #
 # This function adds an mpi example.
 #
-function ( add_ygm_example example_name )
-  set(example_source "${example_name}.cpp")
-  set(example_exe    "${example_name}")
-  add_executable(${example_exe} ${example_source})
-  target_link_libraries(${example_exe} ygm)
-endfunction()
+function (add_ygm_example example_name)
+    set(example_source "${example_name}.cpp")
+    set(example_exe "${example_name}")
+    add_executable(${example_exe} ${example_source})
+    target_link_libraries(${example_exe} PUBLIC ygm::ygm)
+endfunction ()
 
 add_ygm_example(hello_world)
 add_ygm_example(howdy_world)
