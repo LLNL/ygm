@@ -11,18 +11,15 @@
 #include <ygm/comm.hpp>
 
 #include <ygm/container/map.hpp>
-#include <ygm/container/maptrix.hpp>
-#include <ygm/container/assoc_vector.hpp>
-
-//using namespace ygm::container; 
+#include <ygm/container/experimental/maptrix.hpp>
 
 int main(int argc, char **argv) {
 
   ygm::comm world(&argc, &argv);
 
   using gt_type = ygm::container::map<std::string, double>;
-  using maptrix_type = ygm::container::maptrix<std::string, double>;
-  namespace ns_spmv = ygm::container::detail::algorithms;
+  using maptrix_type = ygm::container::experimental::maptrix<std::string, double>;
+  namespace ns_spmv = ygm::container::experimental::detail::algorithms;
 
   gt_type my_map(world);
   maptrix_type my_maptrix(world);
@@ -30,11 +27,11 @@ int main(int argc, char **argv) {
   auto my_map_ptr     = my_map.get_ygm_ptr();
   auto my_maptrix_ptr = my_maptrix.get_ygm_ptr(); 
 
-  std::ifstream matfile("/g/g90/tom7/codebase/intern_2021/GraphBLAS/Demo/Matrix/bcsstk16");
-  std::ifstream vecfile("/g/g90/tom7/codebase/data/vectors/map_sample_floats__4883.txt");
+  //std::ifstream matfile("/g/g90/tom7/codebase/intern_2021/GraphBLAS/Demo/Matrix/bcsstk16");
+  //std::ifstream vecfile("/g/g90/tom7/codebase/data/vectors/map_sample_floats__4883.txt");
 
-  //std::ifstream matfile("/g/g90/tom7/codebase/intern_2021/GraphBLAS/Demo/Matrix/bcsstk16_1");
-  //std::ifstream vecfile("/g/g90/tom7/codebase/data/vectors/map_sample_ints__4883.txt");
+  std::ifstream matfile("/g/g90/tom7/codebase/intern_2021/GraphBLAS/Demo/Matrix/bcsstk16_1");
+  std::ifstream vecfile("/g/g90/tom7/codebase/data/vectors/map_sample_ints__4883.txt");
   
   //std::ifstream matfile("/g/g90/tom7/codebase/intern_2021/GraphBLAS/Demo/Matrix/ibm32a");
   //std::ifstream vecfile("/g/g90/tom7/codebase/data/vectors/map_sample_floats__1.txt");
@@ -84,8 +81,8 @@ int main(int argc, char **argv) {
   std::cout << std::setprecision(8);
 
   gt_type map_gt(world);
-  std::ifstream gtfile("/g/g90/tom7/codebase/data/vectors/spmv_res_floats__4883.txt");
-  //std::ifstream gtfile("/g/g90/tom7/codebase/data/vectors/spmv_res_ints__4883.txt");
+  //std::ifstream gtfile("/g/g90/tom7/codebase/data/vectors/spmv_res_floats__4883.txt");
+  std::ifstream gtfile("/g/g90/tom7/codebase/data/vectors/spmv_res_ints__4883.txt");
   if (world.rank0()) {
     while (gtfile >> key1 >> value) {
       map_gt.async_insert(key1, value);

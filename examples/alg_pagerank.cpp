@@ -11,16 +11,15 @@
 #include <ygm/comm.hpp>
 
 #include <ygm/container/map.hpp>
-#include <ygm/container/maptrix.hpp>
-#include <ygm/container/assoc_vector.hpp>
+#include <ygm/container/experimental/maptrix.hpp>
 
 int main(int argc, char **argv) {
 
   ygm::comm world(&argc, &argv);
 
   using map_type      = ygm::container::map<std::string, double>;
-  using maptrix_type  = ygm::container::maptrix<std::string, double>;
-  namespace ns_spmv   = ygm::container::detail::algorithms;
+  using maptrix_type  = ygm::container::experimental::maptrix<std::string, double>;
+  namespace ns_spmv   = ygm::container::experimental::detail::algorithms;
 
   map_type pr(world);
   map_type deg(world);
