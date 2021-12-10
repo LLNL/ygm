@@ -61,6 +61,11 @@ class csr_impl {
     m_csr.for_all(fn);
   }
 
+  template <typename Function>
+  void for_all_row(Function fn) {
+    m_csr.for_all_outer_key(fn);
+  }
+
   template <typename... VisitorArgs>
   void print_all(std::ostream& os, VisitorArgs const&... args) {
     ((os << args), ...);

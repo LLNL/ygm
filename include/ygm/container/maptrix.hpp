@@ -44,6 +44,16 @@ class maptrix {
     m_impl.for_all(fn);
   }
 
+  template <typename Function>
+  void for_all_row(Function fn) {
+    m_impl.for_all_row(fn);
+  }
+
+  template <typename Function>
+  void for_all_col(Function fn) {
+    m_impl.for_all_col(fn);
+  }
+
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_if_exists(const key_type& row, const key_type& col, Visitor visitor,
                              const VisitorArgs&... args) {

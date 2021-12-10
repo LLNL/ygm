@@ -73,6 +73,12 @@ class csc_impl {
     m_csc.for_all(fn);
   }
 
+
+  template <typename Function>
+  void for_all_col(Function fn) {
+    m_csc.for_all_outer_key(fn);
+  }
+
   template <typename... VisitorArgs>
   void print_all(std::ostream& os, VisitorArgs const&... args) {
     ((os << args), ...);

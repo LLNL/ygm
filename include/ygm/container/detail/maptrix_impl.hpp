@@ -27,9 +27,6 @@ class maptrix_impl {
   using value_type = Value;
   using self_type  = maptrix_impl<Key, Value, Partitioner, Compare, Alloc>;
 
-  //using map_type   = ygm::container::assoc_vector<key_type, value_type>;
-  //using adj_impl   = detail::adj_impl<key_type, value_type, Partitioner, Compare, Alloc>;
-
   using csr_impl   = detail::csr_impl<key_type, value_type, Partitioner, Compare, Alloc>;
   using csc_impl   = detail::csc_impl<key_type, value_type, Partitioner, Compare, Alloc>;
   using map_type   = ygm::container::map<key_type, value_type>;
@@ -66,6 +63,16 @@ class maptrix_impl {
   template <typename Function>
   void for_all(Function fn) {
     m_csc.for_all(fn);
+  }
+
+  template <typename Function>
+  void for_all_row(Function fn) {
+    m_csr.for_all_row(fn);
+  }
+
+  template <typename Function>
+  void for_all_col(Function fn) {
+    m_csc.for_all_col(fn);
   }
 
   template <typename... VisitorArgs>
@@ -107,8 +114,8 @@ class maptrix_impl {
     auto &inner_map = m_map.find(col)->second;
     for (auto itr = inner_map.begin(); itr != inner_map.end(); ++itr) {
       key_type row  = itr->first;
-      m_csc.async_visit_if_exists(row, col, visitor, std::forward<const VisitorArgs>(args)...);
       m_csr.async_visit_if_exists(row, col, visitor, std::forward<const VisitorArgs>(args)...);
+      m_csc.async_visit_if_exists(row, col, visitor, std::forward<const VisitorArgs>(args)...);
     }
   }
 

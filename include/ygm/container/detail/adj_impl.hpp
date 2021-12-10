@@ -71,7 +71,6 @@ class adj_impl {
   template <typename Function>
   void local_for_all(Function fn) {
     for (auto itr = m_map.begin(); itr != m_map.end(); ++itr) {
-      //std::cout << "Using key: " << itr->first << std::endl;
       key_type outer_key        = itr->first;
       inner_map_type &inner_map = itr->second;
       for (auto inner_itr = inner_map.begin(); inner_itr != inner_map.end(); ++inner_itr) {
@@ -79,6 +78,20 @@ class adj_impl {
         value_type value        = inner_itr->second;
         fn(outer_key, inner_key, value);
       }
+    }
+  }
+
+  template <typename Function>
+  void for_all_outer_key(Function fn) {
+    m_comm.barrier();
+    local_for_all_outer_key(fn);
+  }
+
+  template <typename Function>
+  void local_for_all_outer_key(Function fn) {
+    for (auto itr = m_map.begin(); itr != m_map.end(); ++itr) {
+      key_type outer_key        = itr->first;
+      fn(outer_key);
     }
   }
 

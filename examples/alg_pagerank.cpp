@@ -31,23 +31,47 @@ int main(int argc, char **argv) {
   auto A_ptr   = A.get_ygm_ptr(); 
 
   std::ifstream matfile("/g/g90/tom7/codebase/intern_2021/data/pr_small.graph");
-  auto acc_lambda = [](auto &rv_pair, const auto &update_val) {
+
+  auto deg_acc_lambda = [](auto &rv_pair, const auto &update_val) {
     rv_pair.second = rv_pair.second + update_val;
   };
 
-  double value;
   std::string key1, key2;
   if (world.rank0()) {
     while (matfile >> key1 >> key2) {
       A.async_insert(key1, key2, 1.0);
-      pr.async_insert(key1, 0.25);
-      pr.async_insert(key2, 0.25);
-      //deg.async_insert_if_missing_else_visit(key1, 1.0, acc_lambda);
-      deg.async_insert_if_missing_else_visit(key2, 1.0, acc_lambda);
+      //pr.async_insert(key1, 0.25);
+      //pr.async_insert(key2, 0.25);
+      ////deg.async_insert_if_missing_else_visit(key1, 1.0, deg_acc_lambda);
+      deg.async_insert_if_missing_else_visit(key2, 1.0, deg_acc_lambda);
     }
   }
-  int N = pr.size();
 
+  double init_pr = 0.;
+  std::cout << init_pr << std::endl;
+  auto acc_lambda = [&pr, &init_pr](auto &key) {
+    pr.async_insert(key, init_pr);
+  };
+  A.for_all_row(acc_lambda);
+  A.for_all_col(acc_lambda);
+
+  int N = pr.size();
+  init_pr = ((float) 1)/N;
+  auto mod_pr_lambda = [&init_pr](auto &rv_pair) {
+    rv_pair.second = init_pr;
+  };
+  pr.for_all(mod_pr_lambda);
+
+  #ifdef for_all_edges
+  auto outer_lambda = [&deg](auto &key) {
+    auto deg_acc_lambda = [](auto &rv_pair, const auto &update_val) {
+      rv_pair.second = rv_pair.second + update_val;
+    };
+    deg.async_insert_if_missing_else_visit(key, 1.0, deg_acc_lambda);
+  };
+  A.for_all_col(outer_lambda);
+  #endif
+  
   auto ijk_lambda = [&A](auto row, auto col, auto value) {
     auto &mptrx_comm = A.comm();
     int rank         = mptrx_comm.rank();
