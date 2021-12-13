@@ -12,6 +12,8 @@ int main(int argc, char **argv) {
 
   ygm::container::maptrix<std::string, std::string> my_maptrix(world);
   
+  //TBD:: AST: This may need nicer examples!
+  
   #ifdef random_map_check
   using inner_map_type = std::map<std::string, std::string>;
   std::map<std::string, inner_map_type> m_row_map;   
