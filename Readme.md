@@ -27,21 +27,29 @@ perform a user-provided function only on the desired data. These containers are 
 YGM is a header-only library that is easy to incorporate into a project through CMake. Adding the following to
 CMakeLists.txt will install YGM and its dependencies as part of your project:
 ```
-find_package(ygm CONFIG)
-if(NOT ygm_FOUND)
+set(DESIRED_YGM_VERSION 0.3)
+find_package(ygm ${DESIRED_YGM_VERSION} CONFIG)
+if (NOT ygm_FOUND)
     FetchContent_Declare(
         ygm
         GIT_REPOSITORY https://github.com/LLNL/ygm
-        GIT_TAG        <commit hash here>         
-    )         
-    set(JUST_INSTALL_YGM ON)
-    set(YGM_INSTALL ON)
-    FetchContent_MakeAvailable(ygm)
-    message(STATUS "Cloned ygm dependency " ${ygm_SOURCE_DIR})
-else()
-    message(STATUS "Found ygm dependency " ${ygm_DIR})
-endif()
-target_link_libraries(my_cool_project INTERFACE ygm::ygm)
+        GIT_TAG v${DESIRED_YGM_VERSION}
+    )
+    FetchContent_GetProperties(ygm)
+    if (ygm_POPULATED)
+        message(STATUS "Found already populated ygm dependency: "
+                       ${ygm_SOURCE_DIR}
+        )
+    else ()
+        set(JUST_INSTALL_YGM ON)
+        set(YGM_INSTALL ON)
+        FetchContent_Populate(ygm)
+        add_subdirectory(${ygm_SOURCE_DIR} ${ygm_BINARY_DIR})
+        message(STATUS "Cloned ygm dependency " ${ygm_SOURCE_DIR})
+    endif ()
+else ()
+    message(STATUS "Found installed ygm dependency " ${ygm_DIR})
+endif ()
 ```
 
 # Anatomy of a YGM Program
