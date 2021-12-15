@@ -19,7 +19,7 @@
 
 namespace ygm {
 
-class comm::impl : std::enable_shared_from_this<comm::impl> {
+class comm::impl : public std::enable_shared_from_this<comm::impl> {
  public:
   impl(MPI_Comm c, int buffer_capacity) {
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_async));
@@ -35,7 +35,6 @@ class comm::impl : std::enable_shared_from_this<comm::impl> {
   }
 
   ~impl() {
-    barrier();
     // send kill signal to self (listener thread)
     ASSERT_RELEASE(MPI_Send(NULL, 0, MPI_BYTE, m_comm_rank, 0, m_comm_async) ==
                    MPI_SUCCESS);
@@ -399,12 +398,12 @@ class comm::impl : std::enable_shared_from_this<comm::impl> {
         std::forward<const PackArgs>(args)...);
     ASSERT_DEBUG(sizeof(Lambda) == 1);
 
-    void (*fun_ptr)(ygm::comm *, cereal::YGMInputArchive &) =
-        [](comm *t, cereal::YGMInputArchive &bia) {
+    void (*fun_ptr)(comm *, cereal::YGMInputArchive &) =
+        [](comm *c, cereal::YGMInputArchive &bia) {
           std::tuple<PackArgs...> ta;
           bia(ta);
           Lambda *pl = nullptr;
-          auto    t1 = std::make_tuple((comm *)t);
+          auto    t1 = std::make_tuple((comm *)c);
 
           // \pp was: std::apply(*pl, std::tuple_cat(t1, ta));
           ygm::meta::apply_optional(*pl, std::move(t1), std::move(ta));
@@ -500,6 +499,9 @@ inline comm::comm(MPI_Comm mcomm, int buffer_capacity = 16 * 1024 * 1024) {
 inline comm::comm(std::shared_ptr<impl> impl_ptr) : pimpl(impl_ptr) {}
 
 inline comm::~comm() {
+  if (pimpl.use_count() == 1) {
+    barrier();
+  }
   ASSERT_RELEASE(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
   pimpl.reset();
   ASSERT_RELEASE(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
