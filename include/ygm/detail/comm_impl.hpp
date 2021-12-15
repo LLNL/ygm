@@ -19,7 +19,7 @@
 
 namespace ygm {
 
-class comm::impl {
+class comm::impl : std::enable_shared_from_this<comm::impl> {
  public:
   impl(MPI_Comm c, int buffer_capacity) {
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_async));
@@ -399,12 +399,12 @@ class comm::impl {
         std::forward<const PackArgs>(args)...);
     ASSERT_DEBUG(sizeof(Lambda) == 1);
 
-    void (*fun_ptr)(impl *, cereal::YGMInputArchive &) =
-        [](impl *t, cereal::YGMInputArchive &bia) {
+    void (*fun_ptr)(ygm::comm *, cereal::YGMInputArchive &) =
+        [](comm *t, cereal::YGMInputArchive &bia) {
           std::tuple<PackArgs...> ta;
           bia(ta);
           Lambda *pl = nullptr;
-          auto    t1 = std::make_tuple((impl *)t);
+          auto    t1 = std::make_tuple((comm *)t);
 
           // \pp was: std::apply(*pl, std::tuple_cat(t1, ta));
           ygm::meta::apply_optional(*pl, std::move(t1), std::move(ta));
@@ -430,6 +430,7 @@ class comm::impl {
    */
   bool process_receive_queue() {
     bool received = false;
+    comm tmp_comm(shared_from_this());
     while (true) {
       auto buffer = receive_queue_try_pop();
       if (buffer.second == 0) break;
@@ -439,9 +440,9 @@ class comm::impl {
         int64_t iptr;
         iarchive(iptr);
         iptr += (int64_t)&reference;
-        void (*fun_ptr)(impl *, cereal::YGMInputArchive &);
+        void (*fun_ptr)(comm *, cereal::YGMInputArchive &);
         memcpy(&fun_ptr, &iptr, sizeof(uint64_t));
-        fun_ptr(this, iarchive);
+        fun_ptr(&tmp_comm, iarchive);
         m_recv_count++;
         m_local_rpc_calls++;
       }
@@ -495,6 +496,8 @@ inline comm::comm(MPI_Comm mcomm, int buffer_capacity = 16 * 1024 * 1024) {
   }
   pimpl = std::make_shared<comm::impl>(mcomm, buffer_capacity);
 }
+
+inline comm::comm(std::shared_ptr<impl> impl_ptr) : pimpl(impl_ptr) {}
 
 inline comm::~comm() {
   ASSERT_RELEASE(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
