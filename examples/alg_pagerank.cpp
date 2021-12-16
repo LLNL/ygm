@@ -31,6 +31,10 @@ int main(int argc, char **argv) {
 
   std::ifstream matfile("/g/g90/tom7/codebase/intern_2021/data/pr_small.graph");
 
+  auto A_acc_lambda = [](auto &row, auto &col, auto &value, const auto &update_val) {
+    value = value + update_val;
+  };
+
   auto deg_acc_lambda = [](auto &rv_pair, const auto &update_val) {
     rv_pair.second = rv_pair.second + update_val;
   };
@@ -38,11 +42,16 @@ int main(int argc, char **argv) {
   std::string key1, key2;
   if (world.rank0()) {
     while (matfile >> key1 >> key2) {
-      A.async_insert(key1, key2, 1.0);
+      //A.async_insert(key1, key2, 1.0);
+      A.async_visit_or_insert(key1, key2, 1.0, A_acc_lambda, 1.0);
       //pr.async_insert(key1, 0.25);
       //pr.async_insert(key2, 0.25);
       ////deg.async_insert_if_missing_else_visit(key1, 1.0, deg_acc_lambda);
       deg.async_insert_if_missing_else_visit(key2, 1.0, deg_acc_lambda);
+
+      //A.async_insert(key2, key1, 1.0);
+      A.async_visit_or_insert(key2, key1, 1.0, A_acc_lambda, 1.0);
+      deg.async_insert_if_missing_else_visit(key1, 1.0, deg_acc_lambda);
     }
   }
 
@@ -81,9 +90,10 @@ int main(int argc, char **argv) {
     std::cout << "[In map lambda] key: " << res_kv_pair.first << ", col: " << res_kv_pair.second << std::endl;
   };
 
-  #ifdef abc
   A.for_all(ijk_lambda);
   world.barrier();
+
+  #ifdef abc
   pr.for_all(map_lambda);
   world.barrier();
   deg.for_all(map_lambda);
@@ -98,7 +108,8 @@ int main(int argc, char **argv) {
       //auto norm_val = ((float) value)/deg;
       //norm_A_ptr->async_insert(col, row, norm_val);
       value = ((float) value)/deg;
-      std::cout << "Inside scale lambda: " << value << std::endl;
+      std::cout << "Inside scale lambda: " << row << " " << col << " " << value << std::endl;
+      //std::cout << "Inside scale lambda: " << value << std::endl;
     };
     A_ptr->async_visit_col_mutate(vtx, scale_A_lambda, deg);
   };
@@ -114,8 +125,9 @@ int main(int argc, char **argv) {
   };
 
   // Change pr vector based on degree and damping factor. 
+  double agg_pr{0.};
   double d_val = 0.85;
-  for (int iter = 0; iter < 20; iter++) {
+  for (int iter = 0; iter < 5; iter++) {
 
     /* Perform the SpMV operation here. */
     auto map_res = ns_spmv::spmv(A, pr);
@@ -136,8 +148,17 @@ int main(int argc, char **argv) {
     pr.swap(map_res);
 
     std::cout << "After update: " << std::endl;
-    pr.for_all(print_pr_lambda);
-    world.barrier();
+    auto agg_pr_lambda = [&agg_pr](auto &vtx_pr_pair) {
+      std::cout << agg_pr << " " << vtx_pr_pair.second << std::endl;
+      agg_pr = agg_pr + vtx_pr_pair.second;
+    };
+    pr.for_all(agg_pr_lambda);
+    world.all_reduce_sum(agg_pr);
+    std::cout << "LOGGER: " << "Aggregated PR: " << agg_pr << "." << std::endl;
+    agg_pr = 0.;
+
+    //pr.for_all(print_pr_lambda);
+    //world.barrier();
   }
 
   return 0;

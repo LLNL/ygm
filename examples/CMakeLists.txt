@@ -31,3 +31,10 @@ add_ygm_example(disjoint_set_async_union_and_execute)
 ##add_ygm_example(maptrix_visit)
 add_ygm_example(alg_spmv)
 add_ygm_example(alg_pagerank)
+
+if (Boost_FOUND)
+    add_ygm_example(reddit_pagerank)
+    target_include_directories(
+        reddit_pagerank PUBLIC ${Boost_INCLUDE_DIRS}
+    )
+endif ()

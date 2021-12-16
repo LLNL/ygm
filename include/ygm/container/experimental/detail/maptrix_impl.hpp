@@ -120,6 +120,12 @@ class maptrix_impl {
   }
 
   template <typename Visitor, typename... VisitorArgs>
+  void async_visit_row_const(const key_type &row, Visitor visitor,
+                             const VisitorArgs &...args) {
+    m_csr.async_visit_row_const(row, visitor, std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
   void async_visit_col_const(const key_type &col, Visitor visitor,
                              const VisitorArgs &...args) {
     m_csc.async_visit_col_const(col, visitor, std::forward<const VisitorArgs>(args)...);
@@ -128,6 +134,7 @@ class maptrix_impl {
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_or_insert(const key_type &row, const key_type &col, const value_type &value, 
                                 Visitor visitor, const VisitorArgs&... args) {
+    m_csr.async_visit_or_insert(row, col, value, visitor, std::forward<const VisitorArgs>(args)...);
     m_csc.async_visit_or_insert(row, col, value, visitor, std::forward<const VisitorArgs>(args)...);
   }
 

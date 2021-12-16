@@ -154,7 +154,7 @@ class adj_impl {
   void async_visit_or_insert(const key_type &row, const key_type &col, const value_type &value, 
                               Visitor visitor, const VisitorArgs &...args) {
 
-    //std::cout << "Inside the adj impl." << std::endl;
+    //std::cout << "Inside the adj impl: " << row << " " << col << " " << value << "." << std::endl;
     auto visit_wrapper = [](auto pcomm, auto padj,
                        const key_type &row, const key_type &col,
                        const value_type &value, const VisitorArgs &...args) {
@@ -172,16 +172,18 @@ class adj_impl {
   template <typename Function, typename... VisitorArgs>
   void local_visit_or_insert(const key_type &row, const key_type &col, const value_type &value,
                    Function &fn, const VisitorArgs &...args) {
-    //std::cout << "Inside the local adj impl, lambda reached." << row << col << std::endl;
+    //std::cout << "Inside the local adj impl, lambda reached." << row << " " << col << std::endl;
     /* Fetch the row map, key: col id, value: val. */
     inner_map_type &inner_map = m_map[row];
     if (inner_map.find(col) == inner_map.end()) {
-      //std::cout << "In insert." << std::endl;
+      //std::cout << "In insert: " << row << " " << col << " " << value << std::endl;
       inner_map.insert(std::make_pair(col, value));
     } else {
-      value_type value = inner_map[col];
+      //std::cout << "In update: " << row << " " << col << " " << value << std::endl;
+      value_type &value = inner_map[col];
       ygm::meta::apply_optional(fn, std::make_tuple(pthis),
                                 std::forward_as_tuple(row, col, value, args...));
+      //std::cout << "After update: " << row << " " << col << " " << value << std::endl;
     }
   }
 
