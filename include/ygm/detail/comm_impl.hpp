@@ -502,9 +502,7 @@ inline comm::~comm() {
   if (pimpl.use_count() == 1) {
     barrier();
   }
-  ASSERT_RELEASE(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
   pimpl.reset();
-  ASSERT_RELEASE(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
   pimpl_if.reset();
 }
 
