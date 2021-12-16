@@ -28,10 +28,12 @@ class csv_parser {
   void for_all(Function fn) {
     using namespace ygm::io::detail;
     m_lp.for_all([fn](const std::string& line) {
-      auto vfields   = parse_csv_line(line);
-      //auto stypes    = convert_type_string(vfields);
-      //todo, detect if types are inconsistent between records
-      fn(vfields);
+      auto vfields = parse_csv_line(line);
+      // auto stypes    = convert_type_string(vfields);
+      // todo, detect if types are inconsistent between records
+      if (vfields.size() > 0) {
+        fn(vfields);
+      }
     });
   }
 
