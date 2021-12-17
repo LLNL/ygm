@@ -40,5 +40,4 @@ class csv_parser {
  private:
   line_parser m_lp;
 };
-
 }  // namespace ygm::io
