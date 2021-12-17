@@ -137,10 +137,10 @@ int main(int argc, char **argv) {
       auto dst = json_line["LL_author"].as_string(); 
       auto src = json_line["LL_parent_author"].as_string();
       
-      A.async_visit_or_insert(src, dst, 1.0, A_acc_lambda, 1.0);
+      A.async_insert_if_missing_else_visit(src, dst, 1.0, A_acc_lambda, 1.0);
       deg.async_insert_if_missing_else_visit(dst, 1.0, deg_acc_lambda);
 
-      A.async_visit_or_insert(dst, src, 1.0, A_acc_lambda, 1.0);
+      A.async_insert_if_missing_else_visit(dst, src, 1.0, A_acc_lambda, 1.0);
       deg.async_insert_if_missing_else_visit(src, 1.0, deg_acc_lambda);
     }
   });
