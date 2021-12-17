@@ -8,8 +8,6 @@
 #include <ygm/container/experimental/detail/maptrix_impl.hpp>
 namespace ygm::container::experimental {
 
-/* Find out if you need to change the 
- * name of the row/col variables: key_i, key_j? */
 template <typename Key, typename Value, 
           typename Partitioner = ygm::container::detail::hash_partitioner<Key>, 
           typename Compare     = std::less<Key>,
@@ -33,7 +31,6 @@ class maptrix {
 
   ygm::comm& comm() { return m_impl.comm(); }
 
-  /* async_insert accepts a directed graph. */
   void async_insert(const key_type& row, const key_type& col, const value_type& value) {
     m_impl.async_insert(row, col, value);
   }
@@ -73,9 +70,15 @@ class maptrix {
   }
 
   template <typename Visitor, typename... VisitorArgs>
-  void async_visit_or_insert(const key_type& row, const key_type& col, const value_type &value, 
+  void async_visit_row_const(const key_type& row, Visitor visitor,
+                             const VisitorArgs&... args) {
+    m_impl.async_visit_row_const(row, visitor, std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_insert_if_missing_else_visit(const key_type& row, const key_type& col, const value_type &value, 
                                 Visitor visitor, const VisitorArgs&... args) {
-    m_impl.async_visit_or_insert(row, col, value, visitor, std::forward<const VisitorArgs>(args)...); 
+    m_impl.async_insert_if_missing_else_visit(row, col, value, visitor, std::forward<const VisitorArgs>(args)...); 
   }
 
   void clear() { m_impl.clear(); }

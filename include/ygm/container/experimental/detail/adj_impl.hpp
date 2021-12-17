@@ -142,7 +142,6 @@ class adj_impl {
                    const VisitorArgs &...args) {
     auto &inner_map = m_map[key];
     for (auto itr = inner_map.begin(); itr != inner_map.end(); ++itr) {
-      //std::cout << "ColVisit: Using key: " << itr->first << std::endl;
       key_type outer_key  = key;       
       key_type inner_key  = itr->first;
       value_type value    = itr->second;
@@ -151,16 +150,14 @@ class adj_impl {
   }
 
   template <typename Visitor, typename... VisitorArgs>
-  void async_visit_or_insert(const key_type &row, const key_type &col, const value_type &value, 
+  void async_insert_if_missing_else_visit(const key_type &row, const key_type &col, const value_type &value, 
                               Visitor visitor, const VisitorArgs &...args) {
 
-    //std::cout << "Inside the adj impl: " << row << " " << col << " " << value << "." << std::endl;
     auto visit_wrapper = [](auto pcomm, auto padj,
                        const key_type &row, const key_type &col,
                        const value_type &value, const VisitorArgs &...args) {
-      //Apply Visitor.. 
       Visitor *vis;
-      padj->local_visit_or_insert(row, col, value, *vis, args...); 
+      padj->local_insert_if_missing_else_visit(row, col, value, *vis, args...); 
     };
 
     int dest = owner(row);
@@ -170,20 +167,15 @@ class adj_impl {
 
   /* Do we really need a value here? */
   template <typename Function, typename... VisitorArgs>
-  void local_visit_or_insert(const key_type &row, const key_type &col, const value_type &value,
+  void local_insert_if_missing_else_visit(const key_type &row, const key_type &col, const value_type &value,
                    Function &fn, const VisitorArgs &...args) {
-    //std::cout << "Inside the local adj impl, lambda reached." << row << " " << col << std::endl;
-    /* Fetch the row map, key: col id, value: val. */
     inner_map_type &inner_map = m_map[row];
     if (inner_map.find(col) == inner_map.end()) {
-      //std::cout << "In insert: " << row << " " << col << " " << value << std::endl;
       inner_map.insert(std::make_pair(col, value));
     } else {
-      //std::cout << "In update: " << row << " " << col << " " << value << std::endl;
       value_type &value = inner_map[col];
       ygm::meta::apply_optional(fn, std::make_tuple(pthis),
                                 std::forward_as_tuple(row, col, value, args...));
-      //std::cout << "After update: " << row << " " << col << " " << value << std::endl;
     }
   }
 
@@ -194,7 +186,6 @@ class adj_impl {
     for (auto i_itr = inner_map.begin(); i_itr != inner_map.end(); ++i_itr) {
       auto inner_key = i_itr->first; 
       auto value     = i_itr->second;
-      //std::cout << "In adj_impl: " << col << " " << row << " " << value << std::endl;
       pthis->async_visit_if_exists(outer_key, inner_key, visitor, std::forward<const VisitorArgs>(args)...);
     }
   }

@@ -40,13 +40,6 @@ class csr_impl {
     m_comm.barrier();
   }
 
-  csr_impl(const self_type &rhs)
-      : m_comm(rhs.m_comm), pthis(this), m_default_value(rhs.m_default_value) {
-    m_comm.barrier();
-    //m_row_map.insert(std::begin(rhs.m_row_map), std::end(rhs.m_col_map));
-    m_comm.barrier();
-  }
-
   ~csr_impl() { m_comm.barrier(); }
 
   void async_insert(const key_type &row, const key_type &col, const value_type &value) {
@@ -77,16 +70,16 @@ class csr_impl {
   }
 
   template <typename Visitor, typename... VisitorArgs>
-  void async_visit_or_insert(const key_type &row, const key_type &col, const value_type &value, 
+  void async_insert_if_missing_else_visit(const key_type &row, const key_type &col, const value_type &value, 
                                 Visitor visitor, const VisitorArgs&... args) {
-    m_csr.async_visit_or_insert(row, col, value, visitor, std::forward<const VisitorArgs>(args)...);
+    m_csr.async_insert_if_missing_else_visit(row, col, value, visitor, std::forward<const VisitorArgs>(args)...);
   }
 
-  //template <typename Visitor, typename... VisitorArgs>
-  //void async_visit_col_mutate(const key_type& row, Visitor visitor,
-                             //const VisitorArgs&... args) {
-    //m_csr.async_visit_mutate(row, visitor, std::forward<const VisitorArgs>(args)...);
-  //}
+  template <typename Visitor, typename... VisitorArgs>
+  void async_visit_row_const(const key_type &row, Visitor visitor,
+                             const VisitorArgs &...args) {
+    m_csr.async_visit_const(row, visitor, std::forward<const VisitorArgs>(args)...);
+  }
 
   typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }
 

@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 #pragma once
+
 #include <cereal/archives/json.hpp>
 #include <cereal/types/utility.hpp>
 #include <fstream>
@@ -45,7 +46,8 @@ class maptrix_impl {
   maptrix_impl(const self_type &rhs)
       : m_comm(rhs.m_comm), pthis(this), m_default_value(rhs.m_default_value) {
     m_comm.barrier();
-    //m_row_map.insert(std::begin(rhs.m_row_map), std::end(rhs.m_col_map));
+    m_csr.insert(std::begin(rhs.m_csr), std::end(rhs.m_csr));
+    m_csc.insert(std::begin(rhs.m_csc), std::end(rhs.m_csc));
     m_comm.barrier();
   }
 
@@ -56,7 +58,6 @@ class maptrix_impl {
     m_csc.async_insert(row, col, value);
   }
 
-  //*** TBD: Should you support this function? ***//
   ygm::comm &comm() { return m_comm; }
 
   /* For all is expected to be const on csc. */
@@ -87,26 +88,6 @@ class maptrix_impl {
     m_csc.async_visit_if_exists(row, col, visitor, std::forward<const VisitorArgs>(args)...);
   }
 
-  #ifdef abc
-  template <typename Visitor, typename... VisitorArgs>
-  void async_visit_col_mutate(const key_type &col, Visitor visitor,
-                             const VisitorArgs&... args) {
-    /* Accessing the adj map in maptrix -- 
-      * should this actually be enclosed within adj? */
-    /* this means adj should have row and col adj, 
-      * and not a single instance inside the maptrix impl.. */
-    auto &m_map     = m_csc.adj();
-    auto &inner_map = m_map.find(col)->second;
-    for (auto itr = inner_map.begin(); itr != inner_map.end(); ++itr) {
-      key_type row  = itr->first;
-      pthis->async_visit_if_exists(row, col, 
-                  visitor, std::forward<const VisitorArgs>(args)...);
-    }
-    m_csr.async_visit_col_mutate(col, visitor, std::forward<const VisitorArgs>(args)...);
-    m_csc.async_visit_col_mutate(col, visitor, std::forward<const VisitorArgs>(args)...);
-  }
-  #endif
-
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_col_mutate(const key_type &col, Visitor visitor,
                              const VisitorArgs&... args) {
@@ -132,10 +113,10 @@ class maptrix_impl {
   }
 
   template <typename Visitor, typename... VisitorArgs>
-  void async_visit_or_insert(const key_type &row, const key_type &col, const value_type &value, 
+  void async_insert_if_missing_else_visit(const key_type &row, const key_type &col, const value_type &value, 
                                 Visitor visitor, const VisitorArgs&... args) {
-    m_csr.async_visit_or_insert(row, col, value, visitor, std::forward<const VisitorArgs>(args)...);
-    m_csc.async_visit_or_insert(row, col, value, visitor, std::forward<const VisitorArgs>(args)...);
+    m_csr.async_insert_if_missing_else_visit(row, col, value, visitor, std::forward<const VisitorArgs>(args)...);
+    m_csc.async_insert_if_missing_else_visit(row, col, value, visitor, std::forward<const VisitorArgs>(args)...);
   }
 
   typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }
