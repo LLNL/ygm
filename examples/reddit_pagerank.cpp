@@ -16,6 +16,69 @@
 
 #include <ygm/utility.hpp>
 
+void compute_norm(
+  ygm::container::map<boost::json::string, double> &pr_old, 
+  ygm::container::map<boost::json::string, double> &pr_new,
+  ygm::container::map<std::string, double> norm_map,
+  ygm::comm &world) {
+
+  using map_type = ygm::container::map<std::string, double>;
+
+  int N_old = pr_old.size();
+  int N_new = pr_new.size();
+  //std::cout << "Prev iter size: " << N_old << ", Current iter size: " << N_new << std::endl;
+
+  auto pr_old_ptr = pr_old.get_ygm_ptr();
+  auto pr_new_ptr = pr_new.get_ygm_ptr();
+
+  //map_type norm_map(world);
+  norm_map.async_insert(std::string("dist"), 0);
+  auto norm_map_ptr = norm_map.get_ygm_ptr();
+
+  auto compute_norm_lambda = [&pr_old_ptr, &pr_new_ptr, &norm_map_ptr](auto old_pr_pair) {
+
+    //norm_acc += 1;
+    auto vtx_id = old_pr_pair.first;
+    auto pr_val = old_pr_pair.second; // old PR value.
+
+    auto visit_new_pr = [](auto &new_pr_pair, const auto old_val, auto &norm_map_ptr) {
+
+      auto vtx_id = new_pr_pair.first;
+      auto new_val = new_pr_pair.second;
+
+      auto diff = (new_val - old_val);
+      diff = diff * diff;
+      //norm_acc = diff + 10;
+
+      //norm_acc = norm_acc + diff;
+      //std::cout << vtx_id << " " << old_val << " " << new_val << std::endl;
+      //std::cout << norm_acc << " " << diff << std::endl;
+
+      auto accumulate_lambda = [](auto &row_id_val, const auto &update_val) {
+        auto row_id = row_id_val.first;
+        auto value =  row_id_val.second;
+        auto append_val = value + update_val;
+        row_id_val.second = row_id_val.second + update_val;
+      };
+
+      norm_map_ptr->async_insert_if_missing_else_visit(std::string("dist"), diff, accumulate_lambda);
+    };
+
+    pr_new_ptr->async_visit(vtx_id, visit_new_pr, pr_val, norm_map_ptr);
+  };
+
+  pr_old_ptr->for_all(compute_norm_lambda);
+  world.barrier();
+
+  //double global_norm_acc; 
+  //double global_norm_acc = world.all_reduce_sum(norm_acc);
+  //std::cout << global_norm_acc;
+  auto print_res_lambda = [](auto res_kv_pair) {
+    std::cout << "Resulting norm: "  << sqrt(res_kv_pair.second) << std::endl;
+  };
+  norm_map.async_visit(std::string("dist"), print_res_lambda);
+}
+
 int main(int argc, char **argv) {
 
   ygm::comm world(&argc, &argv);
@@ -58,7 +121,7 @@ int main(int argc, char **argv) {
   ygm::timer read_graph_timer{};
 
   //std::string fnames = "/p/lustre3/llamag/reddit/roger_tmp_2021_to_delete2";
-  auto fnames = std::vector<std::string>{"/p/lustre3/llamag/reddit/roger_tmp_2021_to_delete2/"};
+  auto fnames = std::vector<std::string>{"/p/lustre3/llamag/reddit/roger_tmp_2021_to_delete2/comments_0", "/p/lustre3/llamag/reddit/roger_tmp_2021_to_delete2/comments_1", "/p/lustre3/llamag/reddit/roger_tmp_2021_to_delete2/comments_2"};
   //auto fnames = std::vector<std::string>{"/g/g90/tom7/codebase/ygm/examples/data/reddit_5000_comments0.txt"};
   //auto fnames = std::vector<std::string>{"/g/g90/tom7/codebase/ygm/examples/data/reddit_5_comments0.txt"};
 
@@ -85,6 +148,11 @@ int main(int argc, char **argv) {
   });
 
   std::cout << "LOGGER: Step 1: " << "Finished reading in the author-author graph." << std::endl; 
+
+  double elapsed = read_graph_timer.elapsed();
+  std::cout << "Read graph time: " << elapsed << std::endl;
+
+  ygm::timer preprocess_timer{};
 
   double init_pr = 0.;
   auto acc_lambda = [&pr, &init_pr](auto &key) {
@@ -143,12 +211,14 @@ int main(int argc, char **argv) {
   //A.for_all(ijk_lambda);
   //world.barrier(); 
 
-  double elapsed = read_graph_timer.elapsed();
-  std::cout << "Read graph time: " << elapsed << std::endl;
+  elapsed = preprocess_timer.elapsed();
+  std::cout << "Preprocess time: " << elapsed << std::endl;
  
   auto print_pr_lambda = [](auto &vtx_pr_pair) {
     std::cout << "[print pr] key: " << vtx_pr_pair.first << ", col: " << vtx_pr_pair.second << std::endl;
   };
+
+  ygm::timer pr_timer{};
 
   double agg_pr{0.};
   auto agg_pr_lambda = [&agg_pr](auto &vtx_pr_pair) {
@@ -156,14 +226,15 @@ int main(int argc, char **argv) {
     agg_pr = agg_pr + vtx_pr_pair.second;
   };
   pr.for_all(agg_pr_lambda);
-  world.all_reduce_sum(agg_pr);
-  std::cout << "LOGGER: " << "Aggregated PR: " << agg_pr << "." << std::endl;
+  auto f_agg_pr = world.all_reduce_sum(agg_pr);
+  std::cout << "LOGGER: " << "Aggregated PR: " << f_agg_pr << "." << std::endl;
 
-  ygm::timer pr_timer{};
+  ygm::container::map<std::string, double> norm_map(world);
+  //auto norm_map_ptr = norm_map.get_ygm_ptr();
 
   agg_pr = 0.;
   double d_val = 0.85;
-  for (int iter = 0; iter < 20; iter++) {
+  for (int iter = 0; iter < 100; iter++) {
 
     auto map_res = ns_spmv::spmv(A, pr);
     auto map_res_ptr = map_res.get_ygm_ptr();
@@ -178,32 +249,35 @@ int main(int argc, char **argv) {
       map_res_ptr->async_insert_if_missing_else_visit(vtx_id, (float (1-d_val)/N), visit_lambda, d_val);
     };
     pr.for_all(adding_damping_pr_lambda);
+    world.barrier(); //Does the map already have a barrier? 
+
+    compute_norm(pr, map_res, norm_map, world);
+    //auto print_res_lambda = [](auto res_kv_pair) {
+      //std::cout << "Resulting: " << " key: " << res_kv_pair.first 
+                //<< ", col: " << sqrt(res_kv_pair.second) << std::endl;
+    //};
+    //norm_map.async_visit(std::string("dist"), print_res_lambda);
+ 
     pr.swap(map_res);
 
     //std::cout << "After update: " << std::endl;
     //pr.for_all(print_pr_lambda);
 
-    //std::cout << "LOGGER: " << "Completed iter: " << iter << "." << std::endl;
-    world.barrier();
-
-    //Aggregating overall PR values 
-    //    --> is it approaching convergence..?
-    //auto agg_pr_lambda = [&agg_pr](auto &vtx_pr_pair) {
-      //agg_pr = agg_pr + vtx_pr_pair.second;
-    //};
+    //Aggregating overall PR values. 
     pr.for_all(agg_pr_lambda);
-    world.all_reduce_sum(agg_pr);
+    f_agg_pr = world.all_reduce_sum(agg_pr);
+    //std::cout << "LOGGER: " << "Individual PR: " << agg_pr << "." << std::endl;
+    std::cout << "LOGGER: " << "Completed Iter: " << iter 
+              << ", Aggregated PR: " << f_agg_pr << "." << std::endl;
 
-    std::cout << "LOGGER: " << "Aggregated PR: " << agg_pr << "." << std::endl;
-    agg_pr = 0.;
+    agg_pr = 0.; //Reset.
 
-    double elapsed = pr_timer.elapsed();
+    elapsed = pr_timer.elapsed();
     std::cout << "Iter time: " << elapsed << std::endl;
     pr_timer.reset();
   }
 
   //std::cout << "After update: " << std::endl;
   //pr.for_all(print_pr_lambda);
-
   return 0;
 }
