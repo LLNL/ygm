@@ -16,13 +16,12 @@
 
 #include <ygm/utility.hpp>
 
-void compute_norm(
+double compute_norm(
   ygm::container::map<boost::json::string, double> &pr_old, 
   ygm::container::map<boost::json::string, double> &pr_new,
-  ygm::container::map<std::string, double> norm_map,
   ygm::comm &world) {
 
-  using map_type = ygm::container::map<std::string, double>;
+  using map_type = ygm::container::map<boost::json::string, double>;
 
   int N_old = pr_old.size();
   int N_new = pr_new.size();
@@ -31,13 +30,11 @@ void compute_norm(
   auto pr_old_ptr = pr_old.get_ygm_ptr();
   auto pr_new_ptr = pr_new.get_ygm_ptr();
 
-  //map_type norm_map(world);
-  norm_map.async_insert(std::string("dist"), 0);
+  map_type norm_map(world);
   auto norm_map_ptr = norm_map.get_ygm_ptr();
 
   auto compute_norm_lambda = [&pr_old_ptr, &pr_new_ptr, &norm_map_ptr](auto old_pr_pair) {
 
-    //norm_acc += 1;
     auto vtx_id = old_pr_pair.first;
     auto pr_val = old_pr_pair.second; // old PR value.
 
@@ -47,21 +44,20 @@ void compute_norm(
       auto new_val = new_pr_pair.second;
 
       auto diff = (new_val - old_val);
-      diff = diff * diff;
-      //norm_acc = diff + 10;
+      diff = diff * diff; 
 
-      //norm_acc = norm_acc + diff;
-      //std::cout << vtx_id << " " << old_val << " " << new_val << std::endl;
-      //std::cout << norm_acc << " " << diff << std::endl;
+      norm_map_ptr->async_insert_if_missing(vtx_id, diff); 
 
+      #ifdef dbg
       auto accumulate_lambda = [](auto &row_id_val, const auto &update_val) {
         auto row_id = row_id_val.first;
         auto value =  row_id_val.second;
         auto append_val = value + update_val;
         row_id_val.second = row_id_val.second + update_val;
       };
-
       norm_map_ptr->async_insert_if_missing_else_visit(std::string("dist"), diff, accumulate_lambda);
+      #endif
+
     };
 
     pr_new_ptr->async_visit(vtx_id, visit_new_pr, pr_val, norm_map_ptr);
@@ -70,13 +66,15 @@ void compute_norm(
   pr_old_ptr->for_all(compute_norm_lambda);
   world.barrier();
 
-  //double global_norm_acc; 
-  //double global_norm_acc = world.all_reduce_sum(norm_acc);
-  //std::cout << global_norm_acc;
-  auto print_res_lambda = [](auto res_kv_pair) {
-    std::cout << "Resulting norm: "  << sqrt(res_kv_pair.second) << std::endl;
+  double norm_acc{0.};
+  auto print_res_lambda = [&norm_acc](auto res_kv_pair) {
+    norm_acc += res_kv_pair.second; 
   };
-  norm_map.async_visit(std::string("dist"), print_res_lambda);
+  norm_map.for_all(print_res_lambda);
+  double global_norm_acc = sqrt(world.all_reduce_sum(norm_acc));
+  std::cout << norm_acc << " " << global_norm_acc << std::endl;
+
+  return global_norm_acc;
 }
 
 int main(int argc, char **argv) {
@@ -86,10 +84,6 @@ int main(int argc, char **argv) {
   using map_type      = ygm::container::map<boost::json::string, double>;
   using maptrix_type  = ygm::container::experimental::maptrix<boost::json::string, double>;
   namespace ns_spmv   = ygm::container::experimental::detail::algorithms;
-
-  //using map_type      = ygm::container::map<std::string, double>;
-  //using maptrix_type  = ygm::container::experimental::maptrix<std::string, double>;
-  //namespace ns_spmv   = ygm::container::experimental::detail::algorithms;
 
   map_type pr(world);
   map_type deg(world);
@@ -106,18 +100,6 @@ int main(int argc, char **argv) {
   auto deg_acc_lambda = [](auto &rv_pair, const auto &update_val) {
     rv_pair.second = rv_pair.second + update_val;
   };
-
-  #ifdef abc
-  auto fname = argv[0];
-  std::ifstream matfile();
-  std::string key1, key2;
-  if (world.rank0()) {
-    while (matfile >> key1 >> key2) {
-      A.async_insert(key1, key2, 1.0);
-      deg.async_insert_if_missing_else_visit(key2, 1.0, deg_acc_lambda);
-    }
-  }
-  #endif
 
   ygm::timer read_graph_timer{};
 
@@ -179,7 +161,7 @@ int main(int argc, char **argv) {
     std::cout << "[In map lambda] key: " << res_kv_pair.first << ", col: " << res_kv_pair.second << std::endl;
   };
 
-  #ifdef abc
+  #ifdef dbg
   A.for_all(ijk_lambda);
   world.barrier();
   pr.for_all(map_lambda);
@@ -204,10 +186,12 @@ int main(int argc, char **argv) {
   deg.for_all(deg_lambda);
   world.barrier();
 
-  //deg.for_all(map_lambda);
-  //world.barrier();
-  //A.for_all(ijk_lambda);
-  //world.barrier(); 
+  #ifdef dbg
+  deg.for_all(map_lambda);
+  world.barrier();
+  A.for_all(ijk_lambda);
+  world.barrier(); 
+  #endif
 
   elapsed = preprocess_timer.elapsed();
   std::cout << "Preprocess time: " << elapsed << std::endl;
@@ -220,18 +204,16 @@ int main(int argc, char **argv) {
 
   double agg_pr{0.};
   auto agg_pr_lambda = [&agg_pr](auto &vtx_pr_pair) {
-    //std::cout << agg_pr << " " << vtx_pr_pair.second << std::endl;
     agg_pr = agg_pr + vtx_pr_pair.second;
   };
   pr.for_all(agg_pr_lambda);
   auto f_agg_pr = world.all_reduce_sum(agg_pr);
-  std::cout << "LOGGER: " << "Aggregated PR: " << f_agg_pr << "." << std::endl;
-
-  ygm::container::map<std::string, double> norm_map(world);
-  //auto norm_map_ptr = norm_map.get_ygm_ptr();
+  std::cout << "LOGGER: " << "Init iter: Agg PR: " << f_agg_pr << "." << std::endl;
 
   agg_pr = 0.;
   double d_val = 0.85;
+  double norm = 0.;
+  double tol = 1e-6;
   for (int iter = 0; iter < 100; iter++) {
 
     auto map_res = ns_spmv::spmv(A, pr);
@@ -240,42 +222,38 @@ int main(int argc, char **argv) {
     auto adding_damping_pr_lambda = [map_res_ptr, d_val, N](auto &vtx_pr) {
       auto vtx_id = vtx_pr.first;
       auto pg_rnk = vtx_pr.second;
-      //std::cout << "vtx id: " << vtx_id << ", pg rank: " << pg_rnk << std::endl;
+
       auto visit_lambda = [] (auto &vtx_pr_pair, auto &da_val, auto &d_val) {
         vtx_pr_pair.second = da_val + d_val * vtx_pr_pair.second;
       };
+
       map_res_ptr->async_insert_if_missing_else_visit(vtx_id, (float (1-d_val)/N), visit_lambda, d_val);
     };
     pr.for_all(adding_damping_pr_lambda);
     world.barrier(); //Does the map already have a barrier? 
 
-    compute_norm(pr, map_res, norm_map, world);
-    //auto print_res_lambda = [](auto res_kv_pair) {
-      //std::cout << "Resulting: " << " key: " << res_kv_pair.first 
-                //<< ", col: " << sqrt(res_kv_pair.second) << std::endl;
-    //};
-    //norm_map.async_visit(std::string("dist"), print_res_lambda);
+    norm = compute_norm(pr, map_res, world);
  
     pr.swap(map_res);
-
-    //std::cout << "After update: " << std::endl;
-    //pr.for_all(print_pr_lambda);
 
     //Aggregating overall PR values. 
     pr.for_all(agg_pr_lambda);
     f_agg_pr = world.all_reduce_sum(agg_pr);
-    //std::cout << "LOGGER: " << "Individual PR: " << agg_pr << "." << std::endl;
-    std::cout << "LOGGER: " << "Completed Iter: " << iter 
-              << ", Aggregated PR: " << f_agg_pr << "." << std::endl;
+    std::cout << "LOGGER: " << "Iter: " << iter 
+              << ", Agg PR: " << f_agg_pr 
+              << ", norm: " << norm
+              << "." << std::endl;
+
+    if (iter > 1 && norm < tol)
+      break;
 
     agg_pr = 0.; //Reset.
 
     elapsed = pr_timer.elapsed();
     std::cout << "Iter time: " << elapsed << std::endl;
     pr_timer.reset();
+
   }
 
-  //std::cout << "After update: " << std::endl;
-  //pr.for_all(print_pr_lambda);
   return 0;
 }
