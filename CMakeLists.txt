@@ -99,7 +99,8 @@ if (NOT cereal_FOUND)
         # Populate cereal
         FetchContent_Populate(cereal)
         # Include cereal root cmake boilerplate
-        add_subdirectory(${cereal_SOURCE_DIR})
+        add_subdirectory(${cereal_SOURCE_DIR} ${cereal_BINARY_DIR})
+
         message(STATUS "YGM cloned cereal dependency: " ${cereal_SOURCE_DIR})
     endif ()
     target_link_libraries(ygm INTERFACE cereal::cereal)
