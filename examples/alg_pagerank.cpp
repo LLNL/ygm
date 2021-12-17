@@ -44,14 +44,14 @@ int main(int argc, char **argv) {
   if (world.rank0()) {
     while (matfile >> key1 >> key2) {
       //A.async_insert(key1, key2, 1.0);
-      A.async_visit_or_insert(key1, key2, 1.0, A_acc_lambda, 1.0);
+      A.async_insert_if_missing_else_visit(key1, key2, 1.0, A_acc_lambda, 1.0);
       //pr.async_insert(key1, 0.25);
       //pr.async_insert(key2, 0.25);
       ////deg.async_insert_if_missing_else_visit(key1, 1.0, deg_acc_lambda);
       deg.async_insert_if_missing_else_visit(key2, 1.0, deg_acc_lambda);
 
       //A.async_insert(key2, key1, 1.0);
-      A.async_visit_or_insert(key2, key1, 1.0, A_acc_lambda, 1.0);
+      A.async_insert_if_missing_else_visit(key2, key1, 1.0, A_acc_lambda, 1.0);
       deg.async_insert_if_missing_else_visit(key1, 1.0, deg_acc_lambda);
     }
   }
