@@ -27,14 +27,15 @@ int main(int argc, char **argv) {
   auto my_map_ptr     = my_map.get_ygm_ptr();
   auto my_maptrix_ptr = my_maptrix.get_ygm_ptr(); 
 
-  //std::ifstream matfile("/g/g90/tom7/codebase/intern_2021/GraphBLAS/Demo/Matrix/bcsstk16");
-  //std::ifstream vecfile("/g/g90/tom7/codebase/data/vectors/map_sample_floats__4883.txt");
+  std::string fname = argv[1];
+  //std::ifstream matfile(fname);
+  //std::ifstream vecfile(fname);
 
-  std::ifstream matfile("/g/g90/tom7/codebase/intern_2021/GraphBLAS/Demo/Matrix/bcsstk16_1");
-  std::ifstream vecfile("/g/g90/tom7/codebase/data/vectors/map_sample_ints__4883.txt");
+  std::ifstream matfile(fname);
+  std::ifstream vecfile(fname);
   
-  //std::ifstream matfile("/g/g90/tom7/codebase/intern_2021/GraphBLAS/Demo/Matrix/ibm32a");
-  //std::ifstream vecfile("/g/g90/tom7/codebase/data/vectors/map_sample_floats__1.txt");
+  //std::ifstream matfile(fname);
+  //std::ifstream vecfile(fname);
 
   double value;
   std::string key1, key2;
@@ -67,7 +68,12 @@ int main(int argc, char **argv) {
 
   /* Perform the SpMV operation here. */
   //auto map_res = my_maptrix.spmv(my_map);
+  
+  /* Col. */
   auto map_res = ns_spmv::spmv(my_maptrix, my_map);
+
+  /* Row. */
+  //auto map_res = ns_spmv::spmv_row(my_maptrix, my_map);
 
   #ifdef dbg
   auto print_res_lambda = [](auto res_kv_pair) {
@@ -81,8 +87,9 @@ int main(int argc, char **argv) {
   std::cout << std::setprecision(8);
 
   gt_type map_gt(world);
-  //std::ifstream gtfile("/g/g90/tom7/codebase/data/vectors/spmv_res_floats__4883.txt");
-  std::ifstream gtfile("/g/g90/tom7/codebase/data/vectors/spmv_res_ints__4883.txt");
+  std::string gt_fname = argv[2];
+  //std::ifstream gtfile(gt_fname);
+  std::ifstream gtfile(gt_fname);
   if (world.rank0()) {
     while (gtfile >> key1 >> value) {
       map_gt.async_insert(key1, value);

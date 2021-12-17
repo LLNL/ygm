@@ -108,7 +108,8 @@ int main(int argc, char **argv) {
   };
 
   #ifdef abc
-  std::ifstream matfile("/g/g90/tom7/codebase/intern_2021/data/pr_small.graph");
+  auto fname = argv[0];
+  std::ifstream matfile();
   std::string key1, key2;
   if (world.rank0()) {
     while (matfile >> key1 >> key2) {
@@ -120,10 +121,11 @@ int main(int argc, char **argv) {
 
   ygm::timer read_graph_timer{};
 
-  //std::string fnames = "/p/lustre3/llamag/reddit/roger_tmp_2021_to_delete2";
-  auto fnames = std::vector<std::string>{"/p/lustre3/llamag/reddit/roger_tmp_2021_to_delete2/comments_0", "/p/lustre3/llamag/reddit/roger_tmp_2021_to_delete2/comments_1", "/p/lustre3/llamag/reddit/roger_tmp_2021_to_delete2/comments_2"};
-  //auto fnames = std::vector<std::string>{"/g/g90/tom7/codebase/ygm/examples/data/reddit_5000_comments0.txt"};
-  //auto fnames = std::vector<std::string>{"/g/g90/tom7/codebase/ygm/examples/data/reddit_5_comments0.txt"};
+  std::vector<std::string> fnames;
+  for (int i = 1; i < argc; ++i) {
+    fnames.push_back(argv[i]);
+    std::cout << argv[i];
+  }
 
   // Building the author-author graph.
   ygm::io::ndjson_parser json_parser(world, fnames);

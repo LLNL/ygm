@@ -29,7 +29,8 @@ int main(int argc, char **argv) {
   auto deg_ptr = deg.get_ygm_ptr();
   auto A_ptr   = A.get_ygm_ptr(); 
 
-  std::ifstream matfile("/g/g90/tom7/codebase/intern_2021/data/pr_small.graph");
+  std::string fname = argv[1];
+  std::ifstream matfile(fname);
 
   auto A_acc_lambda = [](auto &row, auto &col, auto &value, const auto &update_val) {
     value = value + update_val;
