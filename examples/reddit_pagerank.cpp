@@ -93,6 +93,11 @@ int main(int argc, char **argv) {
   auto deg_ptr = deg.get_ygm_ptr();
   auto A_ptr   = A.get_ygm_ptr(); 
 
+  if(argc == 1) {
+    std::cout << "Expected parameter arguments, exiting.." << std::endl;
+    exit(0);
+  }
+
   auto A_acc_lambda = [](auto &row, auto &col, auto &value, const auto &update_val) {
     value = value + update_val;
   };
@@ -214,9 +219,12 @@ int main(int argc, char **argv) {
   double d_val = 0.85;
   double norm = 0.;
   double tol = 1e-6;
+
+  auto times_op = ns_spmv::times<double>();
   for (int iter = 0; iter < 100; iter++) {
 
-    auto map_res = ns_spmv::spmv(A, pr);
+    auto map_res = ns_spmv::spmv(A, pr, std::plus<double>(), times_op);
+    //auto map_res = ns_spmv::spmv(A, pr);
     auto map_res_ptr = map_res.get_ygm_ptr();
 
     auto adding_damping_pr_lambda = [map_res_ptr, d_val, N](auto &vtx_pr) {

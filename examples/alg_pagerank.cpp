@@ -29,6 +29,11 @@ int main(int argc, char **argv) {
   auto deg_ptr = deg.get_ygm_ptr();
   auto A_ptr   = A.get_ygm_ptr(); 
 
+  if(argc == 1) {
+    std::cout << "Expected parameter arguments, exiting.." << std::endl;
+    exit(0);
+  }
+
   std::string fname = argv[1];
   std::ifstream matfile(fname);
 
@@ -43,10 +48,12 @@ int main(int argc, char **argv) {
   std::string key1, key2;
   if (world.rank0()) {
     while (matfile >> key1 >> key2) {
+
       //A.async_insert(key1, key2, 1.0);
       A.async_insert_if_missing_else_visit(key1, key2, 1.0, A_acc_lambda, 1.0);
       //pr.async_insert(key1, 0.25);
       //pr.async_insert(key2, 0.25);
+      
       ////deg.async_insert_if_missing_else_visit(key1, 1.0, deg_acc_lambda);
       deg.async_insert_if_missing_else_visit(key2, 1.0, deg_acc_lambda);
 
@@ -131,7 +138,10 @@ int main(int argc, char **argv) {
   for (int iter = 0; iter < 5; iter++) {
 
     /* Perform the SpMV operation here. */
-    auto map_res = ns_spmv::spmv(A, pr);
+    auto times_op = ns_spmv::times<double>();
+    auto map_res = ns_spmv::spmv(A, pr, std::plus<double>(), times_op);
+    //auto map_res = ns_spmv::spmv(A, pr);
+
     //map_res.for_all(print_pr_lambda);
     //world.barrier();
 

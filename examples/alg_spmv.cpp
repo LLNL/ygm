@@ -27,15 +27,15 @@ int main(int argc, char **argv) {
   auto my_map_ptr     = my_map.get_ygm_ptr();
   auto my_maptrix_ptr = my_maptrix.get_ygm_ptr(); 
 
-  std::string fname = argv[1];
-  //std::ifstream matfile(fname);
-  //std::ifstream vecfile(fname);
+  if(argc == 1) {
+    std::cout << "Expected parameter arguments, exiting.." << std::endl;
+    exit(0);
+  }
 
-  std::ifstream matfile(fname);
-  std::ifstream vecfile(fname);
-  
-  //std::ifstream matfile(fname);
-  //std::ifstream vecfile(fname);
+  std::string m_name = argv[1];
+  std::string v_name = argv[2];
+  std::ifstream matfile(m_name);
+  std::ifstream vecfile(v_name);
 
   double value;
   std::string key1, key2;
@@ -65,19 +65,16 @@ int main(int argc, char **argv) {
   my_map.for_all(map_lambda);
   world.barrier();
   #endif
-
-  /* Perform the SpMV operation here. */
-  //auto map_res = my_maptrix.spmv(my_map);
   
   /* Col. */
-  auto map_res = ns_spmv::spmv(my_maptrix, my_map);
-
-  /* Row. */
-  //auto map_res = ns_spmv::spmv_row(my_maptrix, my_map);
+  auto times_op = ns_spmv::times<double>();
+  auto map_res = ns_spmv::spmv(my_maptrix, my_map, std::plus<double>(), times_op);
+  //auto map_res = ns_spmv::spmv(my_maptrix, my_map);
 
   #ifdef dbg
   auto print_res_lambda = [](auto res_kv_pair) {
-    std::cout << "[In map res lambda] key: " << res_kv_pair.first << ", col: " << res_kv_pair.second << std::endl;
+    std::cout << "[In map res lambda] key: " << res_kv_pair.first << 
+                  ", col: " << res_kv_pair.second << std::endl;
   };
   map_res.for_all(print_res_lambda);
   world.barrier();
@@ -87,9 +84,9 @@ int main(int argc, char **argv) {
   std::cout << std::setprecision(8);
 
   gt_type map_gt(world);
-  std::string gt_fname = argv[2];
-  //std::ifstream gtfile(gt_fname);
+  std::string gt_fname = argv[3];
   std::ifstream gtfile(gt_fname);
+
   if (world.rank0()) {
     while (gtfile >> key1 >> value) {
       map_gt.async_insert(key1, value);
@@ -112,19 +109,15 @@ int main(int argc, char **argv) {
       auto gt_val = gt_pair.second;
 
       auto diff = (gt_val - res_val);
-      //diff = abs(diff);
       diff = diff * diff;
-      //std::cout << gt_val << " " << res_val << std::endl;
 
       auto accumulate_lambda = [](auto &row_id_val, const auto &update_val) {
         auto row_id = row_id_val.first;
         auto value =  row_id_val.second;
         auto append_val = value + update_val;
-        //std::cout << "Key: " << row_id << " " << value << " " << update_val << " " << append_val << std::endl;
         row_id_val.second = row_id_val.second + update_val;
       };
 
-      //norm_map_ptr->async_visit_or_insert(std::string("dist"), diff, accumulate_lambda, diff);
       norm_map_ptr->async_insert_if_missing_else_visit(std::string("dist"), diff, accumulate_lambda);
     };
 
