@@ -25,7 +25,6 @@ double compute_norm(
 
   int N_old = pr_old.size();
   int N_new = pr_new.size();
-  //std::cout << "Prev iter size: " << N_old << ", Current iter size: " << N_new << std::endl;
 
   auto pr_old_ptr = pr_old.get_ygm_ptr();
   auto pr_new_ptr = pr_new.get_ygm_ptr();
@@ -33,48 +32,34 @@ double compute_norm(
   map_type norm_map(world);
   auto norm_map_ptr = norm_map.get_ygm_ptr();
 
-  auto compute_norm_lambda = [&pr_old_ptr, &pr_new_ptr, &norm_map_ptr](auto old_pr_pair) {
+  static double local_norm_squared;
+  local_norm_squared = 0.0;  
+
+  auto compute_norm_lambda = [&pr_old_ptr, &pr_new_ptr](auto old_pr_pair) {
 
     auto vtx_id = old_pr_pair.first;
     auto pr_val = old_pr_pair.second; // old PR value.
 
-    auto visit_new_pr = [](auto &new_pr_pair, const auto old_val, auto &norm_map_ptr) {
+    auto visit_new_pr = [](auto &new_pr_pair, const auto old_val) {
 
       auto vtx_id = new_pr_pair.first;
       auto new_val = new_pr_pair.second;
 
       auto diff = (new_val - old_val);
       diff = diff * diff; 
-
-      norm_map_ptr->async_insert_if_missing(vtx_id, diff); 
-
-      #ifdef dbg
-      auto accumulate_lambda = [](auto &row_id_val, const auto &update_val) {
-        auto row_id = row_id_val.first;
-        auto value =  row_id_val.second;
-        auto append_val = value + update_val;
-        row_id_val.second = row_id_val.second + update_val;
-      };
-      norm_map_ptr->async_insert_if_missing_else_visit(std::string("dist"), diff, accumulate_lambda);
-      #endif
-
+      local_norm_squared += diff; 
     };
 
-    pr_new_ptr->async_visit(vtx_id, visit_new_pr, pr_val, norm_map_ptr);
+    pr_new_ptr->async_visit(vtx_id, visit_new_pr, pr_val);
   };
 
   pr_old_ptr->for_all(compute_norm_lambda);
   world.barrier();
 
-  double norm_acc{0.};
-  auto print_res_lambda = [&norm_acc](auto res_kv_pair) {
-    norm_acc += res_kv_pair.second; 
-  };
-  norm_map.for_all(print_res_lambda);
-  double global_norm_acc = sqrt(world.all_reduce_sum(norm_acc));
-  std::cout << norm_acc << " " << global_norm_acc << std::endl;
+  auto global_norm_squared = sqrt(world.all_reduce_sum(local_norm_squared));
+  //std::cout << "Static: " << local_norm_squared << " " << global_norm_squared << std::endl;
 
-  return global_norm_acc;
+  return global_norm_squared;
 }
 
 int main(int argc, char **argv) {
@@ -111,7 +96,6 @@ int main(int argc, char **argv) {
   std::vector<std::string> fnames;
   for (int i = 1; i < argc; ++i) {
     fnames.push_back(argv[i]);
-    std::cout << argv[i];
   }
 
   // Building the author-author graph.
@@ -120,9 +104,8 @@ int main(int argc, char **argv) {
     if (json_line["LL_author"] != "AutoModerator" &&
        json_line["LL_parent_author"] != "AutoModerator") {
 
-      /* Reading it in backward.. */
-      auto dst = json_line["LL_author"].as_string(); 
-      auto src = json_line["LL_parent_author"].as_string();
+      const auto &src = json_line["LL_author"].as_string(); 
+      const auto &dst = json_line["LL_parent_author"].as_string();
       
       A.async_insert_if_missing_else_visit(src, dst, 1.0, A_acc_lambda, 1.0);
       deg.async_insert_if_missing_else_visit(dst, 1.0, deg_acc_lambda);
@@ -133,9 +116,13 @@ int main(int argc, char **argv) {
   });
 
   std::cout << "LOGGER: Step 1: " << "Finished reading in the author-author graph." << std::endl; 
-
   double elapsed = read_graph_timer.elapsed();
   std::cout << "Read graph time: " << elapsed << std::endl;
+
+  double max_read_time = world.all_reduce_max(elapsed);
+  if (world.rank() == 0) {
+    std::cout << "[MAX] Read graph time: " << max_read_time << std::endl;
+  }
 
   ygm::timer preprocess_timer{};
 
@@ -200,7 +187,12 @@ int main(int argc, char **argv) {
 
   elapsed = preprocess_timer.elapsed();
   std::cout << "Preprocess time: " << elapsed << std::endl;
- 
+
+  double max_preprocess_time = world.all_reduce_max(elapsed);
+  if (world.rank() == 0) {
+    std::cout << "[MAX] Preprocess graph time: " << max_preprocess_time << std::endl;
+  }
+
   auto print_pr_lambda = [](auto &vtx_pr_pair) {
     std::cout << "[print pr] key: " << vtx_pr_pair.first << ", col: " << vtx_pr_pair.second << std::endl;
   };
@@ -223,11 +215,11 @@ int main(int argc, char **argv) {
   auto times_op = ns_spmv::times<double>();
   for (int iter = 0; iter < 100; iter++) {
 
-    auto map_res = ns_spmv::spmv(A, pr, std::plus<double>(), times_op);
     //auto map_res = ns_spmv::spmv(A, pr);
+    auto map_res = ns_spmv::spmv(A, pr, std::plus<double>(), times_op);
     auto map_res_ptr = map_res.get_ygm_ptr();
 
-    auto adding_damping_pr_lambda = [map_res_ptr, d_val, N](auto &vtx_pr) {
+    auto adding_damping_pr_lambda = [&map_res_ptr, d_val, N](auto &vtx_pr) {
       auto vtx_id = vtx_pr.first;
       auto pg_rnk = vtx_pr.second;
 
@@ -238,7 +230,7 @@ int main(int argc, char **argv) {
       map_res_ptr->async_insert_if_missing_else_visit(vtx_id, (float (1-d_val)/N), visit_lambda, d_val);
     };
     pr.for_all(adding_damping_pr_lambda);
-    world.barrier(); //Does the map already have a barrier? 
+    world.barrier();  
 
     norm = compute_norm(pr, map_res, world);
  
@@ -259,6 +251,12 @@ int main(int argc, char **argv) {
 
     elapsed = pr_timer.elapsed();
     std::cout << "Iter time: " << elapsed << std::endl;
+
+    double max_pr_time = world.all_reduce_max(elapsed);
+    if (world.rank() == 0) {
+      std::cout << "[MAX] Pagerank compute time: " << max_pr_time << std::endl;
+    }
+
     pr_timer.reset();
 
   }
