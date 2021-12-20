@@ -188,6 +188,11 @@ if (JUST_INSTALL_YGM)
     return()
 endif ()
 
+if (NOT CMAKE_BUILD_TYPE)
+	set(CMAKE_BUILD_TYPE Release)
+	message(STATUS "CMAKE_BUILD_TYPE is set as Release")
+endif ()
+
 # Testing & examples are only available if this is the main app
 if (YGM_MAIN_PROJECT)
     add_subdirectory(test)
