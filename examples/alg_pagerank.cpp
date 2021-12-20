@@ -141,7 +141,6 @@ int main(int argc, char **argv) {
     auto times_op = ns_spmv::times<double>();
     auto map_res = ns_spmv::spmv(A, pr, std::plus<double>(), times_op);
     //auto map_res = ns_spmv::spmv(A, pr);
-
     //map_res.for_all(print_pr_lambda);
     //world.barrier();
 
