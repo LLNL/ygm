@@ -70,6 +70,8 @@ int main(int argc, char **argv) {
   using maptrix_type  = ygm::container::experimental::maptrix<boost::json::string, double>;
   namespace ns_spmv   = ygm::container::experimental::detail::algorithms;
 
+  std::cout.precision(4);
+
   map_type pr(world);
   map_type deg(world);
   maptrix_type A(world);
@@ -254,7 +256,7 @@ int main(int argc, char **argv) {
 
     double max_pr_time = world.all_reduce_max(elapsed);
     if (world.rank() == 0) {
-      std::cout << "[MAX] Pagerank compute time: " << max_pr_time << std::endl;
+      std::cout << "Iter [" << iter << "]: [MAX] Pagerank compute time: " << max_pr_time << std::endl;
     }
 
     pr_timer.reset();
