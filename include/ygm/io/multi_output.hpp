@@ -38,12 +38,7 @@ class multi_output {
     }
   }
 
-  ~multi_output() {
-    m_comm.barrier();
-    for (const auto &[fname, file_ptr] : m_map_file_pointers) {
-      file_ptr->close();
-    }
-  }
+  ~multi_output() { m_comm.barrier(); }
 
   template <typename... Args>
   void async_write_line(const std::string &filename, Args &&... args) {
