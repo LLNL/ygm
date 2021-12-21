@@ -88,7 +88,8 @@ if (NOT cereal_FOUND)
     )
     FetchContent_GetProperties(cereal)
     if (cereal_POPULATED)
-        message(STATUS "YGM found already populated cereal dependency: "
+        message(STATUS ${PROJECT_NAME}
+                       " found already populated cereal dependency: "
                        ${cereal_SOURCE_DIR}
         )
     else ()
@@ -101,11 +102,15 @@ if (NOT cereal_FOUND)
         # Include cereal root cmake boilerplate
         add_subdirectory(${cereal_SOURCE_DIR} ${cereal_BINARY_DIR})
 
-        message(STATUS "YGM cloned cereal dependency: " ${cereal_SOURCE_DIR})
+        message(STATUS ${PROJECT_NAME} " cloned cereal dependency: "
+                       ${cereal_SOURCE_DIR}
+        )
     endif ()
     target_link_libraries(ygm INTERFACE cereal::cereal)
 else ()
-    message(STATUS "YGM found installed cereal dependency: " ${cereal_DIR})
+    message(STATUS ${PROJECT_NAME} " found installed cereal dependency: "
+                   ${cereal_DIR}
+    )
     # cereal installed with spack creates library target "cereal", whereas
     # installing from source creates target "cereal::cereal". This is the only
     # simple way I could figure out how to differentiate the two, but this will
@@ -128,9 +133,13 @@ endif ()
 # working on LC
 find_package(Boost 1.75)
 if (Boost_FOUND)
-    message(STATUS "YGM found boost include dirs: " ${Boost_INCLUDE_DIRS})
+    message(STATUS ${PROJECT_NAME} " found boost include dirs: "
+                   ${Boost_INCLUDE_DIRS}
+    )
 else ()
-    message(WARNING "YGM did not find Boost >=1.75. Building without Boost.")
+    message(WARNING ${PROJECT_NAME}
+                    " did not find Boost >=1.75. Building without Boost."
+    )
 endif ()
 
 option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
