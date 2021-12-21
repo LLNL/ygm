@@ -125,7 +125,7 @@ class comm {
 
   std::ostream &cerr() const {
     std::cerr << rank() << ": ";
-    return std::cout;
+    return std::cerr;
   }
 
   bool rank0() const { return rank() == 0; }
