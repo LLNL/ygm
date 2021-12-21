@@ -30,10 +30,11 @@ class multi_output {
         m_append_flag(append) {
     pthis.check(m_comm);
 
-    fs::path prefix_path(filename_prefix);
-
     // Create directories to hold files
     if (comm.rank0()) {
+      // Make sure prefix isn't an already existing filename
+      check_prefix(m_prefix_path);
+
       make_directories(m_prefix_path);
     }
   }
@@ -41,32 +42,32 @@ class multi_output {
   ~multi_output() { m_comm.barrier(); }
 
   template <typename... Args>
-  void async_write_line(const std::string &filename, Args &&... args) {
+  void async_write_line(const std::string &subpath, Args &&... args) {
     std::string s = pack_stream(args...);
 
     m_comm.async(
-        owner(filename),
-        [](auto mo_ptr, const std::string &filename, const std::string &s) {
+        owner(subpath),
+        [](auto mo_ptr, const std::string &subpath, const std::string &s) {
           fs::path fullname(mo_ptr->m_prefix_path);
-          fullname += filename;
+          fullname += subpath;
 
-          auto ofstream_iter = mo_ptr->m_map_file_pointers.find(filename);
+          auto ofstream_iter = mo_ptr->m_map_file_pointers.find(subpath);
           if (ofstream_iter == mo_ptr->m_map_file_pointers.end()) {
             const auto [iter, success] = mo_ptr->m_map_file_pointers.insert(
-                std::make_pair(filename, mo_ptr->make_ofstream_ptr(fullname)));
+                std::make_pair(subpath, mo_ptr->make_ofstream_ptr(fullname)));
             ofstream_iter = iter;
           }
 
           *(ofstream_iter->second) << s << "\n";
         },
-        pthis, filename, s);
+        pthis, subpath, s);
   }
 
   ygm::comm &comm() { return m_comm; }
 
  private:
-  int owner(const std::string &filename) {
-    auto [owner, bank] = partitioner(filename, m_comm.size(), 1024);
+  int owner(const std::string &subpath) {
+    auto [owner, bank] = partitioner(subpath, m_comm.size(), 1024);
     return owner;
   }
 
@@ -104,6 +105,22 @@ class multi_output {
     }
 
     return std::make_unique<std::ofstream>(p.c_str(), mode);
+  }
+
+  void check_prefix(const fs::path &p) {
+    std::string tmp_string = p.string();
+    if (tmp_string.back() == '/') {
+      tmp_string.pop_back();
+    }
+
+    fs::path tmp_path(tmp_string);
+
+    if (fs::exists(tmp_path) && !fs::is_directory(tmp_path)) {
+      m_comm.cerr() << "ERROR: Cannot use name of existing file as prefix for "
+                       "ygm::io::multi_output: "
+                    << tmp_path << std::endl;
+      MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+    }
   }
 
   fs::path                                              m_prefix_path;
