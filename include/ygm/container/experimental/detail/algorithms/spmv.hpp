@@ -42,11 +42,11 @@ namespace ygm::container::experimental::detail::algorithms {
 
     auto kv_lambda = [&A_ptr, &y_ptr, &plus_op, &times_op](const auto &kv_pair) {
 
-      auto &mptrx_comm = A_ptr->comm();
-      int rank         = mptrx_comm.rank();
+      //auto &mptrx_comm = A_ptr->comm();
+      //int rank         = mptrx_comm.rank();
       
-      auto col        = kv_pair.first;
-      auto col_value  = kv_pair.second;
+      auto &col        = kv_pair.first;
+      auto &col_value  = kv_pair.second;
       
       auto csc_visit_lambda = [](
         const auto &col, const auto &row, 
