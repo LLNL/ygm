@@ -51,22 +51,10 @@ if (EXISTS "${LOC_PATH}")
 endif ()
 
 #
-# Create the YGM target library
-#
-add_library(ygm INTERFACE)
-add_library(ygm::ygm ALIAS ygm)
-target_include_directories(
-    ygm INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-                  $<INSTALL_INTERFACE:include>
-)
-target_compile_features(ygm INTERFACE cxx_std_17)
-
-#
 # MPI and Threads are required
 #
 find_package(MPI REQUIRED)
 find_package(Threads REQUIRED)
-target_link_libraries(ygm INTERFACE MPI::MPI_CXX Threads::Threads stdc++fs)
 
 # prepare to FetchContent
 include(FetchContent)
@@ -74,9 +62,10 @@ include(FetchContent)
 #
 # Cereal
 #
-set(ygm_cereal_VERSION 1.3.0)
+set(YGM_CEREAL_VERSION 1.3.0)
 # Would like to version this find, but the spack config file is versionless so
 # will always throw an error.
+set(YGM_CEREAL_TARGET "cereal::cereal")
 find_package(cereal CONFIG QUIET)
 if (NOT cereal_FOUND)
     # Currently cereal version 1.3.0 has an outdated CMakeLists.txt, so we need
@@ -88,7 +77,8 @@ if (NOT cereal_FOUND)
     )
     FetchContent_GetProperties(cereal)
     if (cereal_POPULATED)
-        message(STATUS "YGM found already populated cereal dependency: "
+        message(STATUS ${PROJECT_NAME}
+                       " found already populated cereal dependency: "
                        ${cereal_SOURCE_DIR}
         )
     else ()
@@ -101,20 +91,23 @@ if (NOT cereal_FOUND)
         # Include cereal root cmake boilerplate
         add_subdirectory(${cereal_SOURCE_DIR} ${cereal_BINARY_DIR})
 
-        message(STATUS "YGM cloned cereal dependency: " ${cereal_SOURCE_DIR})
+        message(STATUS ${PROJECT_NAME} " cloned cereal dependency: "
+                       ${cereal_SOURCE_DIR}
+        )
     endif ()
-    target_link_libraries(ygm INTERFACE cereal::cereal)
 else ()
-    message(STATUS "YGM found installed cereal dependency: " ${cereal_DIR})
+    message(STATUS ${PROJECT_NAME} " found installed cereal dependency: "
+                   ${cereal_DIR}
+    )
     # cereal installed with spack creates library target "cereal", whereas
     # installing from source creates target "cereal::cereal". This is the only
     # simple way I could figure out how to differentiate the two, but this will
     # cause problems if a spack instance installs headers to a path that does
     # not include the substring "spack".
     if (${cereal_DIR} MATCHES ".*spack.*")
-        target_link_libraries(ygm INTERFACE cereal)
+        set(YGM_CEREAL_TARGET "cereal")
     else ()
-        target_link_libraries(ygm INTERFACE cereal::cereal)
+        # cereal::cereal should be the right target
     endif ()
 endif ()
 
@@ -122,16 +115,34 @@ endif ()
 # Boost
 #
 # only required by ygm/detail/cereal_boost_json.hpp. YGM will build if Boost is
-# not found. The user must manually link to executable.
+# not found. The user must manually link Boost to the executable.
 #
 # find_package(Boost 1.75 COMPONENTS json)  # this would be better, but is not
 # working on LC
 find_package(Boost 1.75)
 if (Boost_FOUND)
-    message(STATUS "YGM found boost include dirs: " ${Boost_INCLUDE_DIRS})
+    message(STATUS ${PROJECT_NAME} " found boost include dirs: "
+                   ${Boost_INCLUDE_DIRS}
+    )
 else ()
-    message(WARNING "YGM did not find Boost >=1.75. Building without Boost.")
+    message(WARNING ${PROJECT_NAME}
+                    " did not find Boost >=1.75. Building without Boost."
+    )
 endif ()
+
+#
+# Create the YGM target library
+#
+add_library(ygm INTERFACE)
+add_library(ygm::ygm ALIAS ygm)
+target_compile_features(ygm INTERFACE cxx_std_17)
+target_include_directories(
+    ygm INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                  $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(
+    ygm INTERFACE MPI::MPI_CXX Threads::Threads stdc++fs ${YGM_CEREAL_TARGET}
+)
 
 option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
 
