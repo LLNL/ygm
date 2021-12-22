@@ -20,17 +20,19 @@ int main(int argc, char **argv) {
     std::string base_dir{"test_dir/"};
     std::string prefix_path{base_dir + std::string("nested_dir/")};
 
-    ygm::io::daily_output d(world, prefix_path);
+    {
+      ygm::io::daily_output d(world, prefix_path);
 
-    std::string message("my message from rank " + std::to_string(world.rank()));
+      std::string message("my message from rank " +
+                          std::to_string(world.rank()));
 
-    d.async_write_line(0, message);
-
-    world.barrier();
+      d.async_write_line(0, message);
+    }
 
     if (world.rank0()) {
       std::string expected_path(prefix_path + "1970/1/1");
       ASSERT_RELEASE(fs::exists(fs::path(expected_path)));
+      fs::remove_all(fs::path(base_dir));
     }
   }
 
