@@ -21,13 +21,22 @@ class multi_output {
  public:
   using self_type = multi_output<Partitioner>;
 
-  multi_output(ygm::comm &comm, const std::string &filename_prefix,
+  // filename_prefix is assumed to be a directory name and has a "/" appended if
+  // not already present to force it to be a directory
+  multi_output(ygm::comm &comm, std::string filename_prefix,
                bool append = false)
       : m_comm(comm),
         pthis(this),
         m_prefix_path(filename_prefix),
         m_append_flag(append) {
     pthis.check(m_comm);
+
+    // Adds "/" to filename_prefix to force it to be a directory
+    if (filename_prefix.back() != '/') {
+      filename_prefix.append("/");
+    }
+
+    m_prefix_path = fs::path(filename_prefix);
 
     // Create directories to hold files
     if (comm.rank0()) {
