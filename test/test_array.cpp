@@ -11,14 +11,14 @@
 int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
 
-  // Test async_put
+  // Test async_set
   {
     int                        size = 64;
     ygm::container::array<int> arr(world, size);
 
     if (world.rank0()) {
       for (int i = 0; i < size; ++i) {
-        arr.async_put(i, i);
+        arr.async_set(i, i);
       }
     }
 
@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
 
     if (world.rank0()) {
       for (int i = 0; i < size; ++i) {
-        arr.async_put(i, i);
+        arr.async_set(i, i);
       }
     }
 

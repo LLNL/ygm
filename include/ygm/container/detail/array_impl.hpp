@@ -54,7 +54,7 @@ class array_impl {
 
   void resize(const index_type size) { resize(size, m_default_value); }
 
-  void async_put(const index_type index, const value_type &value) {
+  void async_set(const index_type index, const value_type &value) {
     ASSERT_RELEASE(index < m_global_size);
     auto putter = [](auto parray, const index_type i, const value_type &v) {
       index_type l_index = parray->local_index(i);

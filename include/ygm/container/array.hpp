@@ -31,8 +31,8 @@ class array {
     m_impl.resize(size, value);
   }
 
-  void async_put(const index_type index, const value_type& value) {
-    m_impl.async_put(index, value);
+  void async_set(const index_type index, const value_type& value) {
+    m_impl.async_set(index, value);
   }
 
   template <typename BinaryOp>
