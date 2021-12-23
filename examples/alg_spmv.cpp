@@ -17,11 +17,11 @@ int main(int argc, char **argv) {
 
   ygm::comm world(&argc, &argv);
 
-  using gt_type = ygm::container::map<std::string, double>;
-  using maptrix_type = ygm::container::experimental::maptrix<std::string, double>;
-  namespace ns_spmv = ygm::container::experimental::detail::algorithms;
+  using map_type      = ygm::container::map<std::string, double>;
+  using maptrix_type  = ygm::container::experimental::maptrix<std::string, double>;
+  namespace ns_spmv   = ygm::container::experimental::detail::algorithms;
 
-  gt_type my_map(world);
+  map_type my_map(world);
   maptrix_type my_maptrix(world);
   
   auto my_map_ptr     = my_map.get_ygm_ptr();
@@ -34,9 +34,9 @@ int main(int argc, char **argv) {
 
   std::string m_name = argv[1];
   std::string v_name = argv[2];
+
   std::ifstream matfile(m_name);
   std::ifstream vecfile(v_name);
-
   double value;
   std::string key1, key2;
   if (world.rank0()) {
@@ -54,7 +54,8 @@ int main(int argc, char **argv) {
   auto ijk_lambda = [&my_maptrix](const auto &row, const auto &col, const auto &value) {
     auto &mptrx_comm = my_maptrix.comm();
     int rank         = mptrx_comm.rank();
-    std::cout << "[MPTRX]: In rank: " << rank << ", key1: " << row << ", key2: " << col << ", val: " << value << std::endl;
+    std::cout << "[MPTRX]: In rank: " << rank << ", key1: " 
+              << row << ", key2: " << col << ", val: " << value << std::endl;
   };
   my_maptrix.for_all(ijk_lambda);
   world.barrier();
@@ -66,10 +67,8 @@ int main(int argc, char **argv) {
   world.barrier();
   #endif
   
-  /* Col. */
   auto times_op = ns_spmv::times<double>();
-  auto map_res = ns_spmv::spmv(my_maptrix, my_map, std::plus<double>(), times_op);
-  //auto map_res = ns_spmv::spmv(my_maptrix, my_map);
+  auto map_res  = ns_spmv::spmv(my_maptrix, my_map, std::plus<double>(), std::multiplies<double>());
 
   #ifdef dbg
   auto print_res_lambda = [](auto res_kv_pair) {
@@ -83,7 +82,7 @@ int main(int argc, char **argv) {
   std::cout << std::fixed;
   std::cout << std::setprecision(8);
 
-  gt_type map_gt(world);
+  map_type map_gt(world);
   std::string gt_fname = argv[3];
   std::ifstream gtfile(gt_fname);
 
@@ -93,7 +92,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  gt_type norm_map(world);
+  map_type norm_map(world);
   norm_map.async_insert(std::string("dist"), 0);
 
   auto gt_ptr       = map_gt.get_ygm_ptr();

@@ -23,37 +23,28 @@ double compute_norm(
 
   using map_type = ygm::container::map<boost::json::string, double>;
 
-  int N_old = pr_old.size();
-  int N_new = pr_new.size();
-
-  auto pr_old_ptr = pr_old.get_ygm_ptr();
-  auto pr_new_ptr = pr_new.get_ygm_ptr();
-
-  map_type norm_map(world);
-  auto norm_map_ptr = norm_map.get_ygm_ptr();
-
   static double local_norm_squared;
   local_norm_squared = 0.0;  
 
-  auto compute_norm_lambda = [&pr_old_ptr, &pr_new_ptr](auto old_pr_pair) {
+  auto compute_norm_lambda = [&pr_new](const auto &old_pr_pair) {
 
-    auto vtx_id = old_pr_pair.first;
-    auto pr_val = old_pr_pair.second; // old PR value.
+    auto &vtx_id = old_pr_pair.first;
+    auto &pr_val = old_pr_pair.second; // old PR value.
 
-    auto visit_new_pr = [](auto &new_pr_pair, const auto old_val) {
+    auto visit_new_pr = [](const auto &new_pr_pair, const auto &old_val) {
 
-      auto vtx_id = new_pr_pair.first;
-      auto new_val = new_pr_pair.second;
+      auto &vtx_id = new_pr_pair.first;
+      auto &new_val = new_pr_pair.second;
 
       auto diff = (new_val - old_val);
       diff = diff * diff; 
       local_norm_squared += diff; 
     };
 
-    pr_new_ptr->async_visit(vtx_id, visit_new_pr, pr_val);
+    pr_new.async_visit(vtx_id, visit_new_pr, pr_val);
   };
 
-  pr_old_ptr->for_all(compute_norm_lambda);
+  pr_old.for_all(compute_norm_lambda);
   world.barrier();
 
   auto global_norm_squared = sqrt(world.all_reduce_sum(local_norm_squared));
@@ -76,13 +67,14 @@ int main(int argc, char **argv) {
   map_type deg(world);
   maptrix_type A(world);
   
-  auto pr_ptr  = pr.get_ygm_ptr();
-  auto deg_ptr = deg.get_ygm_ptr();
-  auto A_ptr   = A.get_ygm_ptr(); 
-
   if(argc == 1) {
     std::cout << "Expected parameter arguments, exiting.." << std::endl;
     exit(0);
+  }
+
+  std::vector<std::string> fnames;
+  for (int i = 1; i < argc; ++i) {
+    fnames.push_back(argv[i]);
   }
 
   auto A_acc_lambda = [](auto &row, auto &col, auto &value, const auto &update_val) {
@@ -93,12 +85,8 @@ int main(int argc, char **argv) {
     rv_pair.second = rv_pair.second + update_val;
   };
 
+  world.barrier();
   ygm::timer read_graph_timer{};
-
-  std::vector<std::string> fnames;
-  for (int i = 1; i < argc; ++i) {
-    fnames.push_back(argv[i]);
-  }
 
   // Building the author-author graph.
   ygm::io::ndjson_parser json_parser(world, fnames);
@@ -117,15 +105,14 @@ int main(int argc, char **argv) {
     }
   });
 
-  std::cout << "LOGGER: Step 1: " << "Finished reading in the author-author graph." << std::endl; 
+  world.barrier();
   double elapsed = read_graph_timer.elapsed();
-  std::cout << "Read graph time: " << elapsed << std::endl;
-
-  double max_read_time = world.all_reduce_max(elapsed);
   if (world.rank() == 0) {
-    std::cout << "[MAX] Read graph time: " << max_read_time << std::endl;
+    std::cout << "LOGGER: " << "Rank: " << world.rank()  
+              << ", [MAX] Read graph time: " << elapsed << "s." << std::endl;
   }
 
+  world.barrier();
   ygm::timer preprocess_timer{};
 
   double init_pr = 0.;
@@ -133,73 +120,54 @@ int main(int argc, char **argv) {
     pr.async_insert(key, init_pr);
   };
   A.for_all_row(acc_lambda);
-  A.for_all_col(acc_lambda); 
-  std::cout << "LOGGER: Step 2: " << "Created pagerank vector." << std::endl;
+  //A.for_all_col(acc_lambda); //Not reqd, undirected.
+  if (world.rank() == 0) { 
+    std::cout << "LOGGER: " << "Rank: " << world.rank() 
+            << ", Step 2: " << "Created PageRank vector." << std::endl;
+  }
 
   int N = pr.size();
   init_pr = ((float) 1)/N;
-  std::cout << "N: " << N << ", init pr: " <<  init_pr << std::endl;
+  if (world.rank() == 0) {
+    std::cout << "LOGGER: " << "Rank: " << world.rank()
+            << ", N: " << N << ", init PR: " <<  init_pr << "."<< std::endl;
+  }
+
   auto mod_pr_lambda = [&init_pr](auto &rv_pair) {
     rv_pair.second = init_pr;
   };
   pr.for_all(mod_pr_lambda);
-  std::cout << "LOGGER: Step 3: " << "Scaled pagerank values." << std::endl;
+  if (world.rank() == 0) {
+    std::cout << "LOGGER: " << "Rank: " << world.rank() 
+            << ", Step 3: " << "Scaled PageRank values." << std::endl;
+  }
 
-  auto ijk_lambda = [&A](auto row, auto col, auto value) {
-    auto &mptrx_comm = A.comm();
-    int rank         = mptrx_comm.rank();
-    std::cout << "[MPTRX]: In rank: " << rank << ", key1: " << row << ", key2: " << col << ", val: " << value << std::endl;
-  };
-
-  auto map_lambda = [](auto res_kv_pair) {
-    std::cout << "[In map lambda] key: " << res_kv_pair.first << ", col: " << res_kv_pair.second << std::endl;
-  };
-
-  #ifdef dbg
-  A.for_all(ijk_lambda);
-  world.barrier();
-  pr.for_all(map_lambda);
-  world.barrier();
-  deg.for_all(map_lambda);
-  world.barrier();
-  #endif
-
-  auto deg_lambda = [&A_ptr](auto &kv_pair) {
+  auto deg_lambda = [&A](auto &kv_pair) {
     auto vtx = kv_pair.first;
     auto deg = kv_pair.second;
 
     auto scale_A_lambda = [](const auto &row, const auto &col, auto &value, const auto &deg){
-      //std::cout << "Inside scale lambda: " << row << " " << col << " " << value << std::endl;
       value = ((float) value)/deg;
     };
-    A_ptr->async_visit_col_mutate(vtx, scale_A_lambda, deg);
+    A.async_visit_col_mutate(vtx, scale_A_lambda, deg);
   };
-
-  std::cout << "LOGGER: Step 4: " << "Scaled adjacency matrix values." << std::endl;
-
   deg.for_all(deg_lambda);
   world.barrier();
 
-  #ifdef dbg
-  deg.for_all(map_lambda);
-  world.barrier();
-  A.for_all(ijk_lambda);
-  world.barrier(); 
-  #endif
+  if (world.rank() == 0) {
+    std::cout << "LOGGER: " << "Rank: " << world.rank() 
+            << ", Step 4: " << "Scaled adjacency matrix values." << std::endl;
+  }
 
   elapsed = preprocess_timer.elapsed();
-  std::cout << "Preprocess time: " << elapsed << std::endl;
-
-  double max_preprocess_time = world.all_reduce_max(elapsed);
   if (world.rank() == 0) {
-    std::cout << "[MAX] Preprocess graph time: " << max_preprocess_time << std::endl;
+    std::cout << "LOGGER: " << "Rank: " << world.rank()
+              << ", [MAX] Preprocess graph time: " << elapsed << "s." << std::endl;
   }
 
   auto print_pr_lambda = [](auto &vtx_pr_pair) {
     std::cout << "[print pr] key: " << vtx_pr_pair.first << ", col: " << vtx_pr_pair.second << std::endl;
   };
-
-  ygm::timer pr_timer{};
 
   double agg_pr{0.};
   auto agg_pr_lambda = [&agg_pr](auto &vtx_pr_pair) {
@@ -207,21 +175,28 @@ int main(int argc, char **argv) {
   };
   pr.for_all(agg_pr_lambda);
   auto f_agg_pr = world.all_reduce_sum(agg_pr);
-  std::cout << "LOGGER: " << "Init iter: Agg PR: " << f_agg_pr << "." << std::endl;
+  if (world.rank() == 0) {
+    std::cout << "LOGGER: " << "Rank: " << world.rank() 
+            << ", Init iter: Agg PR: " << f_agg_pr << "." << std::endl;
+  }
 
   agg_pr = 0.;
   double d_val = 0.85;
   double norm = 0.;
   double tol = 1e-6;
 
-  auto times_op = ns_spmv::times<double>();
+  //Add overall pagerank timer here.
+  world.barrier();
+  ygm::timer overall_pr_timer{};
+
   for (int iter = 0; iter < 100; iter++) {
 
-    //auto map_res = ns_spmv::spmv(A, pr);
-    auto map_res = ns_spmv::spmv(A, pr, std::plus<double>(), times_op);
-    auto map_res_ptr = map_res.get_ygm_ptr();
+    world.barrier();
+    ygm::timer pr_timer{};
 
-    auto adding_damping_pr_lambda = [&map_res_ptr, d_val, N](auto &vtx_pr) {
+    auto map_res = ns_spmv::spmv(A, pr, std::plus<double>(), std::multiplies<double>());
+
+    auto adding_damping_pr_lambda = [&map_res, &d_val, &N](auto &vtx_pr) {
       auto vtx_id = vtx_pr.first;
       auto pg_rnk = vtx_pr.second;
 
@@ -229,10 +204,17 @@ int main(int argc, char **argv) {
         vtx_pr_pair.second = da_val + d_val * vtx_pr_pair.second;
       };
 
-      map_res_ptr->async_insert_if_missing_else_visit(vtx_id, (float (1-d_val)/N), visit_lambda, d_val);
+      map_res.async_insert_if_missing_else_visit(vtx_id, (float (1-d_val)/N), visit_lambda, d_val);
     };
     pr.for_all(adding_damping_pr_lambda);
     world.barrier();  
+
+    elapsed = pr_timer.elapsed();
+    if (world.rank() == 0) {
+      std::cout << "LOGGER: " << "Rank: " << world.rank() 
+                << ", Iter [" << iter << "]: [MAX] PageRank compute time: " 
+                << elapsed << "s." << std::endl;
+    }
 
     norm = compute_norm(pr, map_res, world);
  
@@ -241,26 +223,19 @@ int main(int argc, char **argv) {
     //Aggregating overall PR values. 
     pr.for_all(agg_pr_lambda);
     f_agg_pr = world.all_reduce_sum(agg_pr);
-    std::cout << "LOGGER: " << "Iter: " << iter 
-              << ", Agg PR: " << f_agg_pr 
-              << ", norm: " << norm
-              << "." << std::endl;
+    agg_pr = 0.; //Reset.
+    pr_timer.reset();
 
     if (iter > 1 && norm < tol)
       break;
+  }
 
-    agg_pr = 0.; //Reset.
-
-    elapsed = pr_timer.elapsed();
-    std::cout << "Iter time: " << elapsed << std::endl;
-
-    double max_pr_time = world.all_reduce_max(elapsed);
-    if (world.rank() == 0) {
-      std::cout << "Iter [" << iter << "]: [MAX] Pagerank compute time: " << max_pr_time << std::endl;
-    }
-
-    pr_timer.reset();
-
+  world.barrier();
+  double overall_elapsed = overall_pr_timer.elapsed();
+  if (world.rank() == 0) {
+    std::cout << "LOGGER: " << "Rank: " << world.rank()
+              << ", [MAX] Overall PageRank time: "
+              << overall_elapsed << "s." << std::endl;
   }
 
   return 0;

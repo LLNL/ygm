@@ -17,41 +17,38 @@
 
 namespace ygm::container::experimental::detail::algorithms {
 
+  /* Operator times class. */
   template<typename Value>
   class times {
     public:
-    const Value operator() (const Value &a, const Value &b) {
+    Value operator() (const Value &a, const Value &b) const {
       return a*b;
     }
   };
 
+  /* Function to support tranpose. */
+
   template <typename Key, typename Value, typename OpPlus, typename OpMultiply>
   ygm::container::map<Key, Value> spmv(
     ygm::container::experimental::maptrix<Key, Value> &A, ygm::container::map<Key, Value> &x,
-    OpPlus plus_op=std::plus<Value>(), OpMultiply times_op=times<Value>()) {
+    const OpPlus &plus_op=std::plus<Value>(), const OpMultiply &times_op=times<Value>()) {
     
     using key_type    = Key;
     using value_type  = Value;
     using map_type    = ygm::container::map<key_type, value_type>;
 
-    auto A_ptr = A.get_ygm_ptr();
-    auto A_comm = A_ptr->comm();
-
-    map_type y(A_comm);
+    map_type y(A.comm());
     auto y_ptr = y.get_ygm_ptr();
 
-    auto kv_lambda = [&A_ptr, &y_ptr, &plus_op, &times_op](const auto &kv_pair) {
+    auto kv_lambda = [&A, &y_ptr, &plus_op, &times_op](const auto &kv_pair) {
 
-      //auto &mptrx_comm = A_ptr->comm();
-      //int rank         = mptrx_comm.rank();
-      
       auto &col        = kv_pair.first;
       auto &col_value  = kv_pair.second;
       
       auto csc_visit_lambda = [](
         const auto &col, const auto &row, 
         const auto &A_value, const auto &x_value, 
-        const auto &y_ptr, const auto &plus_op, auto times_op) {
+        const auto &y_ptr, const auto &plus_op, const auto &times_op) {
 
         //auto element_wise = A_value * x_value;
         auto element_wise = times_op(A_value, x_value); 
@@ -67,11 +64,11 @@ namespace ygm::container::experimental::detail::algorithms {
         y_ptr->async_insert_if_missing_else_visit(row, element_wise, append_lambda, plus_op);
       };
       
-      A_ptr->async_visit_col_const(col, csc_visit_lambda, col_value, y_ptr, plus_op, times_op);
+      A.async_visit_col_const(col, csc_visit_lambda, col_value, y_ptr, plus_op, times_op);
     };
 
     x.for_all(kv_lambda);
-    A_comm.barrier();
+    A.comm().barrier();
 
     return y;
   }
