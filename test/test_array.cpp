@@ -12,22 +12,20 @@ int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
 
   // Test async_put
-  /*
-{
-int                        size = 64;
-ygm::container::array<int> arr(world, size);
+  {
+    int                        size = 64;
+    ygm::container::array<int> arr(world, size);
 
-if (world.rank0()) {
-for (int i = 0; i < size; ++i) {
-  arr.async_put(i, i);
-}
-}
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        arr.async_put(i, i);
+      }
+    }
 
-arr.for_all([](const auto index, const auto value) {
-ASSERT_RELEASE(index == value);
-});
-}
-  */
+    arr.for_all([](const auto index, const auto value) {
+      ASSERT_RELEASE(index == value);
+    });
+  }
 
   // Test resize
   {

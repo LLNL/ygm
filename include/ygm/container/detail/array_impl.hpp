@@ -47,12 +47,9 @@ class array_impl {
 
     index_type local_size =
         (size / m_comm.size()) + (m_comm.rank() < (size % m_comm.size()));
-    m_local_vec.resize(local_size);
+    m_local_vec.resize(local_size, fill_value);
 
-    for (int i = curr_local_size; i < local_size; ++i) {
-      ASSERT_RELEASE(i < m_local_vec.size());
-      m_local_vec[i] = fill_value;
-    }
+    m_comm.barrier();
   }
 
   void resize(const index_type size) { resize(size, m_default_value); }
