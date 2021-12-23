@@ -12,20 +12,22 @@ int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
 
   // Test async_put
-  {
-    int                        size = 64;
-    ygm::container::array<int> arr(world, size);
+  /*
+{
+int                        size = 64;
+ygm::container::array<int> arr(world, size);
 
-    if (world.rank0()) {
-      for (int i = 0; i < size; ++i) {
-        arr.async_put(i, i);
-      }
-    }
+if (world.rank0()) {
+for (int i = 0; i < size; ++i) {
+  arr.async_put(i, i);
+}
+}
 
-    arr.for_all([](const auto index, const auto value) {
-      ASSERT_RELEASE(index == value);
-    });
-  }
+arr.for_all([](const auto index, const auto value) {
+ASSERT_RELEASE(index == value);
+});
+}
+  */
 
   // Test resize
   {
@@ -49,29 +51,27 @@ int main(int argc, char **argv) {
   }
 
   // Test async_binary_op_update_value
-  /*
-{
-int size = 32;
+  {
+    int size = 32;
 
-ygm::container::array<int> arr(world, size);
+    ygm::container::array<int> arr(world, size);
 
-if (world.rank0()) {
-for (int i = 0; i < size; ++i) {
-  arr.async_put(i, i);
-}
-}
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        arr.async_put(i, i);
+      }
+    }
 
-world.barrier();
+    world.barrier();
 
-for (int i = 0; i < size; ++i) {
-arr.async_binary_op_update_value(i, 1, std::plus<int>());
-}
+    for (int i = 0; i < size; ++i) {
+      arr.async_binary_op_update_value(i, 1, std::plus<int>());
+    }
 
-arr.for_all([&world](const auto index, const auto value) {
-ASSERT_RELEASE(value == index + world.size());
-});
-}
-  */
+    arr.for_all([&world](const auto index, const auto value) {
+      ASSERT_RELEASE(value == index + world.size());
+    });
+  }
 
   return 0;
 }
