@@ -50,6 +50,7 @@ class array_impl {
     m_local_vec.resize(local_size);
 
     for (int i = curr_local_size; i < local_size; ++i) {
+      ASSERT_RELEASE(i < m_local_vec.size());
       m_local_vec[i] = fill_value;
     }
   }
@@ -57,9 +58,11 @@ class array_impl {
   void resize(const index_type size) { resize(size, m_default_value); }
 
   void async_put(const index_type index, const value_type &value) {
-    auto putter = [](auto pthis, const index_type i, const value_type &v) {
-      index_type l_index          = pthis->local_index(i);
-      pthis->m_local_vec[l_index] = v;
+    ASSERT_RELEASE(index < m_global_size);
+    auto putter = [](auto parray, const index_type i, const value_type &v) {
+      index_type l_index = parray->local_index(i);
+      ASSERT_RELEASE(l_index < parray->m_local_vec.size());
+      parray->m_local_vec[l_index] = v;
     };
 
     int dest = owner(index);
@@ -70,6 +73,7 @@ class array_impl {
   void async_binary_op_update_value(const index_type  index,
                                     const value_type &value,
                                     const BinaryOp &  b) {
+    ASSERT_RELEASE(index < m_global_size);
     auto updater = [](const index_type i, value_type &v,
                       const value_type &new_value) {
       v = BinaryOp()(v, new_value);
@@ -81,10 +85,12 @@ class array_impl {
   template <typename Visitor, typename... VisitorArgs>
   void async_visit(const index_type index, Visitor visitor,
                    const VisitorArgs &... args) {
+    ASSERT_RELEASE(index < m_global_size);
     int  dest          = owner(index);
     auto visit_wrapper = [](auto parray, const index_type i,
                             const VisitorArgs &... args) {
-      index_type  l_index = parray->local_index(i);
+      index_type l_index = parray->local_index(i);
+      ASSERT_RELEASE(l_index < parray->m_local_vec.size());
       value_type &l_value = parray->m_local_vec[l_index];
       Visitor *   vis     = nullptr;
       ygm::meta::apply_optional(*vis, std::make_tuple(parray),
