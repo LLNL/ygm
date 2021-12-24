@@ -63,7 +63,68 @@ int main(int argc, char **argv) {
     world.barrier();
 
     for (int i = 0; i < size; ++i) {
-      arr.async_binary_op_update_value(i, 1, std::plus<int>());
+      arr.async_binary_op_update_value(i, 2, std::plus<int>());
+    }
+
+    arr.for_all([&world](const auto index, const auto value) {
+      ASSERT_RELEASE(value == index + 2 * world.size());
+    });
+  }
+
+  // Test async_bit_xor
+  {
+    int size = 64;
+
+    ygm::container::array<int> arr(world, size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        arr.async_set(i, i);
+      }
+    }
+
+    world.barrier();
+
+    for (int i = 0; i < size; ++i) {
+      arr.async_bit_xor(i, world.rank());
+    }
+
+    arr.for_all([&world](const auto index, const auto value) {
+      int cumulative_xor;
+      switch ((world.size() - 1) % 4) {
+        case 0:
+          cumulative_xor = world.size() - 1;
+          break;
+        case 1:
+          cumulative_xor = 1;
+          break;
+        case 2:
+          cumulative_xor = world.size();
+          break;
+        case 3:
+          cumulative_xor = 0;
+          break;
+      }
+      ASSERT_RELEASE(value == index ^ cumulative_xor);
+    });
+  }
+
+  // Test async_increment
+  {
+    int size = 64;
+
+    ygm::container::array<int> arr(world, size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        arr.async_set(i, i);
+      }
+    }
+
+    world.barrier();
+
+    for (int i = 0; i < size; ++i) {
+      arr.async_increment(i);
     }
 
     arr.for_all([&world](const auto index, const auto value) {

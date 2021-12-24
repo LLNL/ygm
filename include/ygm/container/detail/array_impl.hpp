@@ -73,10 +73,22 @@ class array_impl {
     ASSERT_RELEASE(index < m_global_size);
     auto updater = [](const index_type i, value_type &v,
                       const value_type &new_value) {
-      v = BinaryOp()(v, new_value);
+      BinaryOp *binary_op;
+      v = (*binary_op)(v, new_value);
     };
 
     async_visit(index, updater, value);
+  }
+
+  template <typename UnaryOp>
+  void async_unary_op_update_value(const index_type index, const UnaryOp &u) {
+    ASSERT_RELEASE(index < m_global_size);
+    auto updater = [](const index_type i, value_type &v) {
+      UnaryOp *u;
+      v = (*u)(v);
+    };
+
+    async_visit(index, updater);
   }
 
   template <typename Visitor, typename... VisitorArgs>

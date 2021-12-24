@@ -42,6 +42,57 @@ class array {
     m_impl.async_binary_op_update_value(index, value, b);
   }
 
+  void async_bit_and(const index_type index, const value_type& value) {
+    async_binary_op_update_value(index, value, std::bit_and<value_type>());
+  }
+
+  void async_bit_or(const index_type index, const value_type& value) {
+    async_binary_op_update_value(index, value, std::bit_or<value_type>());
+  }
+
+  void async_bit_xor(const index_type index, const value_type& value) {
+    async_binary_op_update_value(index, value, std::bit_xor<value_type>());
+  }
+
+  void async_logical_and(const index_type index, const value_type& value) {
+    async_binary_op_update_value(index, value, std::logical_and<value_type>());
+  }
+
+  void async_logical_or(const index_type index, const value_type& value) {
+    async_binary_op_update_value(index, value, std::logical_or<value_type>());
+  }
+
+  void async_multiplies(const index_type index, const value_type& value) {
+    async_binary_op_update_value(index, value, std::multiplies<value_type>());
+  }
+
+  void async_divides(const index_type index, const value_type& value) {
+    async_binary_op_update_value(index, value, std::divides<value_type>());
+  }
+
+  void async_plus(const index_type index, const value_type& value) {
+    async_binary_op_update_value(index, value, std::plus<value_type>());
+  }
+
+  void async_minus(const index_type index, const value_type& value) {
+    async_binary_op_update_value(index, value, std::minus<value_type>());
+  }
+
+  template <typename UnaryOp>
+  void async_unary_op_update_value(const index_type index, const UnaryOp& u) {
+    m_impl.async_unary_op_update_value(index, u);
+  }
+
+  void async_increment(const index_type index) {
+    async_unary_op_update_value(index,
+                                [](const value_type& v) { return v + 1; });
+  }
+
+  void async_decrement(const index_type index) {
+    async_unary_op_update_value(index,
+                                [](const value_type& v) { return v - 1; });
+  }
+
   template <typename Visitor, typename... VisitorArgs>
   void async_visit(const index_type index, Visitor visitor,
                    const VisitorArgs&... args) {
