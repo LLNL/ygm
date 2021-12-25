@@ -27,8 +27,8 @@ int main(int argc, char **argv) {
 
   ygm::comm world(&argc, &argv);
 
-  using map_type      = ygm::container::map<std::string, double>;
-  using maptrix_type  = ygm::container::experimental::maptrix<std::string, double>;
+  using map_type      = ygm::container::map<ssize_t, int>;
+  using maptrix_type  = ygm::container::experimental::maptrix<ssize_t, int>;
   namespace ns_spmv   = ygm::container::experimental::detail::algorithms;
 
   map_type x(world);
@@ -52,27 +52,20 @@ int main(int argc, char **argv) {
   }
 
   ygm::io::line_parser line_parser(world, fnames);
-  line_parser.for_all([&A, &x](auto &line) {
+  ssize_t src, dst; 
+  line_parser.for_all([&A, &x, &src, &dst](auto &line) {
+    std::istringstream iss(line);
+    if (iss >> src >> dst) {
+      //std::cout << src << " " << dst << std::endl;
+      /* Maptrix A. */
+      A.async_insert(src, dst, 1);
+      A.async_insert(dst, src, 1);
 
-    boost::char_separator<char> sep(" ");
-    boost::tokenizer<boost::char_separator<char>> tokens(line, sep);
-    std::vector<std::string> vtx_ids;
-    for (const auto &t : tokens) {
-      std::string b_t{t};
-      vtx_ids.push_back(b_t);
+      /* Map x. */
+      // You might want to use rand here.
+      x.async_insert(src, 1);
+      x.async_insert(dst, 1);
     }
-
-    const auto &src = vtx_ids.at(0);
-    const auto &dst = vtx_ids.at(1);
-
-    /* Maptrix A. */
-    A.async_insert(src, dst, 1.0);
-    A.async_insert(dst, src, 1.0);
-
-    /* Map x. */
-    // You might want to use rand here.
-    x.async_insert(src, 1.0);
-    x.async_insert(dst, 1.0);
   });
 
   #ifdef dbg
@@ -93,8 +86,10 @@ int main(int argc, char **argv) {
   #endif
  
   world.barrier();
-  ygm::timer spmv_timer{};  
+  ygm::timer spmv_timer{};
+  
   auto y = ns_spmv::spmv(A, x, std::plus<double>(), std::multiplies<double>());
+
   world.barrier();
   double elapsed = spmv_timer.elapsed();
   if (world.rank() == 0) {
