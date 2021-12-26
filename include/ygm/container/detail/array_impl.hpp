@@ -119,6 +119,10 @@ class array_impl {
     }
   }
 
+  index_type size() { return m_global_size; }
+
+  typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }
+
   ygm::comm &comm() { return m_comm; }
 
   int owner(const index_type index) { return index % m_comm.size(); }

@@ -105,6 +105,12 @@ class array {
     m_impl.for_all(fn);
   }
 
+  index_type size() { return m_impl.size(); }
+
+  typename ygm::ygm_ptr<impl_type> get_ygm_ptr() const {
+    return m_impl.get_ygm_ptr();
+  }
+
   ygm::comm& comm() { return m_impl.comm(); }
 
  private:
