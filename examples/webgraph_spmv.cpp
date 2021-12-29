@@ -27,8 +27,12 @@ int main(int argc, char **argv) {
 
   ygm::comm world(&argc, &argv);
 
-  using map_type      = ygm::container::map<ssize_t, int>;
-  using maptrix_type  = ygm::container::experimental::maptrix<ssize_t, int>;
+  //using map_type      = ygm::container::map<ssize_t, int>;
+  //using maptrix_type  = ygm::container::experimental::maptrix<ssize_t, int>;
+  
+  using map_type      = ygm::container::map<int32_t, int>;
+  using maptrix_type  = ygm::container::experimental::maptrix<int32_t, int>;
+
   namespace ns_spmv   = ygm::container::experimental::detail::algorithms;
 
   map_type x(world);
@@ -52,7 +56,8 @@ int main(int argc, char **argv) {
   }
 
   ygm::io::line_parser line_parser(world, fnames);
-  ssize_t src, dst; 
+  //ssize_t src, dst; 
+  int32_t src, dst; 
   line_parser.for_all([&A, &x, &src, &dst](auto &line) {
     std::istringstream iss(line);
     if (iss >> src >> dst) {
