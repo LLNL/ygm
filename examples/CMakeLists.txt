@@ -34,10 +34,6 @@ add_ygm_example(alg_pagerank)
 #add_ygm_example(webgraph_spmv)
 
 if (Boost_FOUND)
-    add_ygm_example(reddit_pagerank)
-    target_include_directories(
-        reddit_pagerank PUBLIC ${Boost_INCLUDE_DIRS}
-    )
     add_ygm_example(webgraph_spmv)
     target_include_directories(
         webgraph_spmv PUBLIC ${Boost_INCLUDE_DIRS}
