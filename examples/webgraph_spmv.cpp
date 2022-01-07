@@ -3,11 +3,8 @@
 //
 // SPDX-License-Identifier: MIT
 
-//#include <fstream>
-//#include <iomanip>
 #include <iostream>
 
-//#include <math.h>
 #include <string>
 #include <vector>
 #include <ygm/comm.hpp>
@@ -15,8 +12,6 @@
 #include <ygm/container/map.hpp>
 #include <ygm/io/line_parser.hpp>
 #include <ygm/utility.hpp>
-
-//#include <boost/tokenizer.hpp>
 
 int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
