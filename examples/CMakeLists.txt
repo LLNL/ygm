@@ -32,10 +32,3 @@ add_ygm_example(disjoint_set_async_union_and_execute)
 add_ygm_example(alg_spmv)
 add_ygm_example(alg_pagerank)
 #add_ygm_example(webgraph_spmv)
-
-if (Boost_FOUND)
-    add_ygm_example(webgraph_spmv)
-    target_include_directories(
-        webgraph_spmv PUBLIC ${Boost_INCLUDE_DIRS}
-    )
-endif ()
