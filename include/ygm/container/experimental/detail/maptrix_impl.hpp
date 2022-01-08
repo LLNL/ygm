@@ -7,7 +7,6 @@
 
 #include <map>
 #include <ygm/comm.hpp>
-#include <ygm/container/detail/hash_partitioner.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 
 #include <ygm/container/experimental/detail/column_view_impl.hpp>
