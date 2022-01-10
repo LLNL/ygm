@@ -14,12 +14,19 @@
 namespace ygm {
 
 class comm {
+ private:
+  class impl;
+
  public:
   comm(int *argc, char ***argv, int buffer_capacity);
 
   // TODO:  Add way to detect if this MPI_Comm is already open. E.g., static
   // map<MPI_Comm, impl*>
   comm(MPI_Comm comm, int buffer_capacity);
+
+  // Constructor to allow comm::impl to build temporary comm using itself as the
+  // impl
+  comm(std::shared_ptr<impl> impl_ptr);
 
   ~comm();
 
@@ -118,7 +125,7 @@ class comm {
 
   std::ostream &cerr() const {
     std::cerr << rank() << ": ";
-    return std::cout;
+    return std::cerr;
   }
 
   bool rank0() const { return rank() == 0; }
@@ -150,7 +157,6 @@ class comm {
  private:
   comm() = delete;
 
-  class impl;
   std::shared_ptr<impl>                      pimpl;
   std::shared_ptr<detail::mpi_init_finalize> pimpl_if;
 };

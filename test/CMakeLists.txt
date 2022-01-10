@@ -46,6 +46,8 @@ add_ygm_test(test_disjoint_set)
 add_ygm_test(test_container_serialization)
 add_ygm_test(test_line_parser)
 add_ygm_test(test_csv_parser)
+add_ygm_test(test_multi_output)
+add_ygm_test(test_daily_output)
 
 if (Boost_FOUND)
     add_ygm_seq_test(test_cereal_boost_json)
