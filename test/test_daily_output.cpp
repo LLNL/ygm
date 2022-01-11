@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
 
     // Write lines to file
     {
-      ygm::io::daily_output d(world, prefix_path, false);
+      ygm::io::daily_output d(world, prefix_path, 1024, false);
 
       uint64_t    timestamp{2678400 * ((uint64_t)world.rank())};
       std::string message("my message from rank " +
@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
 
     // Append new lines
     {
-      ygm::io::daily_output d(world, prefix_path, true);
+      ygm::io::daily_output d(world, prefix_path, 1024, true);
 
       uint64_t    timestamp{2678400 * ((uint64_t)world.rank())};
       std::string message("my second message from rank " +

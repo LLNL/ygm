@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
     std::string message("my message from rank " + std::to_string(world.rank()));
 
     {
-      ygm::io::multi_output mo(world, prefix_path, false);
+      ygm::io::multi_output mo(world, prefix_path, 1024, false);
 
       mo.async_write_line(subpath, message);
     }
@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
 
     // Write lines to file
     {
-      ygm::io::multi_output mo(world, prefix_path, false);
+      ygm::io::multi_output mo(world, prefix_path, 1024, false);
 
       std::string subpath("dir/out" + std::to_string(world.rank()));
       std::string message("my message from rank " +
@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
 
     // Write lines to file
     {
-      ygm::io::multi_output mo(world, prefix_path, false);
+      ygm::io::multi_output mo(world, prefix_path, 1024, false);
 
       std::string subpath("dir/out" + std::to_string(world.rank()));
       std::string message("my message from rank " +
@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
 
     // Append new lines
     {
-      ygm::io::multi_output mo(world, prefix_path, true);
+      ygm::io::multi_output mo(world, prefix_path, 1024, true);
 
       std::string subpath("dir/out" + std::to_string(world.rank() + 1));
       std::string message("my second message from rank " +
