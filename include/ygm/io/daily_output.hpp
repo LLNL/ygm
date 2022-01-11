@@ -19,8 +19,8 @@ class daily_output {
   using self_type = daily_output<Partitioner>;
 
   daily_output(ygm::comm &comm, const std::string &filename_prefix,
-               bool append = false)
-      : m_multi_output(comm, filename_prefix, append) {}
+               size_t buffer_length = 1024 * 1024, bool append = false)
+      : m_multi_output(comm, filename_prefix, buffer_length, append) {}
 
   template <typename... Args>
   void async_write_line(const uint64_t timestamp, Args &&... args) {
