@@ -5,6 +5,10 @@
 
 #pragma once
 
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <fstream>
 #include <memory>
 #include <sstream>
@@ -24,10 +28,11 @@ class multi_output {
   // filename_prefix is assumed to be a directory name and has a "/" appended if
   // not already present to force it to be a directory
   multi_output(ygm::comm &comm, std::string filename_prefix,
-               bool append = false)
+               size_t buffer_length = 1024 * 1024, bool append = false)
       : m_comm(comm),
         pthis(this),
         m_prefix_path(filename_prefix),
+        m_buffer_length(buffer_length),
         m_append_flag(append) {
     pthis.check(m_comm);
 
@@ -47,7 +52,10 @@ class multi_output {
     }
   }
 
-  ~multi_output() { m_comm.barrier(); }
+  ~multi_output() {
+    m_comm.barrier();
+    flush_all_buffers();
+  }
 
   template <typename... Args>
   void async_write_line(const std::string &subpath, Args &&... args) {
@@ -62,11 +70,12 @@ class multi_output {
           auto ofstream_iter = mo_ptr->m_map_file_pointers.find(subpath);
           if (ofstream_iter == mo_ptr->m_map_file_pointers.end()) {
             const auto [iter, success] = mo_ptr->m_map_file_pointers.insert(
-                std::make_pair(subpath, mo_ptr->make_ofstream_ptr(fullname)));
+                std::make_pair(subpath, /*mo_ptr->make_ofstream_ptr(fullname)*/
+                               mo_ptr->make_buffered_ofstream(fullname)));
             ofstream_iter = iter;
           }
 
-          *(ofstream_iter->second) << s << "\n";
+          ofstream_iter->second.buffer_output(s);
         },
         pthis, subpath, s);
   }
@@ -74,6 +83,42 @@ class multi_output {
   ygm::comm &comm() { return m_comm; }
 
  private:
+  class buffered_ofstream {
+   public:
+    buffered_ofstream(const fs::path &p, const std::ios_base::openmode mode,
+                      const size_t buf_len)
+        : ofstream_ptr(std::make_unique<std::ofstream>(p.c_str(), mode)),
+          buffer_length(buf_len) {}
+
+    void buffer_output(const std::string &s) {
+      buffer.append(s);
+      buffer.append("\n");
+
+      if (buffer.size() > buffer_length) {
+        flush_buffer();
+      }
+    }
+
+    void flush_buffer() {
+      if (buffer.size() == 0) return;
+
+      ofstream_ptr->write(buffer.data(), buffer.size());
+      buffer.clear();
+      buffer.shrink_to_fit();
+    }
+
+   private:
+    std::string                    buffer;
+    std::unique_ptr<std::ofstream> ofstream_ptr;
+    size_t                         buffer_length;
+  };
+
+  void flush_all_buffers() {
+    for (auto &filename_buffer_pair : m_map_file_pointers) {
+      filename_buffer_pair.second.flush_buffer();
+    }
+  }
+
   int owner(const std::string &subpath) {
     auto [owner, bank] = partitioner(subpath, m_comm.size(), 1024);
     return owner;
@@ -102,17 +147,17 @@ class multi_output {
     }
   }
 
-  std::unique_ptr<std::ofstream> make_ofstream_ptr(const fs::path &p) {
+  buffered_ofstream make_buffered_ofstream(const fs::path &p) {
     make_directories(p);
 
-    std::ios_base::openmode mode = std::ios_base::out;
+    std::ios_base::openmode mode = std::ios::binary;
     if (m_append_flag) {
       mode |= std::ios_base::app;
     } else {
       mode |= std::ios_base::trunc;
     }
 
-    return std::make_unique<std::ofstream>(p.c_str(), mode);
+    return buffered_ofstream(p, mode, m_buffer_length);
   }
 
   void check_prefix(const fs::path &p) {
@@ -131,11 +176,12 @@ class multi_output {
     }
   }
 
-  fs::path                                              m_prefix_path;
-  bool                                                  m_append_flag;
-  std::map<std::string, std::unique_ptr<std::ofstream>> m_map_file_pointers;
-  ygm::comm                                             m_comm;
-  typename ygm::ygm_ptr<self_type>                      pthis;
-  Partitioner                                           partitioner;
+  fs::path                                 m_prefix_path;
+  size_t                                   m_buffer_length;
+  bool                                     m_append_flag;
+  std::map<std::string, buffered_ofstream> m_map_file_pointers;
+  ygm::comm                                m_comm;
+  typename ygm::ygm_ptr<self_type>         pthis;
+  Partitioner                              partitioner;
 };
 }  // namespace ygm::io
