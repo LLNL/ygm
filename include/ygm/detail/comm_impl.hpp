@@ -12,6 +12,7 @@
 #include <thread>
 #include <vector>
 
+#include <ygm/detail/layout.hpp>
 #include <ygm/detail/meta/functional.hpp>
 #include <ygm/detail/mpi.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
@@ -21,7 +22,7 @@ namespace ygm {
 
 class comm::impl : public std::enable_shared_from_this<comm::impl> {
  public:
-  impl(MPI_Comm c, int buffer_capacity) {
+  impl(MPI_Comm c, int buffer_capacity) : m_layout(c) {
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_async));
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_barrier));
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_other));
@@ -51,7 +52,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   int rank() const { return m_comm_rank; }
 
   template <typename... SendArgs>
-  void async(int dest, const SendArgs &... args) {
+  void async(int dest, const SendArgs &...args) {
     ASSERT_DEBUG(dest < m_comm_size);
     static size_t recursion_detector = 0;
     ++recursion_detector;
@@ -88,14 +89,14 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   }
 
   template <typename... SendArgs>
-  void async_bcast(const SendArgs &... args) {
+  void async_bcast(const SendArgs &...args) {
     for (int dest = 0; dest < m_comm_size; ++dest) {
       async(dest, std::forward<const SendArgs>(args)...);
     }
   }
 
   template <typename... SendArgs>
-  void async_mcast(const std::vector<int> &dests, const SendArgs &... args) {
+  void async_mcast(const std::vector<int> &dests, const SendArgs &...args) {
     for (auto dest : dests) {
       async(dest, std::forward<const SendArgs>(args)...);
     }
@@ -260,6 +261,8 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     return to_return;
   }
 
+  const Layout &layout() const { return m_layout; }
+
  private:
   std::pair<uint64_t, uint64_t> barrier_reduce_counts() {
     uint64_t local_counts[2]  = {m_recv_count, m_send_count};
@@ -381,7 +384,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
 
   // Used if dest = m_comm_rank
   template <typename Lambda, typename... Args>
-  int32_t local_receive(Lambda l, const Args &... args) {
+  int32_t local_receive(Lambda l, const Args &...args) {
     ASSERT_DEBUG(sizeof(Lambda) == 1);
     // Question: should this be std::forward(...)
     // \pp was: (l)(this, m_comm_rank, args...);
@@ -392,7 +395,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
 
   template <typename Lambda, typename... PackArgs>
   size_t pack_lambda(std::vector<std::byte> &packed, Lambda l,
-                     const PackArgs &... args) {
+                     const PackArgs &...args) {
     size_t                        size_before = packed.size();
     const std::tuple<PackArgs...> tuple_args(
         std::forward<const PackArgs>(args)...);
@@ -456,6 +459,8 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   int      m_comm_rank;
   size_t   m_buffer_capacity_bytes;
 
+  Layout m_layout;
+
   std::vector<std::vector<std::byte>> m_vec_send_buffers;
   size_t                              m_send_buffer_bytes = 0;
   std::deque<int>                     m_send_dest_queue;
@@ -507,14 +512,14 @@ inline comm::~comm() {
 }
 
 template <typename AsyncFunction, typename... SendArgs>
-inline void comm::async(int dest, AsyncFunction fn, const SendArgs &... args) {
+inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
   static_assert(std::is_empty<AsyncFunction>::value,
                 "Only stateless lambdas are supported");
   pimpl->async(dest, fn, std::forward<const SendArgs>(args)...);
 }
 
 template <typename AsyncFunction, typename... SendArgs>
-inline void comm::async_bcast(AsyncFunction fn, const SendArgs &... args) {
+inline void comm::async_bcast(AsyncFunction fn, const SendArgs &...args) {
   static_assert(std::is_empty<AsyncFunction>::value,
                 "Only stateless lambdas are supported");
   pimpl->async_bcast(fn, std::forward<const SendArgs>(args)...);
@@ -522,11 +527,13 @@ inline void comm::async_bcast(AsyncFunction fn, const SendArgs &... args) {
 
 template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async_mcast(const std::vector<int> &dests, AsyncFunction fn,
-                              const SendArgs &... args) {
+                              const SendArgs &...args) {
   static_assert(std::is_empty<AsyncFunction>::value,
                 "Only stateless lambdas are supported");
   pimpl->async_mcast(dests, fn, std::forward<const SendArgs>(args)...);
 }
+
+inline const Layout &comm::layout() const { return pimpl->layout(); }
 
 inline int comm::size() const { return pimpl->size(); }
 inline int comm::rank() const { return pimpl->rank(); }
