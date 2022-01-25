@@ -17,15 +17,16 @@ class Layout {
  private:
   int m_world_size;
   int m_world_rank;
-  int m_local_size;
-  int m_local_rank;
   int m_node_size;
   int m_node_rank;
+  int m_local_size;
+  int m_local_rank;
 
-  std::vector<int> m_local_ranks;
   std::vector<int> m_node_ranks;
-  std::vector<int> m_rank_to_local;
+  std::vector<int> m_local_ranks;
+
   std::vector<int> m_rank_to_node;
+  std::vector<int> m_rank_to_local;
 
  public:
   Layout(MPI_Comm comm) {
@@ -60,10 +61,10 @@ class Layout {
   Layout(const Layout &rhs)
       : m_world_size(rhs.m_world_size),
         m_world_rank(rhs.m_world_rank),
-        m_local_size(rhs.m_local_size),
-        m_local_rank(rhs.m_local_rank),
         m_node_size(rhs.m_node_size),
         m_node_rank(rhs.m_node_rank),
+        m_local_size(rhs.m_local_size),
+        m_local_rank(rhs.m_local_rank),
         m_node_ranks(rhs.m_node_ranks),
         m_local_ranks(rhs.m_local_ranks),
         m_rank_to_node(rhs.m_rank_to_node),
@@ -74,12 +75,12 @@ class Layout {
   friend void swap(Layout &lhs, Layout &rhs) {
     std::swap(lhs.m_world_size, rhs.m_world_size);
     std::swap(lhs.m_world_rank, rhs.m_world_rank);
-    std::swap(lhs.m_local_size, rhs.m_local_size);
-    std::swap(lhs.m_local_rank, rhs.m_local_rank);
     std::swap(lhs.m_node_size, rhs.m_node_size);
     std::swap(lhs.m_node_rank, rhs.m_node_rank);
-    std::swap(lhs.m_local_ranks, rhs.m_local_ranks);
+    std::swap(lhs.m_local_size, rhs.m_local_size);
+    std::swap(lhs.m_local_rank, rhs.m_local_rank);
     std::swap(lhs.m_node_ranks, rhs.m_node_ranks);
+    std::swap(lhs.m_local_ranks, rhs.m_local_ranks);
     std::swap(lhs.m_rank_to_node, rhs.m_rank_to_node);
     std::swap(lhs.m_rank_to_local, rhs.m_rank_to_local);
   }
