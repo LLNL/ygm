@@ -67,5 +67,59 @@ int main(int argc, char** argv) {
     world.barrier();
   }
 
+  //
+  // cached strided ranks are correct
+  {
+    std::vector<int> strided_ranks = world.layout().strided_ranks();
+    for (auto sr : strided_ranks) {
+      ASSERT_RELEASE(world.layout().is_strided(sr) == true);
+      if (world.layout().rank() != sr) {
+        ASSERT_RELEASE(world.layout().is_local(sr) == false);
+      }
+    }
+    world.barrier();
+  }
+
+  //
+  // cached local ranks are correct
+  {
+    std::vector<int> local_ranks = world.layout().local_ranks();
+    for (auto lr : local_ranks) {
+      ASSERT_RELEASE(world.layout().is_local(lr) == true);
+      if (world.layout().rank() != lr) {
+        ASSERT_RELEASE(world.layout().is_strided(lr) == false);
+      }
+    }
+    world.barrier();
+  }
+
+  {
+    std::vector<int> strided_ranks = world.layout().strided_ranks();
+    auto             check_fn      = [](auto pcomm, int src_rank) {
+      ASSERT_RELEASE(pcomm->layout().is_strided(src_rank) == true);
+      if (pcomm->layout().rank() != src_rank) {
+        ASSERT_RELEASE(pcomm->layout().is_local(src_rank) == false);
+      }
+    };
+    for (auto dst : strided_ranks) {
+      world.async(dst, check_fn, world.layout().rank());
+    }
+    world.barrier();
+  }
+
+  {
+    std::vector<int> local_ranks = world.layout().local_ranks();
+    auto             check_fn    = [](auto pcomm, int src_rank) {
+      ASSERT_RELEASE(pcomm->layout().is_local(src_rank) == true);
+      if (pcomm->layout().rank() != src_rank) {
+        ASSERT_RELEASE(pcomm->layout().is_strided(src_rank) == false);
+      }
+    };
+    for (auto dst : local_ranks) {
+      world.async(dst, check_fn, world.layout().rank());
+    }
+    world.barrier();
+  }
+
   return 0;
 }
