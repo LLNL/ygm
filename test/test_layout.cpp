@@ -11,23 +11,21 @@ int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
 
   //
-  // node counts agree
+  // node sizes agree
   {
-    int node_count(world.layout().node_count());
-    int min_node_count = world.all_reduce_min(node_count);
+    int node_size(world.layout().node_size());
+    int min_node_size = world.all_reduce_min(node_size);
     world.barrier();
-    // world.cout0("node count: ", min_node_count);
-    ASSERT_RELEASE(min_node_count == node_count);
+    ASSERT_RELEASE(min_node_size == node_size);
   }
 
   //
-  // local counts agree
+  // local sizes agree
   {
-    int local_count(world.layout().local_count());
-    int min_local_count = world.all_reduce_min(local_count);
+    int local_size(world.layout().local_size());
+    int min_local_size = world.all_reduce_min(local_size);
     world.barrier();
-    // world.cout0("local count: ", min_local_count);
-    ASSERT_RELEASE(min_local_count == local_count);
+    ASSERT_RELEASE(min_local_size == local_size);
   }
 
   //
@@ -47,9 +45,6 @@ int main(int argc, char** argv) {
     if (world.rank0()) {
       for (int dst(0); dst < world.size(); ++dst) {
         auto check_fn = [](auto pcomm, int node_guess, int local_guess) {
-          // std::cout << "I am: " << pcomm->rank()
-          //           << ", local: " << pcomm->layout().local_id()
-          //           << ", local guess is: " << guess << std::endl;
           ASSERT_RELEASE(pcomm->layout().node_id() == node_guess);
           ASSERT_RELEASE(pcomm->layout().local_id() == local_guess);
         };
@@ -64,16 +59,10 @@ int main(int argc, char** argv) {
   // is_local() is correct
   {
     auto check_fn = [](auto pcomm, int rank, bool tru) {
-      // std::cout << "I am: " << pcomm->layout().rank() << ", my node id is "
-      //           << pcomm->layout().node_id() << " and I am "
-      //           << ((pcomm->layout().is_local(rank)) ? "" : "not ")
-      //           << "local to rank " << rank << std::endl;
       ASSERT_RELEASE(pcomm->layout().is_local(rank) == tru);
     };
 
     bool target = (world.layout().node_id() == 0) ? true : false;
-    // world.cout("node id:", world.layout().node_id(), "target: ", target);
-    // world.cout(world.layout().node_id(), ", ", world.layout().local_id());
     world.async(0, check_fn, world.layout().rank(), target);
     world.barrier();
   }

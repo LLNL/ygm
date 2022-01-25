@@ -15,8 +15,6 @@ namespace ygm {
 
 class Layout {
  private:
-  // MPI_Comm m_comm_local;
-  // MPI_Comm m_comm_node;
   int m_world_size;
   int m_world_rank;
   int m_local_size;
@@ -28,13 +26,6 @@ class Layout {
   std::vector<int> m_node_ranks;
   std::vector<int> m_rank_to_local;
   std::vector<int> m_rank_to_node;
-
-  template <typename T>
-  void mpi_allgather(T _t, std::vector<T> &out_vec, int size, MPI_Comm comm) {
-    out_vec.resize(size);
-    ASSERT_MPI(MPI_Allgather(&_t, sizeof(_t), MPI_BYTE, &(out_vec[0]),
-                             sizeof(_t), MPI_BYTE, comm));
-  }
 
  public:
   Layout(MPI_Comm comm) {
@@ -49,29 +40,19 @@ class Layout {
     ASSERT_MPI(MPI_Comm_size(comm_local, &m_local_size));
     ASSERT_MPI(MPI_Comm_rank(comm_local, &m_local_rank));
 
-    mpi_allgather(m_local_rank, m_local_ranks, m_local_size, comm_local);
+    _mpi_allgather(m_world_rank, m_local_ranks, m_local_size, comm_local);
 
-    // m_local_ranks.resize(m_local_size);
-    // ASSERT_MPI(MPI_Allgather(&m_local_rank, 1, MPI_INT, &(m_local_ranks[0]),
-    // 1,
-    //                          MPI_INT, comm_local));
-
-    // remote ranks
+    // node ranks
     MPI_Comm comm_node;
     ASSERT_MPI(MPI_Comm_split(comm, m_local_rank, m_world_rank, &comm_node));
     ASSERT_MPI(MPI_Comm_size(comm_node, &m_node_size));
     ASSERT_MPI(MPI_Comm_rank(comm_node, &m_node_rank));
 
-    mpi_allgather(m_node_rank, m_node_ranks, m_node_size, comm_node);
+    _mpi_allgather(m_world_rank, m_node_ranks, m_node_size, comm_node);
 
-    mpi_allgather(m_local_rank, m_rank_to_local, m_world_size, comm);
-    mpi_allgather(m_node_rank, m_rank_to_node, m_world_size, comm);
+    _mpi_allgather(m_local_rank, m_rank_to_local, m_world_size, comm);
+    _mpi_allgather(m_node_rank, m_rank_to_node, m_world_size, comm);
 
-    // m_node_ranks.resize(m_node_size);
-    // ASSERT_MPI(MPI_Allgather(&m_node_ranks, 1, MPI_INT, &(m_node_ranks[0]),
-    // 1,
-    //                          MPI_INT, comm_local));
-    // delete communicators
     ASSERT_RELEASE(MPI_Comm_free(&comm_local) == MPI_SUCCESS);
     ASSERT_RELEASE(MPI_Comm_free(&comm_node) == MPI_SUCCESS);
   }
@@ -82,10 +63,11 @@ class Layout {
         m_local_size(rhs.m_local_size),
         m_local_rank(rhs.m_local_rank),
         m_node_size(rhs.m_node_size),
-        m_node_rank(rhs.m_node_rank) {
-    // ASSERT_MPI(MPI_Comm_dup(rhs.m_comm_local, &m_comm_local));
-    // ASSERT_MPI(MPI_Comm_dup(rhs.m_comm_node, &m_comm_node));
-  }
+        m_node_rank(rhs.m_node_rank),
+        m_node_ranks(rhs.m_node_ranks),
+        m_local_ranks(rhs.m_local_ranks),
+        m_rank_to_node(rhs.m_rank_to_node),
+        m_rank_to_local(rhs.m_rank_to_local) {}
 
   Layout() {}
 
@@ -102,33 +84,24 @@ class Layout {
     std::swap(lhs.m_rank_to_local, rhs.m_rank_to_local);
   }
 
-  ~Layout() {
-    // ASSERT_RELEASE(MPI_Comm_free(&m_local));
-    // ASSERT_RELEASE(MPI_Comm_free(&m_node));
-  }
+  ~Layout() {}
 
-  constexpr int count() const { return m_world_size; }
+  constexpr int size() const { return m_world_size; }
   constexpr int rank() const { return m_world_rank; }
 
-  constexpr int node_count() const { return m_node_size; }
-  constexpr int local_count() const { return m_local_size; }
-
-  //////////////////////////////////////////////////////////////////////////////
-  // ID conversion
-  //////////////////////////////////////////////////////////////////////////////
+  constexpr int node_size() const { return m_node_size; }
+  constexpr int local_size() const { return m_local_size; }
 
   constexpr int node_id() const { return m_node_rank; }
   inline int    node_id(const int rank) const {
     _check_world_rank(rank);
     return m_rank_to_node.at(rank);
-    // return rank / m_local_size;
   }
 
   constexpr int local_id() const { return m_local_rank; }
   inline int    local_id(const int rank) const {
     _check_world_rank(rank);
     return m_rank_to_local.at(rank);
-    // return rank % m_local_size;
   }
 
   constexpr std::pair<int, int> rank_to_nl() const {
@@ -152,22 +125,14 @@ class Layout {
     return m_node_rank == node_id(rank);
   }
 
-  //////////////////////////////////////////////////////////////////////////////
-  // Cached data
-  //////////////////////////////////////////////////////////////////////////////
-
-  // constexpr const std::vector<int> &local_ranks() const {
-  //   return m_local_ranks;
-  // }
-  // constexpr const std::vector<int> &node_ranks() const { return m_node_ranks;
-  // } constexpr const std::vector<int> &rank_to_local() const {
-  //   return m_rank_to_local;
-  // }
-  // constexpr const std::vector<int> &rank_to_node() const {
-  //   return m_rank_to_node;
-  // }
-
  private:
+  template <typename T>
+  void _mpi_allgather(T &_t, std::vector<T> &out_vec, int size, MPI_Comm comm) {
+    out_vec.resize(size);
+    ASSERT_MPI(MPI_Allgather(&_t, sizeof(_t), MPI_BYTE, &(out_vec[0]),
+                             sizeof(_t), MPI_BYTE, comm));
+  }
+
   inline void _check_world_rank(const int rank) const {
     _check_rank(rank, m_world_size, "world");
   }
