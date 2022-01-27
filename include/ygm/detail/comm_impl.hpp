@@ -261,7 +261,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     return to_return;
   }
 
-  const Layout &layout() const { return m_layout; }
+  const detail::layout &layout() const { return m_layout; }
 
  private:
   std::pair<uint64_t, uint64_t> barrier_reduce_counts() {
@@ -459,7 +459,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   int      m_comm_rank;
   size_t   m_buffer_capacity_bytes;
 
-  Layout m_layout;
+  detail::layout m_layout;
 
   std::vector<std::vector<std::byte>> m_vec_send_buffers;
   size_t                              m_send_buffer_bytes = 0;
@@ -533,7 +533,7 @@ inline void comm::async_mcast(const std::vector<int> &dests, AsyncFunction fn,
   pimpl->async_mcast(dests, fn, std::forward<const SendArgs>(args)...);
 }
 
-inline const Layout &comm::layout() const { return pimpl->layout(); }
+inline const detail::layout &comm::layout() const { return pimpl->layout(); }
 
 inline int comm::size() const { return pimpl->size(); }
 inline int comm::rank() const { return pimpl->rank(); }

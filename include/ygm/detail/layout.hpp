@@ -12,8 +12,9 @@
 #include <ygm/detail/mpi.hpp>
 
 namespace ygm {
+namespace detail {
 
-class Layout {
+class layout {
  private:
   int m_world_size;
   int m_world_rank;
@@ -29,7 +30,7 @@ class Layout {
   std::vector<int> m_rank_to_local;
 
  public:
-  Layout(MPI_Comm comm) {
+  layout(MPI_Comm comm) {
     // global ranks
     ASSERT_MPI(MPI_Comm_size(comm, &m_world_size));
     ASSERT_MPI(MPI_Comm_rank(comm, &m_world_rank));
@@ -58,7 +59,7 @@ class Layout {
     ASSERT_RELEASE(MPI_Comm_free(&comm_node) == MPI_SUCCESS);
   }
 
-  Layout(const Layout &rhs)
+  layout(const layout &rhs)
       : m_world_size(rhs.m_world_size),
         m_world_rank(rhs.m_world_rank),
         m_node_size(rhs.m_node_size),
@@ -70,9 +71,9 @@ class Layout {
         m_rank_to_node(rhs.m_rank_to_node),
         m_rank_to_local(rhs.m_rank_to_local) {}
 
-  Layout() {}
+  layout() {}
 
-  friend void swap(Layout &lhs, Layout &rhs) {
+  friend void swap(layout &lhs, layout &rhs) {
     std::swap(lhs.m_world_size, rhs.m_world_size);
     std::swap(lhs.m_world_rank, rhs.m_world_rank);
     std::swap(lhs.m_node_size, rhs.m_node_size);
@@ -85,7 +86,7 @@ class Layout {
     std::swap(lhs.m_rank_to_local, rhs.m_rank_to_local);
   }
 
-  ~Layout() {}
+  ~layout() {}
 
   //////////////////////////////////////////////////////////////////////////////
   // global layout info
@@ -181,4 +182,5 @@ class Layout {
   }
 };
 
+}  // namespace detail
 }  // namespace ygm

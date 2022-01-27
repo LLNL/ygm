@@ -91,7 +91,7 @@ class comm {
   int size() const;
   int rank() const;
 
-  const Layout &layout() const;
+  const detail::layout &layout() const;
 
   //
   //	Counters
