@@ -8,6 +8,7 @@
 #include <functional>
 #include <memory>
 #include <vector>
+#include <ygm/detail/layout.hpp>
 #include <ygm/detail/mpi.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 
@@ -35,14 +36,14 @@ class comm {
   //
 
   template <typename AsyncFunction, typename... SendArgs>
-  void async(int dest, AsyncFunction fn, const SendArgs &... args);
+  void async(int dest, AsyncFunction fn, const SendArgs &...args);
 
   template <typename AsyncFunction, typename... SendArgs>
-  void async_bcast(AsyncFunction fn, const SendArgs &... args);
+  void async_bcast(AsyncFunction fn, const SendArgs &...args);
 
   template <typename AsyncFunction, typename... SendArgs>
   void async_mcast(const std::vector<int> &dests, AsyncFunction fn,
-                   const SendArgs &... args);
+                   const SendArgs &...args);
 
   //
   // Collective operations across all ranks.  Cannot be called inside OpenMP
@@ -90,6 +91,8 @@ class comm {
   int size() const;
   int rank() const;
 
+  const detail::layout &layout() const;
+
   //
   //	Counters
   //
@@ -131,24 +134,24 @@ class comm {
   bool rank0() const { return rank() == 0; }
 
   template <typename... Args>
-  void cout(Args &&... args) const {
+  void cout(Args &&...args) const {
     (cout() << ... << args) << std::endl;
   }
 
   template <typename... Args>
-  void cerr(Args &&... args) const {
+  void cerr(Args &&...args) const {
     (cerr() << ... << args) << std::endl;
   }
 
   template <typename... Args>
-  void cout0(Args &&... args) const {
+  void cout0(Args &&...args) const {
     if (rank0()) {
       (std::cout << ... << args) << std::endl;
     }
   }
 
   template <typename... Args>
-  void cerr0(Args &&... args) const {
+  void cerr0(Args &&...args) const {
     if (rank0()) {
       (std::cerr << ... << args) << std::endl;
     }
