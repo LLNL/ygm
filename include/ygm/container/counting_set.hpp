@@ -70,6 +70,8 @@ class counting_set {
   void serialize(const std::string &fname) { m_map.serialize(fname); }
   void deserialize(const std::string &fname) { m_map.deserialize(fname); }
 
+  ygm::comm &comm() { return map.comm(); }
+
  private:
   void cache_erase(const key_type &key) {
     size_t slot = std::hash<key_type>{}(key) % count_cache_size;
