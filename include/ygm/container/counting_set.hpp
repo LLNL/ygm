@@ -70,7 +70,7 @@ class counting_set {
   void serialize(const std::string &fname) { m_map.serialize(fname); }
   void deserialize(const std::string &fname) { m_map.deserialize(fname); }
 
-  ygm::comm &comm() { return map.comm(); }
+  ygm::comm &comm() { return m_map.comm(); }
 
  private:
   void cache_erase(const key_type &key) {
