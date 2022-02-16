@@ -65,6 +65,8 @@ class counting_set {
     return m_map.all_gather(keys);
   }
 
+  typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }
+
   void serialize(const std::string &fname) { m_map.serialize(fname); }
   void deserialize(const std::string &fname) { m_map.deserialize(fname); }
 
@@ -109,12 +111,10 @@ class counting_set {
     auto key          = m_count_cache[slot].first;
     auto cached_count = m_count_cache[slot].second;
     ASSERT_DEBUG(cached_count > 0);
-    m_map.async_visit(
-        key,
-        [](std::pair<const key_type, size_t> &key_count, int32_t to_add) {
-          key_count.second += to_add;
-        },
-        cached_count);
+    m_map.async_visit(key,
+                      [](std::pair<const key_type, size_t> &key_count,
+                         int32_t to_add) { key_count.second += to_add; },
+                      cached_count);
     m_count_cache[slot].first  = key_type();
     m_count_cache[slot].second = -1;
   }
