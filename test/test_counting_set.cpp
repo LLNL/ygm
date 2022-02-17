@@ -80,5 +80,26 @@ int main(int argc, char **argv) {
     ASSERT_RELEASE(cset.count_all() == 3 * (size_t)world.size());
   }
 
+  //
+  // Test topk
+  {
+    ygm::container::counting_set<std::string> cset(world);
+
+    cset.async_insert("dog");
+    cset.async_insert("dog");
+    cset.async_insert("dog");
+    cset.async_insert("cat");
+    cset.async_insert("cat");
+    cset.async_insert("bird");
+
+    auto topk = cset.topk(
+        2, [](const auto &a, const auto &b) { return a.second > b.second; });
+
+    ASSERT_RELEASE(topk[0].first == "dog");
+    ASSERT_RELEASE(topk[0].second == 3 * world.size());
+    ASSERT_RELEASE(topk[1].first == "cat");
+    ASSERT_RELEASE(topk[1].second == 2 * world.size());
+  }
+
   return 0;
 }

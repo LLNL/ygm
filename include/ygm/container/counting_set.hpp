@@ -56,6 +56,12 @@ class counting_set {
 
   bool is_mine(const key_type &key) const { return m_map.is_mine(key); }
 
+  template <typename CompareFunction>
+  std::vector<std::pair<key_type, value_type>> topk(size_t          k,
+                                                    CompareFunction cfn) {
+    return m_map.topk(k, cfn);
+  }
+
   template <typename STLKeyContainer>
   std::map<key_type, value_type> all_gather(const STLKeyContainer &keys) {
     return m_map.all_gather(keys);
