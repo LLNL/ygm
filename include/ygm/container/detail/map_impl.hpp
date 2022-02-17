@@ -291,6 +291,9 @@ class map_impl {
   std::vector<std::pair<key_type, value_type>> topk(size_t          k,
                                                     CompareFunction cfn) {
     using vec_type = std::vector<std::pair<key_type, value_type>>;
+
+    m_comm.barrier();
+
     vec_type local_topk;
     for (const auto &kv : m_local_map) {
       local_topk.push_back(kv);
