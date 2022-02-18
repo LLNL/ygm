@@ -56,6 +56,12 @@ class counting_set {
 
   bool is_mine(const key_type &key) const { return m_map.is_mine(key); }
 
+  template <typename CompareFunction>
+  std::vector<std::pair<key_type, value_type>> topk(size_t          k,
+                                                    CompareFunction cfn) {
+    return m_map.topk(k, cfn);
+  }
+
   template <typename STLKeyContainer>
   std::map<key_type, value_type> all_gather(const STLKeyContainer &keys) {
     return m_map.all_gather(keys);
@@ -65,8 +71,12 @@ class counting_set {
     return m_map.all_gather(keys);
   }
 
+  typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }
+
   void serialize(const std::string &fname) { m_map.serialize(fname); }
   void deserialize(const std::string &fname) { m_map.deserialize(fname); }
+
+  ygm::comm &comm() { return m_map.comm(); }
 
  private:
   void cache_erase(const key_type &key) {
@@ -109,12 +119,10 @@ class counting_set {
     auto key          = m_count_cache[slot].first;
     auto cached_count = m_count_cache[slot].second;
     ASSERT_DEBUG(cached_count > 0);
-    m_map.async_visit(
-        key,
-        [](std::pair<const key_type, size_t> &key_count, int32_t to_add) {
-          key_count.second += to_add;
-        },
-        cached_count);
+    m_map.async_visit(key,
+                      [](std::pair<const key_type, size_t> &key_count,
+                         int32_t to_add) { key_count.second += to_add; },
+                      cached_count);
     m_count_cache[slot].first  = key_type();
     m_count_cache[slot].second = -1;
   }
