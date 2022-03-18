@@ -2,273 +2,59 @@ name: CI Test
 
 on: [push, pull_request]
 
+env:
+  BUILD_TYPE: Release
+
 jobs:
-  GCC8_Boost177_OpenMPI:
+  build-test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        gcc-version: [8, 9, 10]
+        mpi-type: [mpich, openmpi]
     steps:
       - uses: actions/checkout@v2
-      - name: Install Dependencies
+      - name: Cache boost
+        uses: actions/cache@v2
+        id: cache-boost
+        with:
+          path: "~/boost_1_77_0"
+          key: ${{ runner.os }}-libboost1.77
+      - name: Install boost
+        if: steps.cache-boost.outputs.cache-hit != 'true'
         run: |
-          mkdir build
-          cd build
+          cd ~
           wget --no-verbose https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.bz2
           tar -xjf boost_1_77_0.tar.bz2
-          sudo apt-get install openmpi-bin libopenmpi-dev gcc-8 g++-8
+      - name: Install mpich
+        if: matrix.mpi-type == 'mpich'
+        run: sudo apt-get install mpich
+      - name: Install OpenMPI
+        if: matrix.mpi-type == 'openmpi'
+        run: sudo apt-get install openmpi-bin libopenmpi-dev
+      - name: Install GCC-${{ matrix.gcc-version }}
+        if: matrix.gcc-version == '8'
+        run: sudo apt-get install gcc-8 g++-8
       - name: Make
         run: |
           echo Run 'make'
           mpicc -show
-          g++-8 --version
+          g++-${{ matrix.gcc-version }} --version
+          mkdir build
           cd build
-          cmake ../ -DCMAKE_CXX_COMPILER=g++-8 -DBOOST_ROOT=$PWD/boost_1_77_0
+          cmake ../ -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_CXX_COMPILER=g++-${{ matrix.gcc-version }} -DBOOST_ROOT=~/boost_1_77_0
           make
-      - name: Make test
+      - name: Make test (mpich)
+        if: matrix.mpi-type == 'mpich'
         run: |
-          echo Run 'make test'
+          echo Run 'make test' with mpich, gcc-${{ matrix.gcc-version }}
+          cd build
+          ctest -VV -C ${{ env.BUILD_TYPE }}
+      - name: Make test (OpenMPI)
+        if: matrix.mpi-type == 'openmpi'
+        run: |
+          echo Run 'make test' with OpenMPI, gcc-${{ matrix.gcc-version }}
           cd build
           export OMPI_MCA_rmaps_base_oversubscribe=1
-          ctest -VV
-  GCC9_NoBoost_OpenMPI:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Dependencies
-        run: |
-          mkdir build
-          cd build
-          sudo apt-get install openmpi-bin libopenmpi-dev
-      - name: Make
-        run: |
-          echo Run 'make'
-          mpicc -show
-          g++-9 --version
-          cd build
-          cmake ../ -DCMAKE_CXX_COMPILER=g++-9
-          make
-      - name: Make test
-        run: |
-          echo Run 'make test'
-          cd build
-          export OMPI_MCA_rmaps_base_oversubscribe=1
-          ctest -VV
-  GCC9_Boost177_OpenMPI:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Dependencies
-        run: |
-          mkdir build
-          cd build
-          wget --no-verbose https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.bz2
-          tar -xjf boost_1_77_0.tar.bz2
-          sudo apt-get install openmpi-bin libopenmpi-dev
-      - name: Make
-        run: |
-          echo Run 'make'
-          mpicc -show
-          g++-9 --version
-          cd build
-          cmake ../ -DCMAKE_CXX_COMPILER=g++-9 -DBOOST_ROOT=$PWD/boost_1_77_0
-          make
-      - name: Make test
-        run: |
-          echo Run 'make test'
-          cd build
-          export OMPI_MCA_rmaps_base_oversubscribe=1
-          ctest -VV
-  GCC10_Boost177_OpenMPI:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Dependencies
-        run: |
-          mkdir build
-          cd build
-          wget --no-verbose https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.bz2
-          tar -xjf boost_1_77_0.tar.bz2
-          sudo apt-get install openmpi-bin libopenmpi-dev
-      - name: Make
-        run: |
-          echo Run 'make'
-          mpicc -show
-          g++-10 --version
-          cd build
-          cmake ../ -DCMAKE_CXX_COMPILER=g++-10 -DBOOST_ROOT=$PWD/boost_1_77_0
-          make
-      - name: Make test
-        run: |
-          echo Run 'make test'
-          cd build
-          export OMPI_MCA_rmaps_base_oversubscribe=1
-          ctest -VV
-  GCC9_Boost177_mpich:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Dependencies
-        run: |
-          mkdir build
-          cd build
-          wget --no-verbose https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.bz2
-          tar -xjf boost_1_77_0.tar.bz2
-          sudo apt-get install mpich
-      - name: Make
-        run: |
-          echo Run 'make'
-          mpicc -show
-          g++-9 --version
-          cd build
-          cmake ../ -DCMAKE_CXX_COMPILER=g++-9 -DBOOST_ROOT=$PWD/boost_1_77_0
-          make
-      - name: Make test
-        run: |
-          echo Run 'make test'
-          cd build
-          ctest -VV
-  GCC10_Boost177_mpich:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Dependencies
-        run: |
-          mkdir build
-          cd build
-          wget --no-verbose https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.bz2
-          tar -xjf boost_1_77_0.tar.bz2
-          sudo apt-get install mpich
-      - name: Make
-        run: |
-          echo Run 'make'
-          mpicc -show
-          g++-10 --version
-          cd build
-          cmake ../ -DCMAKE_CXX_COMPILER=g++-10 -DBOOST_ROOT=$PWD/boost_1_77_0
-          make
-      - name: Make test
-        run: |
-          echo Run 'make test'
-          cd build
-          ctest -VV
-  GCC8_Boost178_OpenMPI:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Dependencies
-        run: |
-          mkdir build
-          cd build
-          wget --no-verbose https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.tar.bz2
-          tar -xjf boost_1_78_0.tar.bz2
-          sudo apt-get install openmpi-bin libopenmpi-dev gcc-8 g++-8
-      - name: Make
-        run: |
-          echo Run 'make'
-          mpicc -show
-          g++-8 --version
-          cd build
-          cmake ../ -DCMAKE_CXX_COMPILER=g++-8 -DBOOST_ROOT=$PWD/boost_1_78_0
-          make
-      - name: Make test
-        run: |
-          echo Run 'make test'
-          cd build
-          export OMPI_MCA_rmaps_base_oversubscribe=1
-          ctest -VV
-  GCC9_Boost178_OpenMPI:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Dependencies
-        run: |
-          mkdir build
-          cd build
-          wget --no-verbose https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.tar.bz2
-          tar -xjf boost_1_78_0.tar.bz2
-          sudo apt-get install openmpi-bin libopenmpi-dev
-      - name: Make
-        run: |
-          echo Run 'make'
-          mpicc -show
-          g++-9 --version
-          cd build
-          cmake ../ -DCMAKE_CXX_COMPILER=g++-9 -DBOOST_ROOT=$PWD/boost_1_78_0
-          make
-      - name: Make test
-        run: |
-          echo Run 'make test'
-          cd build
-          export OMPI_MCA_rmaps_base_oversubscribe=1
-          ctest -VV
-  GCC10_Boost178_OpenMPI:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Dependencies
-        run: |
-          mkdir build
-          cd build
-          wget --no-verbose https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.tar.bz2
-          tar -xjf boost_1_78_0.tar.bz2
-          sudo apt-get install openmpi-bin libopenmpi-dev
-      - name: Make
-        run: |
-          echo Run 'make'
-          mpicc -show
-          g++-10 --version
-          cd build
-          cmake ../ -DCMAKE_CXX_COMPILER=g++-10 -DBOOST_ROOT=$PWD/boost_1_78_0
-          make
-      - name: Make test
-        run: |
-          echo Run 'make test'
-          cd build
-          export OMPI_MCA_rmaps_base_oversubscribe=1
-          ctest -VV
-  GCC9_Boost178_mpich:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Dependencies
-        run: |
-          mkdir build
-          cd build
-          wget --no-verbose https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.tar.bz2
-          tar -xjf boost_1_78_0.tar.bz2
-          sudo apt-get install mpich
-      - name: Make
-        run: |
-          echo Run 'make'
-          mpicc -show
-          g++-9 --version
-          cd build
-          cmake ../ -DCMAKE_CXX_COMPILER=g++-9 -DBOOST_ROOT=$PWD/boost_1_78_0
-          make
-      - name: Make test
-        run: |
-          echo Run 'make test'
-          cd build
-          ctest -VV
-  GCC10_Boost178_mpich:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Dependencies
-        run: |
-          mkdir build
-          cd build
-          wget --no-verbose https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.tar.bz2
-          tar -xjf boost_1_78_0.tar.bz2
-          sudo apt-get install mpich
-      - name: Make
-        run: |
-          echo Run 'make'
-          mpicc -show
-          g++-10 --version
-          cd build
-          cmake ../ -DCMAKE_CXX_COMPILER=g++-10 -DBOOST_ROOT=$PWD/boost_1_78_0
-          make
-      - name: Make test
-        run: |
-          echo Run 'make test'
-          cd build
-          ctest -VV
+          ctest -VV -C ${{ env.BUILD_TYPE }}
