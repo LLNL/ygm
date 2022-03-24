@@ -14,6 +14,6 @@ Individual files contain SPDX tags instead of the full license text.
 This enables machine processing of license information based on the SPDX
 License Identifiers that are available here: https://spdx.org/licenses/
 
-Files that MIT contain the following text in the license header:
+Files that are licensed under MIT contain the following text in the license header:
 
     SPDX-License-Identifier: MIT
