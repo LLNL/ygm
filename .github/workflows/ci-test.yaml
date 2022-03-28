@@ -1,6 +1,10 @@
 name: CI Test
 
-on: [push, pull_request]
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ 'feature/**', 'hotfix/**']
 
 env:
   BUILD_TYPE: Release
