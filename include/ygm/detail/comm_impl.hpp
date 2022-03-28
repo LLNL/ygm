@@ -73,12 +73,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
 
       //
       // Check if send buffer capacity has been exceeded
-      while (m_send_buffer_bytes > m_buffer_capacity_bytes) {
-        ASSERT_DEBUG(!m_send_dest_queue.empty());
-        int dest = m_send_dest_queue.front();
-        m_send_dest_queue.pop_front();
-        flush_send_buffer(dest);
-      }
+      flush_to_capacity();
     }
     // If not experiencing recursion, check if listener has queued receives to
     // process
@@ -326,6 +321,19 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   }
 
   /**
+   * @brief Flush send buffers until queued sends are smaller than buffer
+   * capacity
+   */
+  void flush_to_capacity() {
+    while (m_send_buffer_bytes > m_buffer_capacity_bytes) {
+      ASSERT_DEBUG(!m_send_dest_queue.empty());
+      int dest = m_send_dest_queue.front();
+      m_send_dest_queue.pop_front();
+      flush_send_buffer(dest);
+    }
+  }
+
+  /**
    * @brief Listener thread
    *
    */
@@ -447,6 +455,8 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
         fun_ptr(&tmp_comm, iarchive);
         m_recv_count++;
         m_local_rpc_calls++;
+
+        flush_to_capacity();
       }
     }
     return received;
