@@ -93,7 +93,7 @@ Be sure to add `add_ygm_test(<test-name>)` to `${YGM_ROOT}/tests/CMakeLists.txt`
 as appropriate.
 Be sure that you can build and that `make test` passes, and that your test
 runs successfully.
-Branches whose names begin with `feature/` will trigger CI jobs upon pushes,
+Branches whose names begin with `feature/` or `hotfix/` will trigger CI jobs upon pushes,
 so you can test your accordingly named branches automatically instead of testing
 locally if so desired.
 
