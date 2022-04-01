@@ -45,7 +45,11 @@ class disjoint_set {
 
   size_t num_sets() { return m_impl.num_sets(); }
 
- private:
+  typename ygm::ygm_ptr<impl_type> get_ygm_ptr() const {
+    return m_impl.get_ygm_ptr();
+  }  
+ 
+private:
   impl_type m_impl;
 };
 }  // namespace ygm::container
