@@ -24,7 +24,7 @@ class disjoint_set_impl {
   }
 
   ~disjoint_set_impl() { m_comm.barrier(); }
-
+  typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }
   void async_union(const value_type &a, const value_type &b) {
     // Walking up parent trees can be expressed as a recursive operation
     struct simul_parent_walk_functor {
