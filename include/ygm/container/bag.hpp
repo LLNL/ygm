@@ -38,6 +38,7 @@ class bag {
 
   void serialize(const std::string &fname) { m_impl.serialize(fname); }
   void deserialize(const std::string &fname) { m_impl.deserialize(fname); }
+  std::vector<value_type> gather_to_vector(int dest) { return m_impl.gather_to_vector(dest); }
 
  private:
   detail::bag_impl<value_type> m_impl;
