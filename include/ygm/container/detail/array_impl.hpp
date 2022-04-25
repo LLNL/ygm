@@ -51,7 +51,10 @@ class array_impl {
     } else {
       // Last rank may get less data
       index_type block_size = m_global_size % m_block_size;
-      m_local_vec.resize(block_size);
+      if (block_size == 0) {
+        block_size = m_block_size;
+      }
+      m_local_vec.resize(block_size, fill_value);
     }
 
     m_comm.barrier();
