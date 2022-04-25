@@ -27,27 +27,6 @@ int main(int argc, char **argv) {
     });
   }
 
-  // Test resize
-  {
-    int initial_size  = 32;
-    int initial_value = 1;
-    int final_size    = 64;
-    int final_value   = 2;
-
-    ygm::container::array<int> arr(world, initial_size, initial_value);
-
-    arr.resize(final_size, final_value);
-
-    arr.for_all([initial_size, initial_value, final_value](const auto index,
-                                                           const auto value) {
-      if (index < initial_size) {
-        ASSERT_RELEASE(value == initial_value);
-      } else {
-        ASSERT_RELEASE(value == final_value);
-      }
-    });
-  }
-
   // Test async_binary_op_update_value
   {
     int size = 32;
