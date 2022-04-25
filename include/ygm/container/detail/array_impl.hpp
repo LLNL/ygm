@@ -43,9 +43,16 @@ class array_impl {
   void resize(const index_type size, const value_type &fill_value) {
     m_comm.barrier();
 
-    m_block_size = size / m_comm.size() + (size % m_comm.size() > 0);
+    m_global_size = size;
+    m_block_size  = size / m_comm.size() + (size % m_comm.size() > 0);
 
-    m_local_vec.resize(m_block_size, fill_value);
+    if (m_comm.rank() != m_comm.size() - 1) {
+      m_local_vec.resize(m_block_size, fill_value);
+    } else {
+      // Last rank may get less data
+      index_type block_size = m_global_size % m_block_size;
+      m_local_vec.resize(block_size);
+    }
 
     m_comm.barrier();
   }
