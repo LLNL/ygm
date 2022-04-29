@@ -25,12 +25,6 @@ class array {
 
   array(const self_type& rhs) : m_impl(rhs.m_impl) {}
 
-  void resize(const index_type size) { m_impl.resize(size); }
-
-  void resize(const index_type size, const value_type& value) {
-    m_impl.resize(size, value);
-  }
-
   void async_set(const index_type index, const value_type& value) {
     m_impl.async_set(index, value);
   }

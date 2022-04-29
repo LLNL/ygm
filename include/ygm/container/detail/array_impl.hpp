@@ -43,11 +43,19 @@ class array_impl {
   void resize(const index_type size, const value_type &fill_value) {
     m_comm.barrier();
 
-    index_type curr_local_size = m_local_vec.size();
+    m_global_size = size;
+    m_block_size  = size / m_comm.size() + (size % m_comm.size() > 0);
 
-    index_type local_size =
-        (size / m_comm.size()) + (m_comm.rank() < (size % m_comm.size()));
-    m_local_vec.resize(local_size, fill_value);
+    if (m_comm.rank() != m_comm.size() - 1) {
+      m_local_vec.resize(m_block_size, fill_value);
+    } else {
+      // Last rank may get less data
+      index_type block_size = m_global_size % m_block_size;
+      if (block_size == 0) {
+        block_size = m_block_size;
+      }
+      m_local_vec.resize(block_size, fill_value);
+    }
 
     m_comm.barrier();
   }
@@ -69,7 +77,7 @@ class array_impl {
   template <typename BinaryOp>
   void async_binary_op_update_value(const index_type  index,
                                     const value_type &value,
-                                    const BinaryOp &  b) {
+                                    const BinaryOp   &b) {
     ASSERT_RELEASE(index < m_global_size);
     auto updater = [](const index_type i, value_type &v,
                       const value_type &new_value) {
@@ -93,15 +101,15 @@ class array_impl {
 
   template <typename Visitor, typename... VisitorArgs>
   void async_visit(const index_type index, Visitor visitor,
-                   const VisitorArgs &... args) {
+                   const VisitorArgs &...args) {
     ASSERT_RELEASE(index < m_global_size);
     int  dest          = owner(index);
     auto visit_wrapper = [](auto parray, const index_type i,
-                            const VisitorArgs &... args) {
+                            const VisitorArgs &...args) {
       index_type l_index = parray->local_index(i);
       ASSERT_RELEASE(l_index < parray->m_local_vec.size());
       value_type &l_value = parray->m_local_vec[l_index];
-      Visitor *   vis     = nullptr;
+      Visitor    *vis     = nullptr;
       ygm::meta::apply_optional(*vis, std::make_tuple(parray),
                                 std::forward_as_tuple(i, l_value, args...));
     };
@@ -125,23 +133,24 @@ class array_impl {
 
   ygm::comm &comm() { return m_comm; }
 
-  int owner(const index_type index) { return index % m_comm.size(); }
+  int owner(const index_type index) { return index / m_block_size; }
 
   index_type local_index(const index_type index) {
-    return index / m_comm.size();
+    return index % m_block_size;
   }
 
   index_type global_index(const index_type index) {
-    return m_comm.size() * index + m_comm.rank();
+    return m_comm.rank() * m_block_size + index;
   }
 
  protected:
   array_impl() = delete;
 
   index_type                       m_global_size;
+  index_type                       m_block_size;
   value_type                       m_default_value;
   std::vector<value_type>          m_local_vec;
-  ygm::comm &                      m_comm;
+  ygm::comm                       &m_comm;
   typename ygm::ygm_ptr<self_type> pthis;
 };
 }  // namespace ygm::container::detail
