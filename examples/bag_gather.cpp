@@ -49,5 +49,17 @@ int main(int argc, char **argv) {
       }
   }
 
+  world.barrier();
+  auto all_data_2 = bbag.gather_to_vector();
+  for(int i = 0; i < world.size(); i++) {
+    if(i == world.rank()) {
+      std::cout << world.rank() << std::endl;
+      for(auto data : all_data_2) {
+        std::cout << data << std::endl;
+      }
+    }
+    world.barrier();
+  }
+
   return 0;
 }

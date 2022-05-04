@@ -84,40 +84,32 @@ class bag_impl {
 
 
   std::vector<value_type> gather_to_vector(int dest) {
-    m_comm.barrier();
     std::vector<value_type> result;
-    std::vector<std::vector<value_type>> buffers(m_comm.size());
-    if(m_comm.rank() == dest) {
-      ygm::ygm_ptr<std::vector<std::vector<value_type>>> res_ptr(&buffers);
-      for(int i = 0; i < m_comm.size(); i++) {
-        if(i == dest) {
-          buffers[dest].insert(buffers[dest].begin(), m_local_bag.begin(), m_local_bag.end());
-        } else {
-          get_local_from_rank(res_ptr, i);
-        }
-      }
-    }
+    ygm::ygm_ptr<std::vector<value_type>> m_res(&result);
     m_comm.barrier();
-    if(m_comm.rank() == dest) {
-      for(auto buffer : buffers) {
-        for(auto elem : buffer) {
-          result.push_back(elem);
-        }
-      }
-    }
+    auto gatherer = [](auto mailbox, auto res, std::vector<value_type> outer_data) {
+      res->insert(res->end(), outer_data.begin(), outer_data.end());
+    };
+    m_comm.async(dest, gatherer, m_res, m_local_bag);
+    m_comm.barrier();
     return result;
   }
 
-  void get_local_from_rank(ygm::ygm_ptr<std::vector<std::vector<value_type>>> res_ptr, int dest) {
-    auto gatherer = [](auto mailbox, auto outer, auto res_ptr, int origin) {
-      auto callback = [](auto mailbox, auto inner, auto res_ptr, int from, std::vector<value_type> data) {
-        for(auto item : data)
-          res_ptr->at(from).push_back(item);
+  std::vector<value_type> gather_to_vector() {
+    std::vector<value_type> result;
+    ygm::ygm_ptr<std::vector<value_type>> m_res(&result);
+    m_comm.barrier();
+    auto result0 = gather_to_vector(0);
+    if(m_comm.rank0()){
+      auto distribute = [](auto mailbox, auto res, std::vector<value_type> data) {
+        res->insert(res->end(), data.begin(), data.end());
       };
-      outer->m_comm.async(origin, callback, outer->pthis, res_ptr, outer->m_comm.rank(), outer->m_local_bag);
-    };
-    m_comm.async(dest, gatherer, pthis, res_ptr, m_comm.rank());
+      m_comm.async_bcast(distribute, m_res, result0);
+    }
+    m_comm.barrier();
+    return result;
   }
+
 
  protected:
   size_t                           m_round_robin = 0;
