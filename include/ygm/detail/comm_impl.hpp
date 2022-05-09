@@ -61,25 +61,22 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     ASSERT_DEBUG(dest < m_comm_size);
     static size_t recursion_detector = 0;
     ++recursion_detector;
-    if (dest == m_comm_rank) {
-      local_receive(std::forward<const SendArgs>(args)...);
-    } else {
-      m_send_count++;
+    m_send_count++;
 
-      //
-      // add data to the to dest buffer
-      if (m_vec_send_buffers[dest].empty()) {
-        m_send_dest_queue.push_back(dest);
-      }
-      size_t bytes = pack_lambda(m_vec_send_buffers[dest],
-                                 std::forward<const SendArgs>(args)...);
-      m_local_bytes_sent += bytes;
-      m_send_buffer_bytes += bytes;
-
-      //
-      // Check if send buffer capacity has been exceeded
-      flush_to_capacity();
+    //
+    // add data to the to dest buffer
+    if (m_vec_send_buffers[dest].empty()) {
+      m_send_dest_queue.push_back(dest);
     }
+    size_t bytes = pack_lambda(m_vec_send_buffers[dest],
+                               std::forward<const SendArgs>(args)...);
+    m_local_bytes_sent += bytes;
+    m_send_buffer_bytes += bytes;
+
+    //
+    // Check if send buffer capacity has been exceeded
+    flush_to_capacity();
+
     // If not experiencing recursion, check if listener has queued receives to
     // process
     if (recursion_detector == 1 && receive_queue_peek_size() > 0) {
@@ -285,7 +282,6 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
    * @param dest
    */
   void flush_send_buffer(int dest) {
-    ASSERT_RELEASE(dest != m_comm_rank);
     if (m_vec_send_buffers[dest].size() > 0) {
       ASSERT_MPI(MPI_Send(m_vec_send_buffers[dest].data(),
                           m_vec_send_buffers[dest].size(), MPI_BYTE, dest,
@@ -393,17 +389,6 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
       std::this_thread::sleep_for(std::chrono::microseconds(
           (m_recv_queue_bytes - m_buffer_capacity_bytes) / 1024));
     }
-  }
-
-  // Used if dest = m_comm_rank
-  template <typename Lambda, typename... Args>
-  int32_t local_receive(Lambda l, const Args &...args) {
-    ASSERT_DEBUG(sizeof(Lambda) == 1);
-    // Question: should this be std::forward(...)
-    // \pp was: (l)(this, m_comm_rank, args...);
-    ygm::meta::apply_optional(l, std::make_tuple(this),
-                              std::make_tuple(args...));
-    return 1;
   }
 
   template <typename Lambda, typename... PackArgs>
