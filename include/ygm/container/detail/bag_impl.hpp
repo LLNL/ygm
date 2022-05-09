@@ -87,7 +87,7 @@ class bag_impl {
     std::vector<value_type> result;
     auto p_res = m_comm.make_ygm_ptr(result);
     m_comm.barrier();
-    auto gatherer = [](auto res, std::vector<value_type> &outer_data) {
+    auto gatherer = [](auto res, const std::vector<value_type> &outer_data) {
       res->insert(res->end(), outer_data.begin(), outer_data.end());
     };
     m_comm.async(dest, gatherer, p_res, m_local_bag);
@@ -101,7 +101,7 @@ class bag_impl {
     m_comm.barrier();
     auto result0 = gather_to_vector(0);
     if(m_comm.rank0()){
-      auto distribute = [](auto res, std::vector<value_type> &data) {
+      auto distribute = [](auto res, const std::vector<value_type> &data) {
         res->insert(res->end(), data.begin(), data.end());
       };
       m_comm.async_bcast(distribute, p_res, result0);
