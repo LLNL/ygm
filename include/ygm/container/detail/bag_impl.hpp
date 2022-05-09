@@ -82,6 +82,35 @@ class bag_impl {
     std::for_each(m_local_bag.begin(), m_local_bag.end(), fn);
   }
 
+
+  std::vector<value_type> gather_to_vector(int dest) {
+    std::vector<value_type> result;
+    auto p_res = m_comm.make_ygm_ptr(result);
+    m_comm.barrier();
+    auto gatherer = [](auto res, const std::vector<value_type> &outer_data) {
+      res->insert(res->end(), outer_data.begin(), outer_data.end());
+    };
+    m_comm.async(dest, gatherer, p_res, m_local_bag);
+    m_comm.barrier();
+    return result;
+  }
+
+  std::vector<value_type> gather_to_vector() {
+    std::vector<value_type> result;
+    auto p_res = m_comm.make_ygm_ptr(result);
+    m_comm.barrier();
+    auto result0 = gather_to_vector(0);
+    if(m_comm.rank0()){
+      auto distribute = [](auto res, const std::vector<value_type> &data) {
+        res->insert(res->end(), data.begin(), data.end());
+      };
+      m_comm.async_bcast(distribute, p_res, result0);
+    }
+    m_comm.barrier();
+    return result;
+  }
+
+
  protected:
   size_t                           m_round_robin = 0;
   ygm::comm                        m_comm;
