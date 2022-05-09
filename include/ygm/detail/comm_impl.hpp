@@ -21,6 +21,10 @@
 namespace ygm {
 
 class comm::impl : public std::enable_shared_from_this<comm::impl> {
+ private:
+  enum class ygm_tag : int { message, kill };
+  constexpr int to_mpi_tag(ygm_tag t) { return static_cast<int>(t); }
+
  public:
   impl(MPI_Comm c, int buffer_capacity) : m_layout(c) {
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_async));
@@ -37,8 +41,9 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
 
   ~impl() {
     // send kill signal to self (listener thread)
-    ASSERT_RELEASE(MPI_Send(NULL, 0, MPI_BYTE, m_comm_rank, 0, m_comm_async) ==
-                   MPI_SUCCESS);
+    ASSERT_RELEASE(MPI_Send(NULL, 0, MPI_BYTE, m_comm_rank,
+                            to_mpi_tag(ygm_tag::kill),
+                            m_comm_async) == MPI_SUCCESS);
     // Join listener thread.
     m_listener.join();
     // Free cloned communicator.
@@ -56,25 +61,22 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     ASSERT_DEBUG(dest < m_comm_size);
     static size_t recursion_detector = 0;
     ++recursion_detector;
-    if (dest == m_comm_rank) {
-      local_receive(std::forward<const SendArgs>(args)...);
-    } else {
-      m_send_count++;
+    m_send_count++;
 
-      //
-      // add data to the to dest buffer
-      if (m_vec_send_buffers[dest].empty()) {
-        m_send_dest_queue.push_back(dest);
-      }
-      size_t bytes = pack_lambda(m_vec_send_buffers[dest],
-                                 std::forward<const SendArgs>(args)...);
-      m_local_bytes_sent += bytes;
-      m_send_buffer_bytes += bytes;
-
-      //
-      // Check if send buffer capacity has been exceeded
-      flush_to_capacity();
+    //
+    // add data to the to dest buffer
+    if (m_vec_send_buffers[dest].empty()) {
+      m_send_dest_queue.push_back(dest);
     }
+    size_t bytes = pack_lambda(m_vec_send_buffers[dest],
+                               std::forward<const SendArgs>(args)...);
+    m_local_bytes_sent += bytes;
+    m_send_buffer_bytes += bytes;
+
+    //
+    // Check if send buffer capacity has been exceeded
+    flush_to_capacity();
+
     // If not experiencing recursion, check if listener has queued receives to
     // process
     if (recursion_detector == 1 && receive_queue_peek_size() > 0) {
@@ -280,11 +282,10 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
    * @param dest
    */
   void flush_send_buffer(int dest) {
-    ASSERT_RELEASE(dest != m_comm_rank);
     if (m_vec_send_buffers[dest].size() > 0) {
       ASSERT_MPI(MPI_Send(m_vec_send_buffers[dest].data(),
-                          m_vec_send_buffers[dest].size(), MPI_BYTE, dest, 0,
-                          m_comm_async));
+                          m_vec_send_buffers[dest].size(), MPI_BYTE, dest,
+                          to_mpi_tag(ygm_tag::message), m_comm_async));
       m_send_buffer_bytes -= m_vec_send_buffers[dest].size();
     }
     m_vec_send_buffers[dest].clear();
@@ -354,7 +355,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
                           m_comm_async, &status));
 
       // Check for kill signal
-      if (status.MPI_SOURCE == m_comm_rank) break;
+      if (source == m_comm_rank && tag == to_mpi_tag(ygm_tag::kill)) break;
 
       receive_queue_push_back(recv_buffer, count);
     }
@@ -388,17 +389,6 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
       std::this_thread::sleep_for(std::chrono::microseconds(
           (m_recv_queue_bytes - m_buffer_capacity_bytes) / 1024));
     }
-  }
-
-  // Used if dest = m_comm_rank
-  template <typename Lambda, typename... Args>
-  int32_t local_receive(Lambda l, const Args &...args) {
-    ASSERT_DEBUG(sizeof(Lambda) == 1);
-    // Question: should this be std::forward(...)
-    // \pp was: (l)(this, m_comm_rank, args...);
-    ygm::meta::apply_optional(l, std::make_tuple(this),
-                              std::make_tuple(args...));
-    return 1;
   }
 
   template <typename Lambda, typename... PackArgs>
