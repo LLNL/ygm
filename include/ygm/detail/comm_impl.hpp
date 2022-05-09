@@ -21,6 +21,10 @@
 namespace ygm {
 
 class comm::impl : public std::enable_shared_from_this<comm::impl> {
+ private:
+  enum class ygm_tag : int { message, kill };
+  constexpr int to_mpi_tag(ygm_tag t) { return static_cast<int>(t); }
+
  public:
   impl(MPI_Comm c, int buffer_capacity) : m_layout(c) {
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_async));
@@ -37,8 +41,9 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
 
   ~impl() {
     // send kill signal to self (listener thread)
-    ASSERT_RELEASE(MPI_Send(NULL, 0, MPI_BYTE, m_comm_rank, 0, m_comm_async) ==
-                   MPI_SUCCESS);
+    ASSERT_RELEASE(MPI_Send(NULL, 0, MPI_BYTE, m_comm_rank,
+                            to_mpi_tag(ygm_tag::kill),
+                            m_comm_async) == MPI_SUCCESS);
     // Join listener thread.
     m_listener.join();
     // Free cloned communicator.
@@ -283,8 +288,8 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     ASSERT_RELEASE(dest != m_comm_rank);
     if (m_vec_send_buffers[dest].size() > 0) {
       ASSERT_MPI(MPI_Send(m_vec_send_buffers[dest].data(),
-                          m_vec_send_buffers[dest].size(), MPI_BYTE, dest, 0,
-                          m_comm_async));
+                          m_vec_send_buffers[dest].size(), MPI_BYTE, dest,
+                          to_mpi_tag(ygm_tag::message), m_comm_async));
       m_send_buffer_bytes -= m_vec_send_buffers[dest].size();
     }
     m_vec_send_buffers[dest].clear();
@@ -354,7 +359,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
                           m_comm_async, &status));
 
       // Check for kill signal
-      if (status.MPI_SOURCE == m_comm_rank) break;
+      if (source == m_comm_rank && tag == to_mpi_tag(ygm_tag::kill)) break;
 
       receive_queue_push_back(recv_buffer, count);
     }
