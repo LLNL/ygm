@@ -85,26 +85,26 @@ class bag_impl {
 
   std::vector<value_type> gather_to_vector(int dest) {
     std::vector<value_type> result;
-    ygm::ygm_ptr<std::vector<value_type>> m_res(&result);
+    auto p_res = m_comm.make_ygm_ptr(result);
     m_comm.barrier();
-    auto gatherer = [](auto mailbox, auto res, std::vector<value_type> outer_data) {
+    auto gatherer = [](auto res, std::vector<value_type> &outer_data) {
       res->insert(res->end(), outer_data.begin(), outer_data.end());
     };
-    m_comm.async(dest, gatherer, m_res, m_local_bag);
+    m_comm.async(dest, gatherer, p_res, m_local_bag);
     m_comm.barrier();
     return result;
   }
 
   std::vector<value_type> gather_to_vector() {
     std::vector<value_type> result;
-    ygm::ygm_ptr<std::vector<value_type>> m_res(&result);
+    auto p_res = m_comm.make_ygm_ptr(result);
     m_comm.barrier();
     auto result0 = gather_to_vector(0);
     if(m_comm.rank0()){
-      auto distribute = [](auto mailbox, auto res, std::vector<value_type> data) {
+      auto distribute = [](auto res, std::vector<value_type> &data) {
         res->insert(res->end(), data.begin(), data.end());
       };
-      m_comm.async_bcast(distribute, m_res, result0);
+      m_comm.async_bcast(distribute, p_res, result0);
     }
     m_comm.barrier();
     return result;
