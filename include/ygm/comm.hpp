@@ -14,9 +14,15 @@
 
 namespace ygm {
 
+namespace detail {
+class interrupt_mask;
+}
+
 class comm {
  private:
   class impl;
+  // class detail::interrupt_mask;
+  friend class detail::interrupt_mask;
 
  public:
   comm(int *argc, char ***argv, int buffer_capacity);

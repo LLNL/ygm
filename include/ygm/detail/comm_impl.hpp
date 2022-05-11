@@ -25,6 +25,8 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   enum class ygm_tag : int { message, kill };
   constexpr int to_mpi_tag(ygm_tag t) { return static_cast<int>(t); }
 
+  friend class ygm::detail::interrupt_mask;
+
  public:
   impl(MPI_Comm c, int buffer_capacity) : m_layout(c) {
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_async));
@@ -429,6 +431,10 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
    * @return True if receive queue was non-empty, else false
    */
   bool process_receive_queue() {
+    if (!m_enable_interrupts) {
+      return false;
+    }
+
     bool received = false;
     comm tmp_comm(shared_from_this());
     while (true) {
@@ -472,6 +478,8 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   std::thread m_listener;
 
   std::deque<std::function<void()>> m_pre_barrier_callbacks;
+
+  bool m_enable_interrupts = true;
 
   uint64_t m_recv_count = 0;
   uint64_t m_send_count = 0;
