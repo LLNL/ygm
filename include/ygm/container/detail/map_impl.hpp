@@ -107,7 +107,7 @@ class map_impl {
         ASSERT_DEBUG(range.first != range.second);
       }
 
-      ygm::detail::interrupt_mask mask(m_comm);
+      ygm::detail::interrupt_mask mask(pmap->m_comm);
 
       Visitor *vis = nullptr;
       ygm::meta::apply_optional(
