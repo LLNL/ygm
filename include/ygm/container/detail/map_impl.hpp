@@ -107,7 +107,7 @@ class map_impl {
         ASSERT_DEBUG(range.first != range.second);
       }
 
-      detail::interrupt_mask mask(m_comm);
+      ygm::detail::interrupt_mask mask(m_comm);
 
       Visitor *vis = nullptr;
       ygm::meta::apply_optional(
@@ -269,7 +269,7 @@ class map_impl {
   template <typename Function, typename... VisitorArgs>
   void local_visit(const key_type &key, Function &fn,
                    const VisitorArgs &...args) {
-    detail::interrupt_mask mask(m_comm);
+    ygm::detail::interrupt_mask mask(m_comm);
 
     auto range = m_local_map.equal_range(key);
     for (auto itr = range.first; itr != range.second; ++itr) {
