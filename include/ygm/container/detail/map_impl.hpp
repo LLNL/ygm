@@ -10,6 +10,7 @@
 #include <map>
 #include <ygm/comm.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
+#include <ygm/detail/interrupt_mask.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 
 namespace ygm::container::detail {
