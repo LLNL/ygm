@@ -61,7 +61,7 @@ class map_impl {
     async_insert_if_missing_else_visit(
         key, value,
         [](const std::pair<key_type, value_type> &kv,
-           const value_type &                     new_value) {});
+           const value_type                      &new_value) {});
   }
 
   void async_insert_multi(const key_type &key, const value_type &value) {
@@ -75,10 +75,10 @@ class map_impl {
 
   template <typename Visitor, typename... VisitorArgs>
   void async_visit(const key_type &key, Visitor visitor,
-                   const VisitorArgs &... args) {
+                   const VisitorArgs &...args) {
     int  dest          = owner(key);
     auto visit_wrapper = [](auto pcomm, auto pmap, const key_type &key,
-                            const VisitorArgs &... args) {
+                            const VisitorArgs &...args) {
       auto range = pmap->m_local_map.equal_range(key);
       if (range.first == range.second) {  // check if not in range
         pmap->m_local_map.insert(std::make_pair(key, pmap->m_default_value));
@@ -95,16 +95,19 @@ class map_impl {
 
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_group(const key_type &key, Visitor visitor,
-                         const VisitorArgs &... args) {
+                         const VisitorArgs &...args) {
     int  dest          = owner(key);
     auto visit_wrapper = [](auto pcomm, auto pmap, const key_type &key,
-                            const VisitorArgs &... args) {
+                            const VisitorArgs &...args) {
       auto range = pmap->m_local_map.equal_range(key);
       if (range.first == range.second) {  // check if not in range
         pmap->m_local_map.insert(std::make_pair(key, pmap->m_default_value));
         range = pmap->m_local_map.equal_range(key);
         ASSERT_DEBUG(range.first != range.second);
       }
+
+      detail::interrupt_mask mask(m_comm);
+
       Visitor *vis = nullptr;
       ygm::meta::apply_optional(
           *vis, std::make_tuple(pmap),
@@ -117,10 +120,10 @@ class map_impl {
 
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_if_exists(const key_type &key, Visitor visitor,
-                             const VisitorArgs &... args) {
+                             const VisitorArgs &...args) {
     int  dest          = owner(key);
     auto visit_wrapper = [](auto pcomm, auto pmap, const key_type &key,
-                            const VisitorArgs &... args) {
+                            const VisitorArgs &...args) {
       Visitor *vis = nullptr;
       pmap->local_visit(key, *vis, args...);
     };
@@ -130,14 +133,14 @@ class map_impl {
   }
 
   template <typename Visitor, typename... VisitorArgs>
-  void async_insert_if_missing_else_visit(const key_type &  key,
+  void async_insert_if_missing_else_visit(const key_type   &key,
                                           const value_type &value,
                                           Visitor           visitor,
-                                          const VisitorArgs &... args) {
+                                          const VisitorArgs &...args) {
     int  dest                      = owner(key);
     auto insert_else_visit_wrapper = [](auto pmap, const key_type &key,
                                         const value_type &value,
-                                        const VisitorArgs &... args) {
+                                        const VisitorArgs &...args) {
       auto itr = pmap->m_local_map.find(key);
       if (itr == pmap->m_local_map.end()) {
         pmap->m_local_map.insert(std::make_pair(key, value));
@@ -264,7 +267,9 @@ class map_impl {
 
   template <typename Function, typename... VisitorArgs>
   void local_visit(const key_type &key, Function &fn,
-                   const VisitorArgs &... args) {
+                   const VisitorArgs &...args) {
+    detail::interrupt_mask mask(m_comm);
+
     auto range = m_local_map.equal_range(key);
     for (auto itr = range.first; itr != range.second; ++itr) {
       ygm::meta::apply_optional(fn, std::make_tuple(pthis),
