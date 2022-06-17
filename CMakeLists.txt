@@ -135,9 +135,7 @@ endif ()
 #
 #
 find_package(Arrow 8.0)
-if (NOT Arrow_FOUND)
-    message(WARNING ${PROJECT_NAME} " did not find Arrow >= 8.0. Building without Arrow.") 
-else ()
+if (Arrow_FOUND)
    message(STATUS ${PROJECT_NAME} " found Arrow ")
    message(STATUS "Arrow version: ${ARROW_VERSION}")
    message(STATUS "Arrow SO version: ${ARROW_FULL_SO_VERSION}")
@@ -149,7 +147,9 @@ else ()
        message(STATUS "Parquet SO version: ${PARQUET_FULL_SO_VERSION}") 
    else ()
        message(WARNING ${PROJECT_NAME} " did not find Parquet. Building without Parquet.") 
-   endif ()  
+   endif () 
+else ()
+   message(WARNING ${PROJECT_NAME} " did not find Arrow >= 8.0. Building without Arrow.") 
 endif ()
 
 #
