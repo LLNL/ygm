@@ -6,7 +6,8 @@
 #pragma once
 
 #include <filesystem>
-#include <fstream>
+#include <cassert>
+#include <regex>
 #include <string>
 #include <vector>
 
@@ -19,6 +20,7 @@
 
 #include <parquet/api/reader.h>
 #include <parquet/exception.h>
+#include <parquet/metadata.h>
 #include <parquet/stream_reader.h>
 #include <parquet/types.h>
 
@@ -27,9 +29,9 @@ namespace stdfs = std::filesystem;
 namespace ygm::io {
 
 //template <typename T>
-//using optional = parquet::StreamReader::optional<T>;
+//using parquet_optional = parquet::StreamReader::optional<T>;
 
-using FileSchema = std::vector< std::tuple<std::string, std::string> >;
+using file_schema_container = std::vector<std::tuple<std::string, std::string>>;
 
 class arrow_parquet_parser {
 
@@ -41,11 +43,12 @@ class arrow_parquet_parser {
      pthis.check(m_comm);
    } 
 
-   arrow_parquet_parser(ygm::comm& _comm, const std::string _dir_name) :
+   arrow_parquet_parser(ygm::comm& _comm, const std::string& _dir_name) :
      m_comm(_comm), pthis(this) {
      pthis.check(m_comm);
      build_file_list(_dir_name);
      read_file_schema();
+     m_comm.barrier();      
    } 
 
    ~arrow_parquet_parser() {
@@ -59,7 +62,7 @@ class arrow_parquet_parser {
 
      const std::regex filename_filter(wildcard + ".*\\.parquet");
 
-     if(!stdfs::exists(dir_path) ||
+     if (!stdfs::exists(dir_path) ||
        !stdfs::is_directory(dir_path)) {
        std::cerr << "Error: Invalid directory path." << std::endl;       
      } else {
@@ -84,12 +87,19 @@ class arrow_parquet_parser {
        [](auto& stream_reader, const auto& field_count){}, true);   
    }
 
-   const FileSchema& schema() {
+   const file_schema_container& schema() {
      return m_schema; 
    }
 
    const std::string& schame_to_string() {
      return m_schema_string;  
+   }
+
+   void check_file_schema(const parquet::SchemaDescriptor* file_schema) {
+     // check the number of fields
+     auto file_schema_group_node = file_schema->group_node();
+     size_t field_count = file_schema_group_node->field_count();
+     assert(field_count == m_schema.size());       
    }
 
    template <typename Function>
@@ -100,7 +110,7 @@ class arrow_parquet_parser {
    template <typename Function>
    void read_files(Function fn) {
      for (size_t i = 0; i < m_paths.size(); ++i) {
-       if(is_owner(i)) {
+       if (is_owner(i)) {
          read_file(m_paths[i], fn);    
        }
      } // for
@@ -122,36 +132,32 @@ class arrow_parquet_parser {
    template <typename Function>
    void parquet_stream_reader(std::string input_filename, Function fn, 
      bool read_schema_only = false) {
-
      std::shared_ptr<arrow::io::ReadableFile> input_file;
      PARQUET_ASSIGN_OR_THROW(
        input_file, arrow::io::ReadableFile::Open(input_filename));
      std::unique_ptr<parquet::ParquetFileReader> parquet_file_reader =
        parquet::ParquetFileReader::OpenFile(input_filename);
-     parquet::StreamReader 
-       stream_reader{parquet::ParquetFileReader::Open(input_file)};
+     parquet::StreamReader stream_reader{
+       parquet::ParquetFileReader::Open(input_file)};
 
-     // https://github.com/apache/arrow/blob/master/cpp/src/parquet/metadata.h
      std::shared_ptr<parquet::FileMetaData> file_metadata = 
        parquet_file_reader->metadata();
+     auto file_schema = file_metadata->schema(); // SchemaDescriptor
 
-     // https://github.com/apache/arrow/blob/master/cpp/src/parquet/schema.h
-     // SchemaDescriptor
-     auto file_schema = file_metadata->schema();
+     size_t field_count = 0;
 
-     // https://github.com/apache/arrow/blob/master/cpp/src/parquet/schema.h
-     auto file_schema_group_node = file_schema->group_node();    
-
-     size_t field_count = file_schema_group_node->field_count();
-
-     // https://github.com/apache/arrow/blob/master/cpp/src/parquet/schema.h
-     for (int i = 0; i < file_schema_group_node->field_count(); ++i) {
-       auto node_ptr = file_schema_group_node->field(i);
-       if (read_schema_only) { 
+     if (read_schema_only) {
+       auto file_schema_group_node = file_schema->group_node();    
+       size_t field_count = file_schema_group_node->field_count();
+       for (int i = 0; i < file_schema_group_node->field_count(); ++i) {
+         auto node_ptr = file_schema_group_node->field(i);
          m_schema.emplace_back(std::forward_as_tuple(
-           node_ptr->logical_type()->ToString(), node_ptr->name()));
-       }
-     } // for
+           node_ptr->logical_type()->ToString(), node_ptr->name()));         
+       } // for
+     } else {
+       check_file_schema(file_schema);  
+       field_count = m_schema.size();  
+     } 
 
      if (read_schema_only) {
        m_schema_string = file_schema->ToString();
@@ -162,15 +168,14 @@ class arrow_parquet_parser {
 
      for (size_t i = 0; !stream_reader.eof(); ++i) {
        fn(stream_reader, field_count);
-     } // for
- 
+     } // for 
    }
  
  private :
    ygm::comm m_comm;
    typename ygm::ygm_ptr<self_type> pthis;   
    std::vector<stdfs::path> m_paths;
-   FileSchema m_schema;
+   file_schema_container m_schema;
    std::string m_schema_string;
 }; 
 

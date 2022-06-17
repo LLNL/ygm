@@ -6,9 +6,9 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
-#include <filesystem>
 #include <iostream>
-#include <regex>
+#include <string>
+#include <vector>
 
 #include <ygm/comm.hpp>
 #include <ygm/io/arrow_parquet_parser.hpp>
@@ -27,6 +27,7 @@ int main(int argc, char** argv) {
   // assuming the build directory is inside the YGM root directory  
   const std::string dir_name = "../test/data/parquet_files/"; 
 
+  // arrow_parquet_parser assumes files have identical scehma
   ygm::io::arrow_parquet_parser parquetp(world, dir_name);
 
   if (world.rank() == 0) {
@@ -40,8 +41,6 @@ int main(int argc, char** argv) {
     std::cout << std::endl;
     std::cout << parquetp.schame_to_string() << std::endl;
   }
-
-  world.barrier();
 
   // count total number of rows in files
    
@@ -109,7 +108,7 @@ int main(int argc, char** argv) {
     //std::cout << "#Rows: " << row_count_2 << std::endl;
     for (size_t i = 0; i < parquetp.schema().size(); ++i) {
       std::cout << "("<< std::get<1>(parquetp.schema()[i]) << ") ";
-    }                                                                                                                                                     
+    }
     std::cout << std::endl;     
     for (size_t i = 0; i < std::min((size_t)3, rows.size()); ++i) {
       auto& obj_ref = rows[i]; 
