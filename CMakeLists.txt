@@ -131,6 +131,28 @@ else ()
 endif ()
 
 #
+# Arrow
+#
+#
+find_package(Arrow 8.0)
+if (NOT Arrow_FOUND)
+    message(WARNING ${PROJECT_NAME} " did not find Arrow >= 8.0. Building without Arrow.") 
+else ()
+   message(STATUS ${PROJECT_NAME} " found Arrow ")
+   message(STATUS "Arrow version: ${ARROW_VERSION}")
+   message(STATUS "Arrow SO version: ${ARROW_FULL_SO_VERSION}")
+   set(ARROW_CMAKE_DIR ${Arrow_DIR})
+   find_package(Parquet PATHS ${ARROW_CMAKE_DIR})
+   if (Parquet_FOUND)
+       message(STATUS ${PROJECT_NAME} " found Parquet ")
+       message(STATUS "Parquet version: ${PARQUET_VERSION}")
+       message(STATUS "Parquet SO version: ${PARQUET_FULL_SO_VERSION}") 
+   else ()
+       message(WARNING ${PROJECT_NAME} " did not find Parquet. Building without Parquet.") 
+   endif ()  
+endif ()
+
+#
 # Create the YGM target library
 #
 add_library(ygm INTERFACE)
