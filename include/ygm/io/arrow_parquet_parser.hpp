@@ -130,7 +130,7 @@ class arrow_parquet_parser {
    }
 
    template <typename Function>
-   void parquet_stream_reader(std::string& input_filename, Function fn, 
+   void parquet_stream_reader(std::string&& input_filename, Function fn, 
      bool read_schema_only = false) {
      std::shared_ptr<arrow::io::ReadableFile> input_file;
      PARQUET_ASSIGN_OR_THROW(
