@@ -61,18 +61,6 @@ int main(int argc, char** argv) {
     std::cout << "#Rows: " << row_count << std::endl; 
   }
 
-  // skip some rows
-   
-  parquetp.for_all( 
-    [&row_count](auto& stream_reader, const auto& field_count) {
-      stream_reader.SkipColumns(field_count);
-      stream_reader.EndRow();
-      stream_reader.SkipRows((int64_t)row_count/2);    
-    }
-  );
-
-  world.barrier();
-
   // read fields in each row 
 
   struct columns {
