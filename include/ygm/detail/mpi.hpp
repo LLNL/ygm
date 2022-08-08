@@ -40,6 +40,7 @@ inline MPI_Datatype mpi_typeof(unsigned long long) {
   return MPI_UNSIGNED_LONG_LONG;
 }
 inline MPI_Datatype mpi_typeof(signed long long) { return MPI_LONG_LONG_INT; }
+inline MPI_Datatype mpi_typeof(float) { return MPI_FLOAT; }
 inline MPI_Datatype mpi_typeof(double) { return MPI_DOUBLE; }
 inline MPI_Datatype mpi_typeof(long double) { return MPI_LONG_DOUBLE; }
 
