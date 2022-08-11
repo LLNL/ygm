@@ -108,6 +108,8 @@ class set_impl {
     }
   }
 
+  ygm::comm &comm() { return m_comm; }
+
   // protected:
   template <typename Function>
   void local_for_all(Function fn) {
