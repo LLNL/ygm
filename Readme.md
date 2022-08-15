@@ -27,7 +27,7 @@ perform a user-provided function only on the desired data. These containers are 
 YGM is a header-only library that is easy to incorporate into a project through CMake. Adding the following to
 CMakeLists.txt will install YGM and its dependencies as part of your project:
 ```
-set(DESIRED_YGM_VERSION 0.3)
+set(DESIRED_YGM_VERSION 0.4)
 find_package(ygm ${DESIRED_YGM_VERSION} CONFIG)
 if (NOT ygm_FOUND)
     FetchContent_Declare(
