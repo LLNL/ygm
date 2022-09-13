@@ -45,6 +45,7 @@ class YGMOutputArchive
   //! Writes size bytes of data to the output stream
   void saveBinary(const void *data, std::streamsize size) {
     const std::byte *cdata = reinterpret_cast<const std::byte *>(data);
+    vec_data.reserve(vec_data.size() + size);
     vec_data.insert(vec_data.end(), cdata, cdata + size);
 
     // if (writtenSize != size)
@@ -135,7 +136,7 @@ inline CEREAL_ARCHIVE_RESTRICT(YGMInputArchive, YGMOutputArchive)
 
 //! Saving binary data
 template <class T>
-inline void CEREAL_SAVE_FUNCTION_NAME(YGMOutputArchive &   ar,
+inline void CEREAL_SAVE_FUNCTION_NAME(YGMOutputArchive    &ar,
                                       BinaryData<T> const &bd) {
   ar.saveBinary(bd.data, static_cast<std::streamsize>(bd.size));
 }

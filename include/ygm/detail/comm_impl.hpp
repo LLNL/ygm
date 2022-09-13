@@ -383,7 +383,6 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     {
       std::scoped_lock lock(m_recv_queue_mutex);
       m_recv_queue.push_back({b, size});
-      m_recv_queue.size();
       m_recv_queue_bytes += size;
     }
     if (m_recv_queue_bytes > m_buffer_capacity_bytes) {
