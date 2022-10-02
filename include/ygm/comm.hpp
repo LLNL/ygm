@@ -25,11 +25,11 @@ class comm {
   friend class detail::interrupt_mask;
 
  public:
-  comm(int *argc, char ***argv, int buffer_capacity);
+  comm(int *argc, char ***argv);
 
   // TODO:  Add way to detect if this MPI_Comm is already open. E.g., static
   // map<MPI_Comm, impl*>
-  comm(MPI_Comm comm, int buffer_capacity);
+  comm(MPI_Comm comm);
 
   // Constructor to allow comm::impl to build temporary comm using itself as the
   // impl

@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <sys/mman.h>
 #include <x86intrin.h>
 #include <atomic>
 #include <deque>
@@ -13,6 +14,7 @@
 #include <thread>
 #include <vector>
 
+#include <ygm/detail/comm_environment.hpp>
 #include <ygm/detail/layout.hpp>
 #include <ygm/detail/meta/functional.hpp>
 #include <ygm/detail/mpi.hpp>
@@ -45,11 +47,6 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     }
   };
 
-  struct env_configuration {
-    env_configuration() {}
-    size_t num_irecvs = 64;
-  };
-
   // NR Routing
   int next_hop(const int dest) {
     // if (m_layout.is_local(dest)) {
@@ -75,15 +72,17 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     if (my_node == dest_node) {
       return dest;
     } else {
-      //      return dest_node * m_layout.local_size() + my_offset;
+      if (config.enable_routing == detail::comm_environment::routing_type::NR) {
+        return dest_node * m_layout.local_size() + my_offset;
+      }  // else is NLNR
+
       int responsible_core = (dest_node % m_layout.local_size()) +
                              (my_node * m_layout.local_size());
       if (m_comm_rank == responsible_core) {
         return (dest_node * m_layout.local_size()) +
                (my_node % m_layout.local_size());
-      } else {
-        return responsible_core;
       }
+      return responsible_core;
     }
   }
 
@@ -102,22 +101,23 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   }
 
  public:
-  impl(MPI_Comm c, int buffer_capacity) : m_layout(c) {
+  impl(MPI_Comm c) : m_layout(c) {
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_async));
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_barrier));
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_other));
     ASSERT_MPI(MPI_Comm_size(m_comm_async, &m_comm_size));
     ASSERT_MPI(MPI_Comm_rank(m_comm_async, &m_comm_rank));
-    m_buffer_capacity_bytes = buffer_capacity;
 
     m_vec_send_buffers.resize(m_comm_size);
 
     if (m_comm_rank == 0) {
-      std::cout << "config.num_irecvs = " << config.num_irecvs << std::endl;
+      if (config.print_config) {
+        config.print();
+      }
     }
     for (size_t i = 0; i < config.num_irecvs; ++i) {
       std::shared_ptr<std::byte[]> recv_buffer{
-          new std::byte[m_buffer_capacity_bytes / m_layout.local_size()]};
+          new std::byte[config.irecv_size]};
       post_new_irecv(recv_buffer);
     }
 
@@ -135,9 +135,6 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
                 << std::endl;
       std::cout << "m_local_iallreduce = " << m_local_iallreduce << std::endl;
       std::cout << "m_mpi_wait_time = " << m_mpi_wait_time << std::endl;
-      std::cout << "m_enable_routing = " << m_enable_routing << std::endl;
-      std::cout << "m_buffer_capacity_bytes = " << m_buffer_capacity_bytes
-                << std::endl;
     }
 
     ASSERT_RELEASE(m_send_queue.empty());
@@ -174,7 +171,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     //
     //
     int next_dest = dest;
-    if (m_enable_routing) {
+    if (config.enable_routing) {
       next_hop(dest);
     }
 
@@ -182,13 +179,12 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     // add data to the to dest buffer
     if (m_vec_send_buffers[next_dest].empty()) {
       m_send_dest_queue.push_back(next_dest);
-      m_vec_send_buffers[next_dest].reserve(m_buffer_capacity_bytes /
-                                            m_layout.local_size());
+      m_vec_send_buffers[next_dest].reserve(config.buffer_size);
     }
 
     // // Add header without message size
     size_t header_bytes = 0;
-    if (m_enable_routing) {
+    if (config.enable_routing) {
       header_bytes = pack_header(m_vec_send_buffers[next_dest], dest, 0);
       m_local_bytes_sent += header_bytes;
       m_send_buffer_bytes += header_bytes;
@@ -200,7 +196,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     m_send_buffer_bytes += bytes;
 
     // // Add message size to header
-    if (m_enable_routing) {
+    if (config.enable_routing) {
       auto iter = m_vec_send_buffers[next_dest].end();
       iter -= (header_bytes + bytes);
       std::memcpy(&*iter, &bytes, sizeof(header_t::dest));
@@ -461,7 +457,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
 
   void check_if_production_halt_required() {
     while (m_enable_interrupts && !in_process_receive_queue &&
-           m_isend_bytes > m_buffer_capacity_bytes) {
+           m_isend_bytes > config.buffer_size) {
       process_receive_queue();
     }
   }
@@ -507,7 +503,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
    * capacity
    */
   void flush_to_capacity() {
-    while (m_send_buffer_bytes > m_buffer_capacity_bytes) {
+    while (m_send_buffer_bytes > config.buffer_size) {
       ASSERT_DEBUG(!m_send_dest_queue.empty());
       int dest = m_send_dest_queue.front();
       m_send_dest_queue.pop_front();
@@ -519,9 +515,9 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     mpi_irecv_request recv_req;
     recv_req.buffer = recv_buffer;
 
-    ASSERT_MPI(MPI_Irecv(recv_req.buffer.get(),
-                         m_buffer_capacity_bytes / m_layout.local_size(),
-                         MPI_BYTE, MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_async,
+    //::madvise(recv_req.buffer.get(), config.irecv_size, MADV_DONTNEED);
+    ASSERT_MPI(MPI_Irecv(recv_req.buffer.get(), config.irecv_size, MPI_BYTE,
+                         MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_async,
                          &(recv_req.request)));
     m_local_irecv++;
     m_recv_queue.push_back(recv_req);
@@ -598,7 +594,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     // std::cout << m_comm_rank << ": received " << count << std::endl;
     cereal::YGMInputArchive iarchive(m_recv_queue.front().buffer.get(), count);
     while (!iarchive.empty()) {
-      if (m_enable_routing) {
+      if (config.enable_routing) {
         header_t h;
         iarchive(h);
         if (h.dest == m_comm_rank) {
@@ -698,7 +694,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
 
     //
     // if we have a pending iRecv, then we can issue a Waitsome
-    if (m_send_queue.size() > config.num_irecvs) {
+    if (m_send_queue.size() > config.num_isends_wait) {
       MPI_Request twin_req[2];
       twin_req[0] = m_send_queue.front().request;
       twin_req[1] = m_recv_queue.front().request;
@@ -758,7 +754,6 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   MPI_Comm m_comm_other;
   int      m_comm_size;
   int      m_comm_rank;
-  size_t   m_buffer_capacity_bytes;
 
   detail::layout m_layout;
 
@@ -793,32 +788,24 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   size_t m_local_iallreduce      = 0;
   double m_mpi_wait_time         = 0;
 
-  bool m_enable_routing = 0;
-
-  const env_configuration config;  // todo: make const?
+  const detail::comm_environment config;
 
   std::vector<std::byte> m_packing_buffer;
 };
 
-inline comm::comm(int *argc, char ***argv,
-                  int buffer_capacity = 16 * 1024 * 1024) {
+inline comm::comm(int *argc, char ***argv) {
   pimpl_if = std::make_shared<detail::mpi_init_finalize>(argc, argv);
-  pimpl    = std::make_shared<comm::impl>(MPI_COMM_WORLD, buffer_capacity);
+  pimpl    = std::make_shared<comm::impl>(MPI_COMM_WORLD);
 }
 
-inline comm::comm(MPI_Comm mcomm, int buffer_capacity = 16 * 1024 * 1024) {
+inline comm::comm(MPI_Comm mcomm) {
   pimpl_if.reset();
   int flag(0);
   ASSERT_MPI(MPI_Initialized(&flag));
   if (!flag) {
-    throw std::runtime_error("ERROR: MPI not initialized");
+    throw std::runtime_error("YGM::COMM ERROR: MPI not initialized");
   }
-  int provided(0);
-  ASSERT_MPI(MPI_Query_thread(&provided));
-  if (provided != MPI_THREAD_MULTIPLE) {
-    throw std::runtime_error("ERROR: MPI_THREAD_MULTIPLE not provided");
-  }
-  pimpl = std::make_shared<comm::impl>(mcomm, buffer_capacity);
+  pimpl = std::make_shared<comm::impl>(mcomm);
 }
 
 inline comm::comm(std::shared_ptr<impl> impl_ptr) : pimpl(impl_ptr) {}
