@@ -16,13 +16,14 @@ namespace ygm {
 
 namespace detail {
 class interrupt_mask;
-}
+class comm_stats;
+}  // namespace detail
 
 class comm {
  private:
   class impl;
-  // class detail::interrupt_mask;
   friend class detail::interrupt_mask;
+  friend class detail::comm_stats;
 
  public:
   comm(int *argc, char ***argv);
@@ -42,6 +43,9 @@ class comm {
    *
    */
   void welcome(std::ostream &os = std::cout);
+
+  void stats_reset();
+  void stats_print(const std::string &name = "", std::ostream &os = std::cout);
 
   //
   //  Asynchronous rpc interfaces.   Can be called inside OpenMP loop
@@ -104,16 +108,6 @@ class comm {
   int rank() const;
 
   const detail::layout &layout() const;
-
-  //
-  //	Counters
-  //
-  int64_t local_bytes_sent() const;
-  int64_t global_bytes_sent() const;
-  void    reset_bytes_sent_counter();
-  int64_t local_rpc_calls() const;
-  int64_t global_rpc_calls() const;
-  void    reset_rpc_call_counter();
 
   std::ostream &cout0() const {
     static std::ostringstream dummy;

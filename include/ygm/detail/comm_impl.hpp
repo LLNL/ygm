@@ -15,6 +15,7 @@
 #include <vector>
 
 #include <ygm/detail/comm_environment.hpp>
+#include <ygm/detail/comm_stats.hpp>
 #include <ygm/detail/layout.hpp>
 #include <ygm/detail/meta/functional.hpp>
 #include <ygm/detail/mpi.hpp>
@@ -26,6 +27,7 @@ namespace ygm {
 class comm::impl : public std::enable_shared_from_this<comm::impl> {
  private:
   friend class ygm::detail::interrupt_mask;
+  friend class ygm::detail::comm_stats;
 
   struct mpi_irecv_request {
     std::shared_ptr<std::byte[]> buffer;
@@ -121,38 +123,26 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
 
   ~impl() {
     ASSERT_RELEASE(MPI_Barrier(m_comm_async) == MPI_SUCCESS);
-    if (m_layout.rank() == 0) {
-      std::cout << "m_local_isend = " << m_local_isend << std::endl;
-      std::cout << "m_local_isend_test = " << m_local_isend_test << std::endl;
-      std::cout << "m_local_irecv = " << m_local_irecv << std::endl;
-      std::cout << "m_local_irecv_test = " << m_local_irecv_test << std::endl;
-      std::cout << "m_local_iallreduce_test = " << m_local_iallreduce_test
-                << std::endl;
-      std::cout << "m_local_iallreduce = " << m_local_iallreduce << std::endl;
-      std::cout << "m_mpi_wait_time = " << m_mpi_wait_time << std::endl;
-    }
+    // print_stats();
 
     ASSERT_RELEASE(m_send_queue.empty());
     ASSERT_RELEASE(m_send_dest_queue.empty());
     ASSERT_RELEASE(m_send_buffer_bytes == 0);
-    ASSERT_RELEASE(m_isend_bytes == 0);
+    ASSERT_RELEASE(m_pending_isend_bytes == 0);
 
     for (size_t i = 0; i < m_recv_queue.size(); ++i) {
       ASSERT_RELEASE(MPI_Cancel(&(m_recv_queue[i].request)) == MPI_SUCCESS);
     }
     ASSERT_RELEASE(MPI_Barrier(m_comm_async) == MPI_SUCCESS);
-    if (m_layout.rank() == 0) {
-      std::cout << "Last barrier" << std::endl;
-    }
     ASSERT_RELEASE(MPI_Comm_free(&m_comm_async) == MPI_SUCCESS);
     ASSERT_RELEASE(MPI_Comm_free(&m_comm_barrier) == MPI_SUCCESS);
     ASSERT_RELEASE(MPI_Comm_free(&m_comm_other) == MPI_SUCCESS);
-    if (m_layout.rank() == 0) {
-      std::cout << "Last MPI_Comm_free" << std::endl;
-    }
   }
 
   void welcome(std::ostream &os) {
+    static bool already_printed = false;
+    if (already_printed) return;
+    already_printed = true;
     std::stringstream sstr;
     sstr << "======================================\n"
          << " YY    YY     GGGGGG      MM     MM   \n"
@@ -177,9 +167,16 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   int size() const { return m_layout.size(); }
   int rank() const { return m_layout.rank(); }
 
+  void stats_reset() { stats.reset(); }
+  void stats_print(const std::string &name, std::ostream &os) {
+    comm tmp_comm(shared_from_this());
+    stats.print(name, os, tmp_comm);
+  }
+
   template <typename... SendArgs>
   void async(int dest, const SendArgs &...args) {
     ASSERT_RELEASE(dest < m_layout.size());
+    stats.async(dest);
 
     check_if_production_halt_required();
     m_send_count++;
@@ -202,13 +199,11 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     size_t header_bytes = 0;
     if (config.routing) {
       header_bytes = pack_header(m_vec_send_buffers[next_dest], dest, 0);
-      m_local_bytes_sent += header_bytes;
       m_send_buffer_bytes += header_bytes;
     }
 
     size_t bytes = pack_lambda(m_vec_send_buffers[next_dest],
                                std::forward<const SendArgs>(args)...);
-    m_local_bytes_sent += bytes;
     m_send_buffer_bytes += bytes;
 
     // // Add message size to header
@@ -282,14 +277,6 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     to_return.check(*this);
     return to_return;
   }
-
-  int64_t local_bytes_sent() const { return m_local_bytes_sent; }
-
-  void reset_bytes_sent_counter() { m_local_bytes_sent = 0; }
-
-  int64_t local_rpc_calls() const { return m_local_rpc_calls; }
-
-  void reset_rpc_call_counter() { m_local_rpc_calls = 0; }
 
   template <typename T>
   T all_reduce_sum(const T &t) const {
@@ -408,13 +395,13 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     uint64_t local_counts[2]  = {m_recv_count, m_send_count};
     uint64_t global_counts[2] = {0, 0};
 
-    ASSERT_RELEASE(m_isend_bytes == 0);
+    ASSERT_RELEASE(m_pending_isend_bytes == 0);
     ASSERT_RELEASE(m_send_buffer_bytes == 0);
 
     MPI_Request req = MPI_REQUEST_NULL;
     ASSERT_MPI(MPI_Iallreduce(local_counts, global_counts, 2, MPI_UINT64_T,
                               MPI_SUM, m_comm_barrier, &req));
-    m_local_iallreduce++;
+    stats.iallreduce();
     bool iallreduce_complete(false);
     while (!iallreduce_complete) {
       MPI_Request twin_req[2];
@@ -424,10 +411,13 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
       int        outcount;
       int        twin_indices[2];
       MPI_Status twin_status[2];
-      double     start_wait = MPI_Wtime();
-      ASSERT_MPI(
-          MPI_Waitsome(2, twin_req, &outcount, twin_indices, twin_status));
-      m_mpi_wait_time += MPI_Wtime() - start_wait;
+
+      {
+        auto timer = stats.waitsome_iallreduce();
+        ASSERT_MPI(
+            MPI_Waitsome(2, twin_req, &outcount, twin_indices, twin_status));
+      }
+
       for (int i = 0; i < outcount; ++i) {
         if (twin_indices[i] == 0) {  // completed a Iallreduce
           iallreduce_complete = true;
@@ -461,8 +451,8 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
       ASSERT_MPI(MPI_Isend(request.buffer->data(), request.buffer->size(),
                            MPI_BYTE, dest, 0, m_comm_async,
                            &(request.request)));
-      m_local_isend++;
-      m_isend_bytes += request.buffer->size();
+      stats.isend(dest, request.buffer->size());
+      m_pending_isend_bytes += request.buffer->size();
       m_send_buffer_bytes -= request.buffer->size();
       m_send_queue.push_back(request);
       if (!m_in_process_receive_queue) {
@@ -473,7 +463,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
 
   void check_if_production_halt_required() {
     while (m_enable_interrupts && !m_in_process_receive_queue &&
-           m_isend_bytes > config.buffer_size) {
+           m_pending_isend_bytes > config.buffer_size) {
       process_receive_queue();
     }
   }
@@ -535,7 +525,6 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     ASSERT_MPI(MPI_Irecv(recv_req.buffer.get(), config.irecv_size, MPI_BYTE,
                          MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_async,
                          &(recv_req.request)));
-    m_local_irecv++;
     m_recv_queue.push_back(recv_req);
   }
 
@@ -607,6 +596,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     comm tmp_comm(shared_from_this());
     int  count{0};
     ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &count));
+    stats.irecv(status.MPI_SOURCE, count);
     // std::cout << m_layout.rank() << ": received " << count << std::endl;
     cereal::YGMInputArchive iarchive(m_recv_queue.front().buffer.get(), count);
     while (!iarchive.empty()) {
@@ -622,7 +612,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
           std::memcpy(&fun_ptr, &iptr, sizeof(iptr));
           fun_ptr(&tmp_comm, iarchive);
           m_recv_count++;
-          m_local_rpc_calls++;
+          stats.rpc_execute();
         } else {
           int next_dest = next_hop(h.dest);
 
@@ -632,7 +622,6 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
 
           size_t header_bytes = pack_header(m_vec_send_buffers[next_dest],
                                             h.dest, h.message_size);
-          m_local_bytes_sent += header_bytes;
           m_send_buffer_bytes += header_bytes;
 
           size_t precopy_size = m_vec_send_buffers[next_dest].size();
@@ -640,7 +629,6 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
           iarchive.loadBinary(&m_vec_send_buffers[next_dest][precopy_size],
                               h.message_size);
 
-          m_local_bytes_sent += h.message_size;
           m_send_buffer_bytes += h.message_size;
 
           flush_to_capacity();
@@ -654,7 +642,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
         std::memcpy(&fun_ptr, &iptr, sizeof(iptr));
         fun_ptr(&tmp_comm, iarchive);
         m_recv_count++;
-        m_local_rpc_calls++;
+        stats.rpc_execute();
       }
     }
     post_new_irecv(m_recv_queue.front().buffer);
@@ -687,13 +675,14 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
       int        outcount;
       int        twin_indices[2];
       MPI_Status twin_status[2];
-      double     start_wait = MPI_Wtime();
-      ASSERT_MPI(
-          MPI_Waitsome(2, twin_req, &outcount, twin_indices, twin_status));
-      m_mpi_wait_time += MPI_Wtime() - start_wait;
+      {
+        auto timer = stats.waitsome_isend_irecv();
+        ASSERT_MPI(
+            MPI_Waitsome(2, twin_req, &outcount, twin_indices, twin_status));
+      }
       for (int i = 0; i < outcount; ++i) {
         if (twin_indices[i] == 0) {  // completed a iSend
-          m_isend_bytes -= m_send_queue.front().buffer->size();
+          m_pending_isend_bytes -= m_send_queue.front().buffer->size();
           m_send_queue.front().buffer->clear();
           m_free_send_buffers.push_back(m_send_queue.front().buffer);
           m_send_queue.pop_front();
@@ -707,9 +696,9 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
         int flag(0);
         ASSERT_MPI(MPI_Test(&(m_send_queue.front().request), &flag,
                             MPI_STATUS_IGNORE));
-        m_local_isend_test++;
+        stats.isend_test();
         if (flag) {
-          m_isend_bytes -= m_send_queue.front().buffer->size();
+          m_pending_isend_bytes -= m_send_queue.front().buffer->size();
           m_send_queue.front().buffer->clear();
           m_free_send_buffers.push_back(m_send_queue.front().buffer);
           m_send_queue.pop_front();
@@ -721,7 +710,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
       int        flag(0);
       MPI_Status status;
       ASSERT_MPI(MPI_Test(&(m_recv_queue.front().request), &flag, &status));
-      m_local_irecv_test++;
+      stats.irecv_test();
       if (flag) {
         received_to_return = true;
         handle_next_receive(status);
@@ -748,8 +737,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   std::deque<mpi_isend_request>                        m_send_queue;
   std::vector<std::shared_ptr<std::vector<std::byte>>> m_free_send_buffers;
 
-  // size_t     m_recv_queue_bytes = 0;
-  size_t m_isend_bytes = 0;
+  size_t m_pending_isend_bytes = 0;
 
   std::deque<std::function<void()>> m_pre_barrier_callbacks;
 
@@ -758,19 +746,9 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   uint64_t m_recv_count = 0;
   uint64_t m_send_count = 0;
 
-  int64_t m_local_rpc_calls  = 0;
-  int64_t m_local_bytes_sent = 0;
-
   bool m_in_process_receive_queue = false;
 
-  size_t m_local_isend           = 0;
-  size_t m_local_isend_test      = 0;
-  size_t m_local_irecv           = 0;
-  size_t m_local_irecv_test      = 0;
-  size_t m_local_iallreduce_test = 0;
-  size_t m_local_iallreduce      = 0;
-  double m_mpi_wait_time         = 0;
-
+  detail::comm_stats             stats;
   const detail::comm_environment config;
   const detail::layout           m_layout;
 };
@@ -791,6 +769,11 @@ inline comm::comm(MPI_Comm mcomm) {
 }
 
 inline void comm::welcome(std::ostream &os) { pimpl->welcome(os); }
+
+inline void comm::stats_reset() { pimpl->stats_reset(); }
+inline void comm::stats_print(const std::string &name, std::ostream &os) {
+  pimpl->stats_print(name, os);
+}
 
 inline comm::comm(std::shared_ptr<impl> impl_ptr) : pimpl(impl_ptr) {}
 
@@ -836,28 +819,6 @@ inline const detail::layout &comm::layout() const { return pimpl->layout(); }
 
 inline int comm::size() const { return pimpl->size(); }
 inline int comm::rank() const { return pimpl->rank(); }
-
-inline int64_t comm::local_bytes_sent() const {
-  return pimpl->local_bytes_sent();
-}
-
-inline int64_t comm::global_bytes_sent() const {
-  return all_reduce_sum(local_bytes_sent());
-}
-
-inline void comm::reset_bytes_sent_counter() {
-  pimpl->reset_bytes_sent_counter();
-}
-
-inline int64_t comm::local_rpc_calls() const {
-  return pimpl->local_rpc_calls();
-}
-
-inline int64_t comm::global_rpc_calls() const {
-  return all_reduce_sum(local_rpc_calls());
-}
-
-inline void comm::reset_rpc_call_counter() { pimpl->reset_rpc_call_counter(); }
 
 inline void comm::barrier() { pimpl->barrier(); }
 
