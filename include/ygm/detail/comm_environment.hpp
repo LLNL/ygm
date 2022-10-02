@@ -76,8 +76,7 @@ class comm_environment {
         os << "NLNR\n";
         break;
     }
-    os << "YGM_COMM_WELCOME         = " << std::boolalpha << welcome << "\n"
-       << "======================================\n";
+    os << "======================================\n";
   }
 
   //
