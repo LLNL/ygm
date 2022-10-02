@@ -49,36 +49,36 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
 
   // NR Routing
   int next_hop(const int dest) {
-    // if (m_layout.is_local(dest)) {
+    // if .is_local(dest)) {
     //   return dest;
     // } else {
-    //   // return m_layout.strided_ranks()[m_layout.node_id(dest)];
-    //   const auto [dest_node, dest_local] = m_layout.rank_to_nl(dest);
-    //   auto dest_layer_offset             = dest_node % m_layout.local_size();
-    //   if (m_layout.local_id() == dest_layer_offset) {
-    //     auto my_layer_offset = m_layout.node_id() % m_layout.local_size();
-    //     return m_layout.nl_to_rank(dest_node, my_layer_offset);
+    //   // return.strided_ranks().node_id(dest)];
+    //   const auto [dest_node, dest_local] =.rank_to_nl(dest);
+    //   auto dest_layer_offset             = dest_node %.local_size();
+    //   if .local_id() == dest_layer_offset) {
+    //     auto my_layer_offset =.node_id() %.local_size();
+    //     return.nl_to_rank(dest_node, my_layer_offset);
     //   } else {
-    //     return m_layout.nl_to_rank(m_layout.node_id(), dest_layer_offset);
+    //     return.nl_to_rank.node_id(), dest_layer_offset);
     //   }
     // }
     //
     //  Roger's hack
     //
-    // static int tpn       = m_layout.local_size();
-    static int my_node   = m_comm_rank / m_layout.local_size();
-    static int my_offset = m_comm_rank % m_layout.local_size();
+    // static int tpn       =.local_size();
+    static int my_node   = m_layout.rank() / m_layout.local_size();
+    static int my_offset = m_layout.rank() % m_layout.local_size();
     int        dest_node = dest / m_layout.local_size();
     if (my_node == dest_node) {
       return dest;
     } else {
-      if (config.enable_routing == detail::comm_environment::routing_type::NR) {
+      if (config.routing == detail::comm_environment::routing_type::NR) {
         return dest_node * m_layout.local_size() + my_offset;
       }  // else is NLNR
 
       int responsible_core = (dest_node % m_layout.local_size()) +
                              (my_node * m_layout.local_size());
-      if (m_comm_rank == responsible_core) {
+      if (m_layout.rank() == responsible_core) {
         return (dest_node * m_layout.local_size()) +
                (my_node % m_layout.local_size());
       }
@@ -105,28 +105,23 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_async));
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_barrier));
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_other));
-    ASSERT_MPI(MPI_Comm_size(m_comm_async, &m_comm_size));
-    ASSERT_MPI(MPI_Comm_rank(m_comm_async, &m_comm_rank));
 
-    m_vec_send_buffers.resize(m_comm_size);
+    m_vec_send_buffers.resize(m_layout.size());
 
-    if (m_comm_rank == 0) {
-      if (config.print_config) {
-        config.print();
-      }
+    if (config.welcome) {
+      welcome(std::cout);
     }
+
     for (size_t i = 0; i < config.num_irecvs; ++i) {
       std::shared_ptr<std::byte[]> recv_buffer{
           new std::byte[config.irecv_size]};
       post_new_irecv(recv_buffer);
     }
-
-    m_packing_buffer.reserve(1024);
   }
 
   ~impl() {
     ASSERT_RELEASE(MPI_Barrier(m_comm_async) == MPI_SUCCESS);
-    if (m_comm_rank == 0) {
+    if (m_layout.rank() == 0) {
       std::cout << "m_local_isend = " << m_local_isend << std::endl;
       std::cout << "m_local_isend_test = " << m_local_isend_test << std::endl;
       std::cout << "m_local_irecv = " << m_local_irecv << std::endl;
@@ -146,32 +141,53 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
       ASSERT_RELEASE(MPI_Cancel(&(m_recv_queue[i].request)) == MPI_SUCCESS);
     }
     ASSERT_RELEASE(MPI_Barrier(m_comm_async) == MPI_SUCCESS);
-    if (m_comm_rank == 0) {
+    if (m_layout.rank() == 0) {
       std::cout << "Last barrier" << std::endl;
     }
     ASSERT_RELEASE(MPI_Comm_free(&m_comm_async) == MPI_SUCCESS);
     ASSERT_RELEASE(MPI_Comm_free(&m_comm_barrier) == MPI_SUCCESS);
     ASSERT_RELEASE(MPI_Comm_free(&m_comm_other) == MPI_SUCCESS);
-    if (m_comm_rank == 0) {
+    if (m_layout.rank() == 0) {
       std::cout << "Last MPI_Comm_free" << std::endl;
     }
   }
 
-  int size() const { return m_comm_size; }
-  int rank() const { return m_comm_rank; }
+  void welcome(std::ostream &os) {
+    std::stringstream sstr;
+    sstr << "======================================\n"
+         << " YY    YY     GGGGGG      MM     MM   \n"
+         << "  YY  YY     GG    GG     MMM   MMM   \n"
+         << "   YYYY      GG           MMMM MMMM   \n"
+         << "    YY       GG   GGGG    MM MMM MM   \n"
+         << "    YY       GG    GG     MM     MM   \n"
+         << "    YY       GG    GG     MM     MM   \n"
+         << "    YY        GGGGGG      MM     MM   \n"
+         << "======================================\n"
+         << "COMM_SIZE      = " << m_layout.size() << "\n"
+         << "RANKS_PER_NODE = " << m_layout.local_size() << "\n"
+         << "NUM_NODES      = " << m_layout.node_size() << "\n";
+
+    config.print(sstr);
+
+    if (rank() == 0) {
+      os << sstr.str();
+    }
+  }
+
+  int size() const { return m_layout.size(); }
+  int rank() const { return m_layout.rank(); }
 
   template <typename... SendArgs>
   void async(int dest, const SendArgs &...args) {
-    ASSERT_RELEASE(dest < m_comm_size);
+    ASSERT_RELEASE(dest < m_layout.size());
 
-    // check_if_production_halt_required();
-
+    check_if_production_halt_required();
     m_send_count++;
 
     //
     //
     int next_dest = dest;
-    if (config.enable_routing) {
+    if (config.routing) {
       next_hop(dest);
     }
 
@@ -184,7 +200,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
 
     // // Add header without message size
     size_t header_bytes = 0;
-    if (config.enable_routing) {
+    if (config.routing) {
       header_bytes = pack_header(m_vec_send_buffers[next_dest], dest, 0);
       m_local_bytes_sent += header_bytes;
       m_send_buffer_bytes += header_bytes;
@@ -196,7 +212,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     m_send_buffer_bytes += bytes;
 
     // // Add message size to header
-    if (config.enable_routing) {
+    if (config.routing) {
       auto iter = m_vec_send_buffers[next_dest].end();
       iter -= (header_bytes + bytes);
       std::memcpy(&*iter, &bytes, sizeof(header_t::dest));
@@ -204,14 +220,14 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
 
     //
     // Check if send buffer capacity has been exceeded
-    if (!in_process_receive_queue) {
+    if (!m_in_process_receive_queue) {
       flush_to_capacity();
     }
   }
 
   template <typename... SendArgs>
   void async_bcast(const SendArgs &...args) {
-    for (int dest = 0; dest < m_comm_size; ++dest) {
+    for (int dest = 0; dest < m_layout.size(); ++dest) {
       async(dest, std::forward<const SendArgs>(args)...);
     }
   }
@@ -415,7 +431,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
       for (int i = 0; i < outcount; ++i) {
         if (twin_indices[i] == 0) {  // completed a Iallreduce
           iallreduce_complete = true;
-          // std::cout << m_comm_rank << ": iallreduce_complete: " <<
+          // std::cout << m_layout.rank() << ": iallreduce_complete: " <<
           // global_counts[0] << " " << global_counts[1] << std::endl;
         } else {
           handle_next_receive(twin_status[i]);
@@ -449,14 +465,14 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
       m_isend_bytes += request.buffer->size();
       m_send_buffer_bytes -= request.buffer->size();
       m_send_queue.push_back(request);
-      if (!in_process_receive_queue) {
+      if (!m_in_process_receive_queue) {
         process_receive_queue();
       }
     }
   }
 
   void check_if_production_halt_required() {
-    while (m_enable_interrupts && !in_process_receive_queue &&
+    while (m_enable_interrupts && !m_in_process_receive_queue &&
            m_isend_bytes > config.buffer_size) {
       process_receive_queue();
     }
@@ -591,13 +607,13 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     comm tmp_comm(shared_from_this());
     int  count{0};
     ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &count));
-    // std::cout << m_comm_rank << ": received " << count << std::endl;
+    // std::cout << m_layout.rank() << ": received " << count << std::endl;
     cereal::YGMInputArchive iarchive(m_recv_queue.front().buffer.get(), count);
     while (!iarchive.empty()) {
-      if (config.enable_routing) {
+      if (config.routing) {
         header_t h;
         iarchive(h);
-        if (h.dest == m_comm_rank) {
+        if (h.dest == m_layout.rank()) {
           int32_t iptr_32;
           iarchive(iptr_32);
           uint64_t iptr = iptr_32;
@@ -640,37 +656,6 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
         m_recv_count++;
         m_local_rpc_calls++;
       }
-      // //////////header_t h;
-      // iarchive(h);
-      // if (h.dest == m_comm_rank) {
-      // int64_t iptr;
-      // iarchive(iptr);
-      // iptr += (int64_t)&reference;
-      // void (*fun_ptr)(comm *, cereal::YGMInputArchive &);
-      // memcpy(&fun_ptr, &iptr, sizeof(uint64_t));
-      // fun_ptr(&tmp_comm, iarchive);
-      // m_recv_count++;
-      // m_local_rpc_calls++;
-      // } else {
-      //   int next_dest = next_hop(h.dest);
-
-      //   if (m_vec_send_buffers[next_dest].empty()) {
-      //     m_send_dest_queue.push_back(next_dest);
-      //   }
-
-      //   size_t header_bytes = pack_header(m_vec_send_buffers[next_dest],
-      //                                     h.dest, h.message_size);
-      //   m_local_bytes_sent += header_bytes;
-      //   m_send_buffer_bytes += header_bytes;
-
-      //   size_t precopy_size = m_vec_send_buffers[next_dest].size();
-      //   m_vec_send_buffers[next_dest].resize(precopy_size + h.message_size);
-      //   iarchive.loadBinary(&m_vec_send_buffers[next_dest][precopy_size],
-      //                       h.message_size);
-
-      //   m_local_bytes_sent += h.message_size;
-      //   m_send_buffer_bytes += h.message_size;
-      // }
     }
     post_new_irecv(m_recv_queue.front().buffer);
     m_recv_queue.pop_front();
@@ -683,12 +668,12 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
    * @return True if receive queue was non-empty, else false
    */
   bool process_receive_queue() {
-    ASSERT_RELEASE(!in_process_receive_queue);
-    in_process_receive_queue = true;
-    bool received_to_return  = false;
+    ASSERT_RELEASE(!m_in_process_receive_queue);
+    m_in_process_receive_queue = true;
+    bool received_to_return    = false;
 
     if (!m_enable_interrupts) {
-      in_process_receive_queue = false;
+      m_in_process_receive_queue = false;
       return received_to_return;
     }
 
@@ -745,17 +730,15 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
       }
     }
 
-    in_process_receive_queue = false;
+    m_in_process_receive_queue = false;
     return received_to_return;
   }
 
   MPI_Comm m_comm_async;
   MPI_Comm m_comm_barrier;
   MPI_Comm m_comm_other;
-  int      m_comm_size;
-  int      m_comm_rank;
-
-  detail::layout m_layout;
+  // int      m_layout.size();
+  // int      m_layout.rank();
 
   std::vector<std::vector<std::byte>> m_vec_send_buffers;
   size_t                              m_send_buffer_bytes = 0;
@@ -778,7 +761,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   int64_t m_local_rpc_calls  = 0;
   int64_t m_local_bytes_sent = 0;
 
-  bool in_process_receive_queue = false;
+  bool m_in_process_receive_queue = false;
 
   size_t m_local_isend           = 0;
   size_t m_local_isend_test      = 0;
@@ -789,8 +772,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   double m_mpi_wait_time         = 0;
 
   const detail::comm_environment config;
-
-  std::vector<std::byte> m_packing_buffer;
+  const detail::layout           m_layout;
 };
 
 inline comm::comm(int *argc, char ***argv) {
@@ -807,6 +789,8 @@ inline comm::comm(MPI_Comm mcomm) {
   }
   pimpl = std::make_shared<comm::impl>(mcomm);
 }
+
+inline void comm::welcome(std::ostream &os) { pimpl->welcome(os); }
 
 inline comm::comm(std::shared_ptr<impl> impl_ptr) : pimpl(impl_ptr) {}
 

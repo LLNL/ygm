@@ -37,6 +37,12 @@ class comm {
 
   ~comm();
 
+  /**
+   * @brief Prints a welcome message with configuration details.
+   *
+   */
+  void welcome(std::ostream &os = std::cout);
+
   //
   //  Asynchronous rpc interfaces.   Can be called inside OpenMP loop
   //
