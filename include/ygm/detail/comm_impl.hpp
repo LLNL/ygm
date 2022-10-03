@@ -51,38 +51,43 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
 
   // NR Routing
   int next_hop(const int dest) {
-    // if .is_local(dest)) {
+    ASSERT_RELEASE(config.routing);
+    //
+    // Trevor's
+    // if (m_layout.is_local(dest)) {
     //   return dest;
     // } else {
-    //   // return.strided_ranks().node_id(dest)];
-    //   const auto [dest_node, dest_local] =.rank_to_nl(dest);
-    //   auto dest_layer_offset             = dest_node %.local_size();
-    //   if .local_id() == dest_layer_offset) {
-    //     auto my_layer_offset =.node_id() %.local_size();
-    //     return.nl_to_rank(dest_node, my_layer_offset);
+    //   if (config.routing == detail::comm_environment::routing_type::NR) {
+    //     return m_layout.strided_ranks()[m_layout.node_id(dest)];
+    //   }  // else is NLNR
+    //   const auto [dest_node, dest_local] = m_layout.rank_to_nl(dest);
+    //   auto dest_layer_offset             = dest_node % m_layout.local_size();
+    //   if (m_layout.local_id() == dest_layer_offset) {
+    //     auto my_layer_offset = m_layout.node_id() % m_layout.local_size();
+    //     return m_layout.nl_to_rank(dest_node, my_layer_offset);
     //   } else {
-    //     return.nl_to_rank.node_id(), dest_layer_offset);
+    //     return m_layout.nl_to_rank(m_layout.node_id(), dest_layer_offset);
     //   }
     // }
+
     //
     //  Roger's hack
-    //
-    // static int tpn       =.local_size();
-    static int my_node   = m_layout.rank() / m_layout.local_size();
-    static int my_offset = m_layout.rank() % m_layout.local_size();
-    int        dest_node = dest / m_layout.local_size();
-    if (my_node == dest_node) {
+    static int my_node_id          = m_layout.rank() / m_layout.local_size();
+    static int my_offset           = m_layout.rank() % m_layout.local_size();
+    static int my_node_r0          = my_node_id * m_layout.local_size();
+    static int my_node_nlnr_offset = my_node_id % m_layout.local_size();
+    int        dest_node           = dest / m_layout.local_size();
+    if (my_node_id == dest_node) {
       return dest;
     } else {
       if (config.routing == detail::comm_environment::routing_type::NR) {
         return dest_node * m_layout.local_size() + my_offset;
       }  // else is NLNR
 
-      int responsible_core = (dest_node % m_layout.local_size()) +
-                             (my_node * m_layout.local_size());
+      int responsible_core = my_node_r0 + (dest_node % m_layout.local_size());
+
       if (m_layout.rank() == responsible_core) {
-        return (dest_node * m_layout.local_size()) +
-               (my_node % m_layout.local_size());
+        return (dest_node * m_layout.local_size()) + my_node_nlnr_offset;
       }
       return responsible_core;
     }
@@ -185,7 +190,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     //
     int next_dest = dest;
     if (config.routing) {
-      next_hop(dest);
+      next_dest = next_hop(dest);
     }
 
     //
