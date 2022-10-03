@@ -40,13 +40,13 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   };
 
   struct header_t {
-    uint16_t message_size;
-    uint16_t dest;
+    uint32_t message_size;
+    uint32_t dest;
 
-    template <typename Archive>
-    void serialize(Archive &ar) {
-      ar(message_size, dest);
-    }
+    // template <typename Archive>
+    // void serialize(Archive &ar) {
+    //   ar(message_size, dest);
+    // }
   };
 
   // NR Routing
@@ -101,8 +101,11 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     h.dest         = dest;
     h.message_size = size;
 
-    cereal::YGMOutputArchive oarchive(packed);
-    oarchive(h);
+    packed.resize(size_before + sizeof(header_t));
+    std::memcpy(packed.data() + size_before, &h, sizeof(header_t));
+
+    // cereal::YGMOutputArchive oarchive(packed);
+    // oarchive(h);
 
     return packed.size() - size_before;
   }
@@ -207,8 +210,8 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
       m_send_buffer_bytes += header_bytes;
     }
 
-    size_t bytes = pack_lambda(m_vec_send_buffers[next_dest],
-                               std::forward<const SendArgs>(args)...);
+    uint32_t bytes = pack_lambda(m_vec_send_buffers[next_dest],
+                                 std::forward<const SendArgs>(args)...);
     m_send_buffer_bytes += bytes;
 
     // // Add message size to header
@@ -607,10 +610,12 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     while (!iarchive.empty()) {
       if (config.routing) {
         header_t h;
-        iarchive(h);
+        // iarchive(h);
+        iarchive.loadBinary(&h, sizeof(header_t));
         if (h.dest == m_layout.rank()) {
           int32_t iptr_32;
-          iarchive(iptr_32);
+          // iarchive(iptr_32);
+          iarchive.loadBinary(&iptr_32, sizeof(iptr_32));
           uint64_t iptr = iptr_32;
           iptr += (int64_t)&reference;
           void (*fun_ptr)(comm *, cereal::YGMInputArchive &);
@@ -640,7 +645,8 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
         }
       } else {
         int32_t iptr_32;
-        iarchive(iptr_32);
+        // iarchive(iptr_32);
+        iarchive.loadBinary(&iptr_32, sizeof(int32_t));
         uint64_t iptr = iptr_32;
         iptr += (int64_t)&reference;
         void (*fun_ptr)(comm *, cereal::YGMInputArchive &);
