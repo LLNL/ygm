@@ -16,6 +16,7 @@
 
 #include <ygm/detail/comm_environment.hpp>
 #include <ygm/detail/comm_stats.hpp>
+#include <ygm/detail/lambda_map.hpp>
 #include <ygm/detail/layout.hpp>
 #include <ygm/detail/meta/functional.hpp>
 #include <ygm/detail/mpi.hpp>
@@ -544,39 +545,32 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
         std::forward<const PackArgs>(args)...);
     ASSERT_DEBUG(sizeof(Lambda) == 1);
 
-    void (*fun_ptr)(comm *, cereal::YGMInputArchive &) =
-        [](comm *c, cereal::YGMInputArchive &bia) {
-          Lambda *pl = nullptr;
-          size_t  l_storage[sizeof(Lambda) / sizeof(size_t) +
-                           (sizeof(Lambda) % sizeof(size_t) > 0)];
-          if constexpr (!std::is_empty<Lambda>::value) {
-            bia.loadBinary(l_storage, sizeof(Lambda));
-            pl = (Lambda *)l_storage;
-          }
+    auto dispatch_lambda = [](comm *c, cereal::YGMInputArchive *bia) {
+      Lambda *pl = nullptr;
+      size_t  l_storage[sizeof(Lambda) / sizeof(size_t) +
+                       (sizeof(Lambda) % sizeof(size_t) > 0)];
+      if constexpr (!std::is_empty<Lambda>::value) {
+        bia->loadBinary(l_storage, sizeof(Lambda));
+        pl = (Lambda *)l_storage;
+      }
 
-          std::tuple<PackArgs...> ta;
-          if constexpr (!std::is_empty<std::tuple<PackArgs...>>::value) {
-            bia(ta);
-          }
+      std::tuple<PackArgs...> ta;
+      if constexpr (!std::is_empty<std::tuple<PackArgs...>>::value) {
+        (*bia)(ta);
+      }
 
-          auto t1 = std::make_tuple((comm *)c);
+      auto t1 = std::make_tuple((comm *)c);
 
-          // \pp was: std::apply(*pl, std::tuple_cat(t1, ta));
-          ygm::meta::apply_optional(*pl, std::move(t1), std::move(ta));
-        };
+      // \pp was: std::apply(*pl, std::tuple_cat(t1, ta));
+      ygm::meta::apply_optional(*pl, std::move(t1), std::move(ta));
+    };
 
-    // // oarchive(fun_ptr);
-    int64_t iptr = (int64_t)fun_ptr - (int64_t)&reference;
-    // ptrdiff_t iptr = (void *)fun_ptr - reinterpret_cast<void *>(&reference);
-    ASSERT_RELEASE(iptr < std::numeric_limits<int32_t>::max() &&
-                   iptr > std::numeric_limits<int32_t>::min());
-    int32_t iptr_32 = iptr;
+    uint16_t lid = m_lambda_map.register_lambda(dispatch_lambda);
 
     {
-      // oarchive(iptr_32);
       size_t size_before = packed.size();
-      packed.resize(size_before + sizeof(iptr_32));
-      std::memcpy(packed.data() + size_before, &iptr_32, sizeof(iptr_32));
+      packed.resize(size_before + sizeof(lid));
+      std::memcpy(packed.data() + size_before, &lid, sizeof(lid));
     }
 
     if constexpr (!std::is_empty<Lambda>::value) {
@@ -610,17 +604,11 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     while (!iarchive.empty()) {
       if (config.routing) {
         header_t h;
-        // iarchive(h);
         iarchive.loadBinary(&h, sizeof(header_t));
         if (h.dest == m_layout.rank()) {
-          int32_t iptr_32;
-          // iarchive(iptr_32);
-          iarchive.loadBinary(&iptr_32, sizeof(iptr_32));
-          uint64_t iptr = iptr_32;
-          iptr += (int64_t)&reference;
-          void (*fun_ptr)(comm *, cereal::YGMInputArchive &);
-          std::memcpy(&fun_ptr, &iptr, sizeof(iptr));
-          fun_ptr(&tmp_comm, iarchive);
+          uint16_t lid;
+          iarchive.loadBinary(&lid, sizeof(lid));
+          m_lambda_map.execute(lid, &tmp_comm, &iarchive);
           m_recv_count++;
           stats.rpc_execute();
         } else {
@@ -644,14 +632,9 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
           flush_to_capacity();
         }
       } else {
-        int32_t iptr_32;
-        // iarchive(iptr_32);
-        iarchive.loadBinary(&iptr_32, sizeof(int32_t));
-        uint64_t iptr = iptr_32;
-        iptr += (int64_t)&reference;
-        void (*fun_ptr)(comm *, cereal::YGMInputArchive &);
-        std::memcpy(&fun_ptr, &iptr, sizeof(iptr));
-        fun_ptr(&tmp_comm, iarchive);
+        uint16_t lid;
+        iarchive.loadBinary(&lid, sizeof(lid));
+        m_lambda_map.execute(lid, &tmp_comm, &iarchive);
         m_recv_count++;
         stats.rpc_execute();
       }
@@ -762,6 +745,9 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   detail::comm_stats             stats;
   const detail::comm_environment config;
   const detail::layout           m_layout;
+
+  ygm::detail::lambda_map<void (*)(comm *, cereal::YGMInputArchive *), uint16_t>
+      m_lambda_map;
 };
 
 inline comm::comm(int *argc, char ***argv) {
