@@ -45,6 +45,12 @@ class comm_environment {
     if (const char* cc = std::getenv("YGM_COMM_WELCOME")) {
       welcome = convert<bool>(cc);
     }
+    if (const char* cc = std::getenv("YGM_COMM_NUM_ISENDS_WAIT")) {
+      num_isends_wait = convert<size_t>(cc);
+    }
+    if (const char* cc = std::getenv("YGM_COMM_ISSEND_FREQ")) {
+      freq_issend = convert<size_t>(cc);
+    }
     if (const char* cc = std::getenv("YGM_COMM_ROUTING")) {
       if (std::string(cc) == "NONE") {
         routing = NONE;
@@ -64,6 +70,7 @@ class comm_environment {
        << "YGM_COMM_NUM_IRECVS      = " << num_irecvs << "\n"
        << "YGM_COMM_IRECVS_SIZE_KB  = " << irecv_size / 1024 << "\n"
        << "YGM_COMM_NUM_ISENDS_WAIT = " << num_isends_wait << "\n"
+       << "YGM_COMM_ISSEND_FREQ     = " << freq_issend << "\n"
        << "YGM_COMM_ROUTING         = ";
     switch (routing) {
       case NONE:
@@ -87,6 +94,7 @@ class comm_environment {
   size_t num_irecvs = 8;
 
   size_t num_isends_wait = 4;
+  size_t freq_issend     = 8;
 
   enum routing_type { NONE = 0, NR = 1, NLNR = 2 };
   routing_type routing = NONE;

@@ -201,7 +201,8 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     // add data to the to dest buffer
     if (m_vec_send_buffers[next_dest].empty()) {
       m_send_dest_queue.push_back(next_dest);
-      m_vec_send_buffers[next_dest].reserve(config.buffer_size);
+      m_vec_send_buffers[next_dest].reserve(config.buffer_size /
+                                            m_layout.node_size());
     }
 
     // // Add header without message size
@@ -447,6 +448,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
    * @param dest
    */
   void flush_send_buffer(int dest) {
+    static size_t counter = 0;
     if (m_vec_send_buffers[dest].size() > 0) {
       mpi_isend_request request;
       if (m_free_send_buffers.empty()) {
@@ -456,10 +458,15 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
         m_free_send_buffers.pop_back();
       }
       request.buffer->swap(m_vec_send_buffers[dest]);
-
-      ASSERT_MPI(MPI_Isend(request.buffer->data(), request.buffer->size(),
-                           MPI_BYTE, dest, 0, m_comm_async,
-                           &(request.request)));
+      if (config.freq_issend > 0 && counter++ % config.freq_issend == 0) {
+        ASSERT_MPI(MPI_Issend(request.buffer->data(), request.buffer->size(),
+                              MPI_BYTE, dest, 0, m_comm_async,
+                              &(request.request)));
+      } else {
+        ASSERT_MPI(MPI_Isend(request.buffer->data(), request.buffer->size(),
+                             MPI_BYTE, dest, 0, m_comm_async,
+                             &(request.request)));
+      }
       stats.isend(dest, request.buffer->size());
       m_pending_isend_bytes += request.buffer->size();
       m_send_buffer_bytes -= request.buffer->size();
