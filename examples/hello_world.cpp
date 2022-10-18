@@ -9,7 +9,7 @@
 int main(int argc, char** argv) {
   // Construct a communicator that sends messages when it has 32MB of used send
   // buffer space
-  ygm::comm world(&argc, &argv, 32 * 1024 * 1024);
+  ygm::comm world(&argc, &argv);
 
   // Define a "hello world" lambda to execute on a remote rank
   auto hello_world_lambda = [](const std::string& name) {

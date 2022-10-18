@@ -44,9 +44,12 @@ class YGMOutputArchive
 
   //! Writes size bytes of data to the output stream
   void saveBinary(const void *data, std::streamsize size) {
-    const std::byte *cdata = reinterpret_cast<const std::byte *>(data);
-    vec_data.reserve(vec_data.size() + size);
-    vec_data.insert(vec_data.end(), cdata, cdata + size);
+    size_t vec_data_size_before = vec_data.size();
+    if (vec_data.capacity() < vec_data.size() + size) {
+      vec_data.reserve(vec_data.capacity() * 2);
+    }
+    vec_data.resize(vec_data.size() + size);
+    std::memcpy(vec_data.data() + vec_data_size_before, data, size);
 
     // if (writtenSize != size)
     //   throw Exception("Failed to write " + std::to_string(size) +
@@ -83,7 +86,7 @@ class YGMInputArchive
   //! Reads size bytes of data from the input stream
   void loadBinary(void *const data, std::streamsize size) {
     ASSERT_DEBUG(m_position + size <= m_capacity);
-    memcpy(data, m_pdata + m_position, size);
+    std::memcpy(data, m_pdata + m_position, size);
     m_position += size;
 
     // if (readSize != size)

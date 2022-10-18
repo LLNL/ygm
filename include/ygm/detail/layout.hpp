@@ -16,8 +16,8 @@ namespace detail {
 
 class layout {
  private:
-  int m_world_size;
-  int m_world_rank;
+  int m_comm_size;
+  int m_comm_rank;
   int m_node_size;
   int m_node_id;
   int m_local_size;
@@ -32,36 +32,36 @@ class layout {
  public:
   layout(MPI_Comm comm) {
     // global ranks
-    ASSERT_MPI(MPI_Comm_size(comm, &m_world_size));
-    ASSERT_MPI(MPI_Comm_rank(comm, &m_world_rank));
+    ASSERT_MPI(MPI_Comm_size(comm, &m_comm_size));
+    ASSERT_MPI(MPI_Comm_rank(comm, &m_comm_rank));
 
     // local ranks
     MPI_Comm comm_local;
-    ASSERT_MPI(MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, m_world_rank,
+    ASSERT_MPI(MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, m_comm_rank,
                                    MPI_INFO_NULL, &comm_local));
     ASSERT_MPI(MPI_Comm_size(comm_local, &m_local_size));
     ASSERT_MPI(MPI_Comm_rank(comm_local, &m_local_id));
 
-    _mpi_allgather(m_world_rank, m_local_ranks, m_local_size, comm_local);
+    _mpi_allgather(m_comm_rank, m_local_ranks, m_local_size, comm_local);
 
     // node ranks
     MPI_Comm comm_node;
-    ASSERT_MPI(MPI_Comm_split(comm, m_local_id, m_world_rank, &comm_node));
+    ASSERT_MPI(MPI_Comm_split(comm, m_local_id, m_comm_rank, &comm_node));
     ASSERT_MPI(MPI_Comm_size(comm_node, &m_node_size));
     ASSERT_MPI(MPI_Comm_rank(comm_node, &m_node_id));
 
-    _mpi_allgather(m_world_rank, m_strided_ranks, m_node_size, comm_node);
+    _mpi_allgather(m_comm_rank, m_strided_ranks, m_node_size, comm_node);
 
-    _mpi_allgather(m_local_id, m_rank_to_local, m_world_size, comm);
-    _mpi_allgather(m_node_id, m_rank_to_node, m_world_size, comm);
+    _mpi_allgather(m_local_id, m_rank_to_local, m_comm_size, comm);
+    _mpi_allgather(m_node_id, m_rank_to_node, m_comm_size, comm);
 
     ASSERT_RELEASE(MPI_Comm_free(&comm_local) == MPI_SUCCESS);
     ASSERT_RELEASE(MPI_Comm_free(&comm_node) == MPI_SUCCESS);
   }
 
   layout(const layout &rhs)
-      : m_world_size(rhs.m_world_size),
-        m_world_rank(rhs.m_world_rank),
+      : m_comm_size(rhs.m_comm_size),
+        m_comm_rank(rhs.m_comm_rank),
         m_node_size(rhs.m_node_size),
         m_node_id(rhs.m_node_id),
         m_local_size(rhs.m_local_size),
@@ -74,8 +74,8 @@ class layout {
   layout() {}
 
   friend void swap(layout &lhs, layout &rhs) {
-    std::swap(lhs.m_world_size, rhs.m_world_size);
-    std::swap(lhs.m_world_rank, rhs.m_world_rank);
+    std::swap(lhs.m_comm_size, rhs.m_comm_size);
+    std::swap(lhs.m_comm_rank, rhs.m_comm_rank);
     std::swap(lhs.m_node_size, rhs.m_node_size);
     std::swap(lhs.m_node_id, rhs.m_node_id);
     std::swap(lhs.m_local_size, rhs.m_local_size);
@@ -92,8 +92,8 @@ class layout {
   // global layout info
   //////////////////////////////////////////////////////////////////////////////
 
-  constexpr int size() const { return m_world_size; }
-  constexpr int rank() const { return m_world_rank; }
+  constexpr int size() const { return m_comm_size; }
+  constexpr int rank() const { return m_comm_rank; }
 
   constexpr int node_size() const { return m_node_size; }
   constexpr int local_size() const { return m_local_size; }
@@ -104,14 +104,14 @@ class layout {
 
   constexpr int node_id() const { return m_node_id; }
   inline int    node_id(const int rank) const {
-    _check_world_rank(rank);
-    return m_rank_to_node.at(rank);
+       _check_world_rank(rank);
+       return m_rank_to_node.at(rank);
   }
 
   constexpr int local_id() const { return m_local_id; }
   inline int    local_id(const int rank) const {
-    _check_world_rank(rank);
-    return m_rank_to_local.at(rank);
+       _check_world_rank(rank);
+       return m_rank_to_local.at(rank);
   }
 
   constexpr std::pair<int, int> rank_to_nl() const {
@@ -163,7 +163,7 @@ class layout {
   }
 
   inline void _check_world_rank(const int rank) const {
-    _check_rank(rank, m_world_size, "world");
+    _check_rank(rank, m_comm_size, "world");
   }
   inline void _check_local_rank(const int local_rank) const {
     _check_rank(local_rank, m_local_size, "local");
@@ -173,10 +173,10 @@ class layout {
   }
   inline void _check_rank(const int rank, const int size,
                           const char *scope) const {
-    if (rank < 0 || rank > m_world_size) {
+    if (rank < 0 || rank > m_comm_size) {
       std::stringstream ss;
       ss << scope << " rank " << rank << " is not in the range [0, "
-         << m_world_size << "]";
+         << m_comm_size << "]";
       throw std::logic_error(ss.str());
     }
   }
