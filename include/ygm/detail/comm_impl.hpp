@@ -628,7 +628,6 @@ async(dest, std::forward<const SendArgs>(args)...);
 
         auto local_dispatch_lambda = [](comm *c, cereal::YGMInputArchive *bia,
                                         Lambda l) {
-          c->cout() << "Executing lambda" << std::endl;
           Lambda *pl = nullptr;
           size_t  l_storage[sizeof(Lambda) / sizeof(size_t) +
                            (sizeof(Lambda) % sizeof(size_t) > 0)];
@@ -657,7 +656,6 @@ async(dest, std::forward<const SendArgs>(args)...);
 
         for (auto dest : c->layout().local_ranks()) {
           if (dest != c->layout().rank()) {
-            c->cout() << "Forwarding locally to " << dest << std::endl;
             c->pimpl->queue_message_bytes(packed_msg, dest);
           }
         }
@@ -685,7 +683,6 @@ async(dest, std::forward<const SendArgs>(args)...);
           break;
         }
         if (!c->layout().is_local(curr_partner)) {
-          c->cout() << "Forwarding remotely to " << curr_partner << std::endl;
           c->pimpl->queue_message_bytes(packed_msg, curr_partner);
         }
 
@@ -704,8 +701,6 @@ async(dest, std::forward<const SendArgs>(args)...);
 
     // Initial send to all local ranks
     for (auto dest : layout().local_ranks()) {
-      std::cout << layout().rank() << ": Initial local send to " << dest
-                << std::endl;
       queue_message_bytes(packed_msg, dest);
     }
   }
