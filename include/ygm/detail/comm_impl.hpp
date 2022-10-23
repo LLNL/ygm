@@ -232,8 +232,20 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
 
   template <typename... SendArgs>
   void async_bcast(const SendArgs &...args) {
-    for (int dest = 0; dest < m_layout.size(); ++dest) {
-      async(dest, std::forward<const SendArgs>(args)...);
+    /*
+for (int dest = 0; dest < m_layout.size(); ++dest) {
+async(dest, std::forward<const SendArgs>(args)...);
+}
+    */
+
+    check_if_production_halt_required();
+
+    pack_lambda_broadcast(std::forward<const SendArgs>(args)...);
+
+    //
+    // Check if send buffer capacity has been exceeded
+    if (!m_in_process_receive_queue) {
+      flush_to_capacity();
     }
   }
 
@@ -552,7 +564,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
         std::forward<const PackArgs>(args)...);
     ASSERT_DEBUG(sizeof(Lambda) == 1);
 
-    auto dispatch_lambda = [](comm *c, cereal::YGMInputArchive *bia) {
+    auto dispatch_lambda = [](comm *c, cereal::YGMInputArchive *bia, Lambda l) {
       Lambda *pl = nullptr;
       size_t  l_storage[sizeof(Lambda) / sizeof(size_t) +
                        (sizeof(Lambda) % sizeof(size_t) > 0)];
@@ -572,7 +584,148 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
       ygm::meta::apply_optional(*pl, std::move(t1), std::move(ta));
     };
 
-    uint16_t lid = m_lambda_map.register_lambda(dispatch_lambda);
+    return pack_lambda_generic(packed, l, dispatch_lambda,
+                               std::forward<const PackArgs>(args)...);
+  }
+
+  template <typename Lambda, typename... PackArgs>
+  void pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
+    const std::tuple<PackArgs...> tuple_args(
+        std::forward<const PackArgs>(args)...);
+    ASSERT_DEBUG(sizeof(Lambda) == 1);
+
+    auto forward_remote_and_dispatch_lambda = [](comm                    *c,
+                                                 cereal::YGMInputArchive *bia,
+                                                 Lambda                   l) {
+      Lambda *pl = nullptr;
+      size_t  l_storage[sizeof(Lambda) / sizeof(size_t) +
+                       (sizeof(Lambda) % sizeof(size_t) > 0)];
+      if constexpr (!std::is_empty<Lambda>::value) {
+        bia->loadBinary(l_storage, sizeof(Lambda));
+        pl = (Lambda *)l_storage;
+      }
+
+      std::tuple<PackArgs...> ta;
+      if constexpr (!std::is_empty<std::tuple<PackArgs...>>::value) {
+        (*bia)(ta);
+      }
+
+      auto forward_local_and_dispatch_lambda = [](comm                    *c,
+                                                  cereal::YGMInputArchive *bia,
+                                                  Lambda                   l) {
+        Lambda *pl = nullptr;
+        size_t  l_storage[sizeof(Lambda) / sizeof(size_t) +
+                         (sizeof(Lambda) % sizeof(size_t) > 0)];
+        if constexpr (!std::is_empty<Lambda>::value) {
+          bia->loadBinary(l_storage, sizeof(Lambda));
+          pl = (Lambda *)l_storage;
+        }
+
+        std::tuple<PackArgs...> ta;
+        if constexpr (!std::is_empty<std::tuple<PackArgs...>>::value) {
+          (*bia)(ta);
+        }
+
+        auto local_dispatch_lambda = [](comm *c, cereal::YGMInputArchive *bia,
+                                        Lambda l) {
+          c->cout() << "Executing lambda" << std::endl;
+          Lambda *pl = nullptr;
+          size_t  l_storage[sizeof(Lambda) / sizeof(size_t) +
+                           (sizeof(Lambda) % sizeof(size_t) > 0)];
+          if constexpr (!std::is_empty<Lambda>::value) {
+            bia->loadBinary(l_storage, sizeof(Lambda));
+            pl = (Lambda *)l_storage;
+          }
+
+          std::tuple<PackArgs...> ta;
+          if constexpr (!std::is_empty<std::tuple<PackArgs...>>::value) {
+            (*bia)(ta);
+          }
+
+          auto t1 = std::make_tuple((comm *)c);
+
+          // \pp was: std::apply(*pl, std::tuple_cat(t1, ta));
+          ygm::meta::apply_optional(*pl, std::move(t1), std::move(ta));
+        };
+
+        // Pack lambda telling terminal ranks to execute user lambda.
+        // TODO: Why does this work? Passing ta (tuple of args) to a function
+        // expecting a parameter pack shouldn't work...
+        std::vector<std::byte> packed_msg;
+        c->pimpl->pack_lambda_generic(packed_msg, *pl, local_dispatch_lambda,
+                                      ta);
+
+        for (auto dest : c->layout().local_ranks()) {
+          if (dest != c->layout().rank()) {
+            c->cout() << "Forwarding locally to " << dest << std::endl;
+            c->pimpl->queue_message_bytes(packed_msg, dest);
+          }
+        }
+
+        auto t1 = std::make_tuple((comm *)c);
+
+        // \pp was: std::apply(*pl, std::tuple_cat(t1, ta));
+        ygm::meta::apply_optional(*pl, std::move(t1), std::move(ta));
+      };
+
+      std::vector<std::byte> packed_msg;
+      c->pimpl->pack_lambda_generic(packed_msg, *pl,
+                                    forward_local_and_dispatch_lambda, ta);
+
+      int num_layers = c->layout().node_size() / c->layout().local_size() +
+                       (c->layout().node_size() % c->layout().local_size() > 0);
+      int num_ranks_per_layer =
+          c->layout().local_size() * c->layout().local_size();
+      int layer_comm_partner_offset =
+          c->layout().local_id() * c->layout().local_size() +
+          c->layout().node_id() % c->layout().local_size();
+      int curr_partner = layer_comm_partner_offset;
+      for (int l = 0; l < num_layers; l++) {
+        if (curr_partner >= c->layout().size()) {
+          break;
+        }
+        if (!c->layout().is_local(curr_partner)) {
+          c->cout() << "Forwarding remotely to " << curr_partner << std::endl;
+          c->pimpl->queue_message_bytes(packed_msg, curr_partner);
+        }
+
+        curr_partner += num_ranks_per_layer;
+      }
+
+      auto t1 = std::make_tuple((comm *)c);
+
+      // \pp was: std::apply(*pl, std::tuple_cat(t1, ta));
+      ygm::meta::apply_optional(*pl, std::move(t1), std::move(ta));
+    };
+
+    std::vector<std::byte> packed_msg;
+    pack_lambda_generic(packed_msg, l, forward_remote_and_dispatch_lambda,
+                        std::forward<const PackArgs>(args)...);
+
+    // Initial send to all local ranks
+    for (auto dest : layout().local_ranks()) {
+      std::cout << layout().rank() << ": Initial local send to " << dest
+                << std::endl;
+      queue_message_bytes(packed_msg, dest);
+    }
+  }
+
+  template <typename Lambda, typename RemoteLogicLambda, typename... PackArgs>
+  size_t pack_lambda_generic(std::vector<std::byte> &packed, Lambda l,
+                             RemoteLogicLambda rll, const PackArgs &...args) {
+    size_t                        size_before = packed.size();
+    const std::tuple<PackArgs...> tuple_args(
+        std::forward<const PackArgs>(args)...);
+    ASSERT_DEBUG(sizeof(Lambda) == 1);
+
+    auto remote_dispatch_lambda = [](comm *c, cereal::YGMInputArchive *bia) {
+      RemoteLogicLambda *rll = nullptr;
+      Lambda            *pl  = nullptr;
+
+      (*rll)(c, bia, *pl);
+    };
+
+    uint16_t lid = m_lambda_map.register_lambda(remote_dispatch_lambda);
 
     {
       size_t size_before = packed.size();
@@ -593,6 +746,32 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
       oarchive(tuple_args);
     }
     return packed.size() - size_before;
+  }
+
+  /**
+   * @brief Adds packed message directly to send buffer for specific
+   * destination. Does not modify packed message to add headers for routing.
+   *
+   */
+  void queue_message_bytes(const std::vector<std::byte> &packed,
+                           const int                     dest) {
+    m_send_count++;
+
+    //
+    // add data to the to dest buffer
+    if (m_vec_send_buffers[dest].empty()) {
+      m_send_dest_queue.push_back(dest);
+      m_vec_send_buffers[dest].reserve(config.buffer_size /
+                                       m_layout.node_size());
+    }
+
+    std::vector<std::byte> &send_buff = m_vec_send_buffers[dest];
+
+    size_t size_before = send_buff.size();
+    send_buff.resize(size_before + packed.size());
+    std::memcpy(send_buff.data() + size_before, packed.data(), packed.size());
+
+    m_send_buffer_bytes += packed.size();
   }
 
   /**
