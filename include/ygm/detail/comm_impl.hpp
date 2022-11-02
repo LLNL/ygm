@@ -6,7 +6,6 @@
 #pragma once
 
 #include <sys/mman.h>
-#include <x86intrin.h>
 #include <atomic>
 #include <deque>
 #include <memory>
