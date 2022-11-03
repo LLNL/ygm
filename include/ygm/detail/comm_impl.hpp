@@ -232,12 +232,6 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
 
   template <typename... SendArgs>
   void async_bcast(const SendArgs &...args) {
-    /*
-for (int dest = 0; dest < m_layout.size(); ++dest) {
-async(dest, std::forward<const SendArgs>(args)...);
-}
-    */
-
     check_if_production_halt_required();
 
     pack_lambda_broadcast(std::forward<const SendArgs>(args)...);
