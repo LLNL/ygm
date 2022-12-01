@@ -91,7 +91,7 @@ class arrow_parquet_parser {
      return m_schema; 
    }
 
-   const std::string& schame_to_string() {
+   const std::string& schema_to_string() {
      return m_schema_string;  
    }
 
