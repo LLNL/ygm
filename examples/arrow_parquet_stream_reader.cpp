@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
         std::get<1>(parquetp.schema()[i]) << ", ";   
     }
     std::cout << std::endl;
-    std::cout << parquetp.schame_to_string() << std::endl;
+    std::cout << parquetp.schema_to_string() << std::endl;
   }
 
   // count total number of rows in files
