@@ -39,7 +39,7 @@ jobs:
           #wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/pool/$(lsb_release --codename --short)/main/a/apache-arrow-apt-source/apache-arrow-apt-source_9.0.0-1_all.deb
           #sudo apt install ./apache-arrow-apt-source_9.0.0-1_all.deb
           sudo apt update
-          sudo apt install libarrow-dev
+          sudo apt install libarrow-dev libparquet-dev
       - name: Install mpich
         if: matrix.mpi-type == 'mpich'
         run: sudo apt-get install mpich
