@@ -35,8 +35,10 @@ jobs:
         run: |
           cd ~
           sudo apt install lsb-release
-          wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-          sudo apt install ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+          #wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+          #sudo apt install ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+          wget https://apache.jfrog.io/ui/native/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/pool/$(lsb_release --codename --short)/main/a/apache-arrow-apt-source/apache-arrow-apt-source_9.0.0-1_all.deb
+          sudo apt install ./apache-arrow-apt-source-9.0.0-1_all.deb
           sudo apt update
           sudo apt install libarrow-dev
       - name: Install mpich
