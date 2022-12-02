@@ -34,13 +34,15 @@ jobs:
       - name: Install Apache Arrow
         run: |
           cd ~
-          wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-          sudo apt install ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+          #wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+          #sudo apt install ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
           #wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/pool/$(lsb_release --codename --short)/main/a/apache-arrow-apt-source/apache-arrow-apt-source_9.0.0-1_all.deb
           #sudo apt install ./apache-arrow-apt-source_9.0.0-1_all.deb
-          sudo apt update
+          #sudo apt update
           #sudo apt install libarrow-dev libparquet-dev
-          sudo apt install libarrow900 libparquet900
+          #sudo apt install libarrow900 libparquet900
+          wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/pool/$(lsb_release --codename --short)/main/a/apache-arrow/apache-arrow_9.0.0.orig.tar.gz
+          tar -xzf apache-arrow_9.0.0.orig.tar.gz
       - name: Install mpich
         if: matrix.mpi-type == 'mpich'
         run: sudo apt-get install mpich
@@ -57,7 +59,7 @@ jobs:
           g++-${{ matrix.gcc-version }} --version
           mkdir build
           cd build
-          cmake ../ -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_CXX_COMPILER=g++-${{ matrix.gcc-version }} -DBOOST_ROOT=~/boost_1_77_0
+          cmake ../ -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_CXX_COMPILER=g++-${{ matrix.gcc-version }} -DBOOST_ROOT=~/boost_1_77_0 -DARROW_ROOT=~/apache-arrow-9.0.0
           make
       - name: Make test (mpich)
         if: matrix.mpi-type == 'mpich'
