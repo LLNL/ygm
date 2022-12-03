@@ -134,7 +134,9 @@ endif ()
 # Arrow
 #
 #
-find_package(Arrow 8.0...10.0.1)
+find_package(Arrow 8.0)
+find_package(Arrow 9.0)
+find_package(Arrow 10.0)
 if (Arrow_FOUND)
    message(STATUS ${PROJECT_NAME} " found Arrow ")
    message(STATUS "Arrow version: ${ARROW_VERSION}")
