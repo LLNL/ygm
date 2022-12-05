@@ -6,6 +6,7 @@
 #pragma once
 
 #include <filesystem>
+#include <fstream>
 #include <cassert>
 #include <regex>
 #include <string>
@@ -43,48 +44,17 @@ class arrow_parquet_parser {
      pthis.check(m_comm);
    } 
 
-   arrow_parquet_parser(ygm::comm& _comm, const std::string& _dir_name) :
+   arrow_parquet_parser(ygm::comm& _comm, 
+     const std::vector<std::string>& stringpaths, bool recursive = false) :
      m_comm(_comm), pthis(this) {
      pthis.check(m_comm);
-     build_file_list(_dir_name);
+     check_paths(stringpaths, recursive);
      read_file_schema();
      m_comm.barrier();      
    } 
 
    ~arrow_parquet_parser() {
      m_comm.barrier();
-   }
-
-   void build_file_list(const std::string& dir_name) {
-     stdfs::path dir_path = dir_name;
-     std::string wildcard = dir_path.filename().string();
-     dir_path.remove_filename();
-
-     const std::regex filename_filter(wildcard + ".*\\.parquet");
-
-     if (!stdfs::exists(dir_path) ||
-       !stdfs::is_directory(dir_path)) {
-       std::cerr << "Error: Invalid directory path." << std::endl;       
-     } else {
-       std::smatch what;
-       stdfs::directory_iterator end_itr;
-  
-       for (stdfs::directory_iterator itr(dir_path); itr != end_itr; ++itr) {
-         auto filename = itr->path().filename().string();
-         if (!stdfs::is_regular_file(itr->status())) {
-           continue;
-         } else if (!std::regex_match(filename, what, filename_filter)) {
-           continue;
-         } else {
-           m_paths.emplace_back(itr->path()); 
-         }
-       } // for 
-     }
-   }
-
-   void read_file_schema() {
-     parquet_stream_reader(m_paths[0], 
-       [](auto& stream_reader, const auto& field_count){}, true);   
    }
 
    const file_schema_container& schema() {
@@ -95,17 +65,82 @@ class arrow_parquet_parser {
      return m_schema_string;  
    }
 
-   void check_file_schema(const parquet::SchemaDescriptor* file_schema) {
-     // check the number of fields
-     auto file_schema_group_node = file_schema->group_node();
-     size_t field_count = file_schema_group_node->field_count();
-     assert(field_count == m_schema.size());       
+   template <typename Function>
+   void for_all(Function fn) {
+     read_files(fn);
    }
 
-   template <typename Function>
-   void read_file(const stdfs::path& file_path, Function fn) {
-     parquet_stream_reader(file_path.string(), fn);
+   size_t local_file_count() {
+     return m_paths.size();
    }
+
+ private :
+
+   /**
+    * @brief Check readability of paths and iterates through directories
+    *
+    * @param stringpaths
+    * @param recursive
+    */ 
+   void check_paths(const std::vector<std::string>& stringpaths, 
+     bool recursive) {
+     //
+     // 
+     for (const std::string& strp : stringpaths) {
+       stdfs::path p(strp);
+       if (stdfs::exists(p)) {
+         if (stdfs::is_regular_file(p)) {
+           if (is_file_good(p)) {
+             m_paths.push_back(p);
+           }
+         } else if (stdfs::is_directory(p)) {
+           if (recursive) {
+             //
+             // If a directory & user requested recursive
+             const std::filesystem::recursive_directory_iterator end;
+             for (std::filesystem::recursive_directory_iterator itr{p};
+               itr != end; itr++) {
+               if (stdfs::is_regular_file(itr->path())) {
+                 if (is_file_good(itr->path())) {
+                   m_paths.push_back(itr->path());
+                 }
+               }
+             } // for
+           } else {
+             //
+             // If a directory & user requested recursive
+             const std::filesystem::directory_iterator end;
+             for (std::filesystem::directory_iterator itr{p}; itr != end;
+               itr++) {
+               if (stdfs::is_regular_file(itr->path())) {
+                 if (is_file_good(itr->path())) {
+                   m_paths.push_back(itr->path());
+                 }
+               }
+             } // for
+           }
+         }
+       }
+     } // for
+ 	
+     //
+     // Remove duplicate paths
+     std::sort(m_paths.begin(), m_paths.end());
+     m_paths.erase(std::unique(m_paths.begin(), m_paths.end()), m_paths.end());
+   }
+
+   /**
+    * @brief Checks if file is readable
+    *
+    * @param p
+    * @return true
+    * @return false
+    */
+   bool is_file_good(const stdfs::path& p) {
+     std::shared_ptr<arrow::io::ReadableFile> input_file;
+     PARQUET_ASSIGN_OR_THROW(input_file, arrow::io::ReadableFile::Open(p)); 
+     return true;
+   }    
 
    template <typename Function>
    void read_files(Function fn) {
@@ -116,17 +151,21 @@ class arrow_parquet_parser {
      } // for
    } 
 
-   size_t file_count() {
-     return m_paths.size();
-   }
-
-   bool is_owner(const size_t& item_ID) {
-     return m_comm.rank() == item_ID % m_comm.size() ? true : false; 
-   }
-
    template <typename Function>
-   void for_all(Function fn) {
-     read_files(fn);
+   void read_file(const stdfs::path& file_path, Function fn) {
+     parquet_stream_reader(file_path.string(), fn);
+   }
+
+   void read_file_schema() {
+     parquet_stream_reader(m_paths[0], 
+       [](auto& stream_reader, const auto& field_count){}, true);   
+   }
+
+   void check_file_schema(const parquet::SchemaDescriptor* file_schema) {
+     // check the number of fields
+     auto file_schema_group_node = file_schema->group_node();
+     size_t field_count = file_schema_group_node->field_count();
+     assert(field_count == m_schema.size());       
    }
 
    template <typename Function>
@@ -170,8 +209,11 @@ class arrow_parquet_parser {
        fn(stream_reader, field_count);
      } // for 
    }
- 
- private :
+
+   bool is_owner(const size_t& item_ID) {
+     return m_comm.rank() == item_ID % m_comm.size() ? true : false; 
+   }
+
    ygm::comm m_comm;
    typename ygm::ygm_ptr<self_type> pthis;   
    std::vector<stdfs::path> m_paths;

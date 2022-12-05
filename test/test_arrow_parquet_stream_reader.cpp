@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
   // Test number of lines in files
   {
   // arrow_parquet_parser assumes files have identical scehma
-  ygm::io::arrow_parquet_parser parquetp(world, dir_name);
+  ygm::io::arrow_parquet_parser parquetp(world, {dir_name});
 
   // count total number of rows in files   
   size_t local_count = 0;
@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
   // Test table entries
   {
   // arrow_parquet_parser assumes files have identical scehma
-  ygm::io::arrow_parquet_parser parquetp(world, dir_name);
+  ygm::io::arrow_parquet_parser parquetp(world, {dir_name});
 
   // read fields in each row 
   struct columns {

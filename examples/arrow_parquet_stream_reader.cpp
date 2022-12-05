@@ -28,10 +28,11 @@ int main(int argc, char** argv) {
   const std::string dir_name = "../test/data/parquet_files/"; 
 
   // arrow_parquet_parser assumes files have identical scehma
-  ygm::io::arrow_parquet_parser parquetp(world, dir_name);
+  ygm::io::arrow_parquet_parser parquetp(world, {dir_name});
 
   if (world.rank() == 0) {
-    std::cout << parquetp.file_count() << " files in " << dir_name << std::endl;
+    std::cout << parquetp.local_file_count() << " files in " << dir_name << 
+      std::endl;
     std::cout << "#Fields: " << parquetp.schema().size() << std::endl; 
     std::cout << "Schema: " << std::endl;
     for (size_t i = 0; i < parquetp.schema().size(); ++i) {
