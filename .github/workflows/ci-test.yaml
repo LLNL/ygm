@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, ubuntu-20.04]
-        gcc-version: [9, 10]
+        gcc-version: [8, 9, 10]
         mpi-type: [mpich, openmpi]
         exclude:
           - os: ubuntu-latest
