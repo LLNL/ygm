@@ -63,6 +63,11 @@ if (Boost_FOUND)
     )
 endif ()
 
+if (Arrow_FOUND AND Parquet_FOUND)
+    add_ygm_test(test_arrow_parquet_stream_reader)
+    target_link_libraries(MPI_test_arrow_parquet_stream_reader PUBLIC arrow_shared parquet_shared)
+endif()	
+
 #
 # Copy the testing data directory
 #

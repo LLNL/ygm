@@ -32,3 +32,8 @@ add_ygm_example(disjoint_set_async_union_and_execute)
 add_ygm_example(counting_set_topk)
 add_ygm_example(alg_spmv)
 add_ygm_example(alg_pagerank)
+
+if (Arrow_FOUND AND Parquet_FOUND)
+    add_ygm_example(arrow_parquet_stream_reader)
+    target_link_libraries(arrow_parquet_stream_reader PUBLIC arrow_shared parquet_shared)
+endif()
