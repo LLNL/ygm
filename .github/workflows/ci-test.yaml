@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Cache boost
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         id: cache-boost
         with:
           path: "~/boost_1_77_0"
