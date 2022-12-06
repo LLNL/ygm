@@ -29,6 +29,8 @@ class bag {
 
   void swap(self_type &s) { m_impl.swap(s.m_impl); }
 
+  void local_shuffle() { m_impl.local_shuffle(); }
+
   template <typename Function>
   void local_for_all(Function fn) {
     m_impl.local_for_all(fn);
