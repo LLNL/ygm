@@ -14,13 +14,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, ubuntu-20.04]
         gcc-version: [9, 10]
         mpi-type: [mpich, openmpi]
-        include:
-          - os: ubuntu-20.04
+        exclude:
+          - os: ubuntu-latest
             gcc-version: 8
-    runs-on: matrix.os
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
       - name: Cache boost
