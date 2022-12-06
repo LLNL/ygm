@@ -11,12 +11,16 @@ env:
 
 jobs:
   build-test:
-    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        gcc-version: [8, 9, 10]
+        os: [ubuntu-latest]
+        gcc-version: [9, 10]
         mpi-type: [mpich, openmpi]
+        include:
+          - os: ubuntu-20.04
+            gcc-version: 8
+    runs-on: matrix.os
     steps:
       - uses: actions/checkout@v2
       - name: Cache boost
