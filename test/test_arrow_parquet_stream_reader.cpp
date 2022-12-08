@@ -7,7 +7,6 @@
 
 #include <filesystem>
 #include <ygm/comm.hpp>
-//#include <ygm/io/csv_parser.hpp>
 #include <ygm/io/arrow_parquet_parser.hpp>
 
 int main(int argc, char** argv) {
