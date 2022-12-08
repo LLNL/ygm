@@ -7,7 +7,6 @@
 
 #include <filesystem>
 #include <ygm/comm.hpp>
-//#include <ygm/io/csv_parser.hpp>
 #include <ygm/io/arrow_parquet_parser.hpp>
 
 int main(int argc, char** argv) {
@@ -20,7 +19,7 @@ int main(int argc, char** argv) {
   // Test number of lines in files
   {
     // arrow_parquet_parser assumes files have identical scehma
-    ygm::io::arrow_parquet_parser parquetp(world, dir_name);
+    ygm::io::arrow_parquet_parser parquetp(world, {dir_name});
 
     // count total number of rows in files
     size_t local_count = 0;
@@ -41,7 +40,7 @@ int main(int argc, char** argv) {
   // Test table entries
   {
     // arrow_parquet_parser assumes files have identical scehma
-    ygm::io::arrow_parquet_parser parquetp(world, dir_name);
+    ygm::io::arrow_parquet_parser parquetp(world, {dir_name});
 
     // read fields in each row
     struct columns {
@@ -52,33 +51,30 @@ int main(int argc, char** argv) {
       bool        boolean_field;
     };
 
-    std::vector<columns> rows;
+    std::vector<columns>  rows;
+    std::set<std::string> strings;
 
-    parquetp.for_all([&rows](auto& stream_reader, const auto& field_count) {
-      using columns_t = decltype(rows)::value_type;
-      columns_t columns_obj;
-      stream_reader >> columns_obj.string_field;
-      stream_reader >> columns_obj.char_array_field;
-      stream_reader >> columns_obj.uint64_t_field;
-      stream_reader >> columns_obj.double_field;
-      stream_reader >> columns_obj.boolean_field;
-      stream_reader.EndRow();
-      rows.emplace_back(columns_obj);
-    });
+    parquetp.for_all(
+        [&rows, &strings](auto& stream_reader, const auto& field_count) {
+          using columns_t = decltype(rows)::value_type;
+          columns_t columns_obj;
+          stream_reader >> columns_obj.string_field;
+          stream_reader >> columns_obj.char_array_field;
+          stream_reader >> columns_obj.uint64_t_field;
+          stream_reader >> columns_obj.double_field;
+          stream_reader >> columns_obj.boolean_field;
+          stream_reader.EndRow();
+          rows.emplace_back(columns_obj);
+
+          strings.insert(columns_obj.string_field);
+        });
 
     world.barrier();
     auto row_count = world.all_reduce_sum(rows.size());
     ASSERT_RELEASE(row_count == 12);
 
-    if (world.rank() == 0) {
-      auto& obj_ref = rows[1];
-      world.cout() << obj_ref.string_field << std::endl;
-      // ASSERT_RELEASE(obj_ref.string_field == "Hennessey Venom F5");
-      ASSERT_RELEASE(std::string(obj_ref.char_array_field) == "USA");
-      ASSERT_RELEASE(obj_ref.uint64_t_field == 311);
-      ASSERT_RELEASE(obj_ref.double_field == 2.4);
-      ASSERT_RELEASE(obj_ref.boolean_field == false);
-    }
+    ASSERT_RELEASE(world.all_reduce_sum(strings.count("Hennessey Venom F5")) ==
+                   1);
   }
 
   return 0;

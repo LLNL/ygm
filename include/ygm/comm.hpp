@@ -141,29 +141,43 @@ class comm {
 
   template <typename... Args>
   void cout(Args &&...args) const {
-    (cout() << ... << args) << std::endl;
+    std::cout << outstr(args...) << std::endl;
   }
 
   template <typename... Args>
   void cerr(Args &&...args) const {
-    (cerr() << ... << args) << std::endl;
+    std::cerr << outstr(args...) << std::endl;
   }
 
   template <typename... Args>
   void cout0(Args &&...args) const {
     if (rank0()) {
-      (std::cout << ... << args) << std::endl;
+      std::cout << outstr0(args...) << std::endl;
     }
   }
 
   template <typename... Args>
   void cerr0(Args &&...args) const {
     if (rank0()) {
-      (std::cerr << ... << args) << std::endl;
+      std::cerr << outstr0(args...) << std::endl;
     }
   }
 
  private:
+  template <typename... Args>
+  std::string outstr0(Args &&...args) const {
+    std::stringstream ss;
+    (ss << ... << args);
+    return ss.str();
+  }
+
+  template <typename... Args>
+  std::string outstr(Args &&...args) const {
+    std::stringstream ss;
+    (ss << rank() << ": " << ... << args);
+    return ss.str();
+  }
+
   comm() = delete;
 
   std::shared_ptr<impl>                      pimpl;
