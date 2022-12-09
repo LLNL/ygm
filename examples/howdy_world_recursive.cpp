@@ -14,7 +14,7 @@ struct howdy {
               << " that read: \"" << str << "\"" << std::endl;
     if (pcomm->rank() + 1 < pcomm->size()) {
       pcomm->async(pcomm->rank() + 1, howdy(), pcomm->rank(),
-                   std::string("This was sent recursivly"));
+                   std::string("This was sent recursively"));
     }
   }
 };
