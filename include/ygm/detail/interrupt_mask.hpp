@@ -1,0 +1,31 @@
+// Copyright 2019-2021 Lawrence Livermore National Security, LLC and other YGM
+// Project Developers. See the top-level COPYRIGHT file for details.
+//
+// SPDX-License-Identifier: MIT
+
+#pragma once
+
+#include <ygm/comm.hpp>
+
+namespace ygm {
+
+namespace detail {
+
+class interrupt_mask {
+ public:
+  interrupt_mask(ygm::comm &c) : m_comm(c) {
+    m_comm.pimpl->m_enable_interrupts = false;
+  }
+
+  ~interrupt_mask() {
+    m_comm.pimpl->m_enable_interrupts = true;
+    // m_comm.pimpl->process_receive_queue();  //causes recursion into
+    // process_receive_queue
+  }
+
+ private:
+  ygm::comm &m_comm;
+};
+
+}  // namespace detail
+}  // namespace ygm

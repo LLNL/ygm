@@ -8,21 +8,29 @@
 #include <functional>
 #include <memory>
 #include <vector>
+#include <ygm/detail/layout.hpp>
 #include <ygm/detail/mpi.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 
 namespace ygm {
 
+namespace detail {
+class interrupt_mask;
+class comm_stats;
+}  // namespace detail
+
 class comm {
  private:
   class impl;
+  friend class detail::interrupt_mask;
+  friend class detail::comm_stats;
 
  public:
-  comm(int *argc, char ***argv, int buffer_capacity);
+  comm(int *argc, char ***argv);
 
   // TODO:  Add way to detect if this MPI_Comm is already open. E.g., static
   // map<MPI_Comm, impl*>
-  comm(MPI_Comm comm, int buffer_capacity);
+  comm(MPI_Comm comm);
 
   // Constructor to allow comm::impl to build temporary comm using itself as the
   // impl
@@ -30,19 +38,28 @@ class comm {
 
   ~comm();
 
+  /**
+   * @brief Prints a welcome message with configuration details.
+   *
+   */
+  void welcome(std::ostream &os = std::cout);
+
+  void stats_reset();
+  void stats_print(const std::string &name = "", std::ostream &os = std::cout);
+
   //
   //  Asynchronous rpc interfaces.   Can be called inside OpenMP loop
   //
 
   template <typename AsyncFunction, typename... SendArgs>
-  void async(int dest, AsyncFunction fn, const SendArgs &... args);
+  void async(int dest, AsyncFunction fn, const SendArgs &...args);
 
   template <typename AsyncFunction, typename... SendArgs>
-  void async_bcast(AsyncFunction fn, const SendArgs &... args);
+  void async_bcast(AsyncFunction fn, const SendArgs &...args);
 
   template <typename AsyncFunction, typename... SendArgs>
   void async_mcast(const std::vector<int> &dests, AsyncFunction fn,
-                   const SendArgs &... args);
+                   const SendArgs &...args);
 
   //
   // Collective operations across all ranks.  Cannot be called inside OpenMP
@@ -90,15 +107,7 @@ class comm {
   int size() const;
   int rank() const;
 
-  //
-  //	Counters
-  //
-  int64_t local_bytes_sent() const;
-  int64_t global_bytes_sent() const;
-  void    reset_bytes_sent_counter();
-  int64_t local_rpc_calls() const;
-  int64_t global_rpc_calls() const;
-  void    reset_rpc_call_counter();
+  const detail::layout &layout() const;
 
   std::ostream &cout0() const {
     static std::ostringstream dummy;
@@ -125,36 +134,50 @@ class comm {
 
   std::ostream &cerr() const {
     std::cerr << rank() << ": ";
-    return std::cout;
+    return std::cerr;
   }
 
   bool rank0() const { return rank() == 0; }
 
   template <typename... Args>
-  void cout(Args &&... args) const {
-    (cout() << ... << args) << std::endl;
+  void cout(Args &&...args) const {
+    std::cout << outstr(args...) << std::endl;
   }
 
   template <typename... Args>
-  void cerr(Args &&... args) const {
-    (cerr() << ... << args) << std::endl;
+  void cerr(Args &&...args) const {
+    std::cerr << outstr(args...) << std::endl;
   }
 
   template <typename... Args>
-  void cout0(Args &&... args) const {
+  void cout0(Args &&...args) const {
     if (rank0()) {
-      (std::cout << ... << args) << std::endl;
+      std::cout << outstr0(args...) << std::endl;
     }
   }
 
   template <typename... Args>
-  void cerr0(Args &&... args) const {
+  void cerr0(Args &&...args) const {
     if (rank0()) {
-      (std::cerr << ... << args) << std::endl;
+      std::cerr << outstr0(args...) << std::endl;
     }
   }
 
  private:
+  template <typename... Args>
+  std::string outstr0(Args &&...args) const {
+    std::stringstream ss;
+    (ss << ... << args);
+    return ss.str();
+  }
+
+  template <typename... Args>
+  std::string outstr(Args &&...args) const {
+    std::stringstream ss;
+    (ss << rank() << ": " << ... << args);
+    return ss.str();
+  }
+
   comm() = delete;
 
   std::shared_ptr<impl>                      pimpl;

@@ -10,11 +10,11 @@ namespace ygm::container {
 
 template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
           typename Compare = std::less<Key>,
-          class Alloc = std::allocator<const Key>>
+          class Alloc      = std::allocator<const Key>>
 class multiset {
  public:
   using self_type = multiset<Key, Partitioner, Compare, Alloc>;
-  using key_type = Key;
+  using key_type  = Key;
   using impl_type = detail::set_impl<key_type, Partitioner, Compare, Alloc>;
 
   Partitioner partitioner;
@@ -54,16 +54,18 @@ class multiset {
 
   int owner(const key_type& key) const { return m_impl.owner(key); }
 
+  ygm::comm& comm() { return m_impl.comm(); }
+
  private:
   impl_type m_impl;
 };
 template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
           typename Compare = std::less<Key>,
-          class Alloc = std::allocator<const Key>>
+          class Alloc      = std::allocator<const Key>>
 class set {
  public:
   using self_type = set<Key, Partitioner, Compare, Alloc>;
-  using key_type = Key;
+  using key_type  = Key;
   using impl_type = detail::set_impl<key_type, Partitioner, Compare, Alloc>;
 
   Partitioner partitioner;
@@ -102,6 +104,8 @@ class set {
   }
 
   int owner(const key_type& key) const { return m_impl.owner(key); }
+
+  ygm::comm& comm() { return m_impl.comm(); }
 
  private:
   impl_type m_impl;

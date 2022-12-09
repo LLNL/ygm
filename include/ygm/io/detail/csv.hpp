@@ -31,6 +31,21 @@ class csv_field {
     return to_return;
   }
 
+  bool is_unsigned_integer() const {
+    uint64_t           test;
+    std::istringstream ss{m_f};
+    ss >> test;
+    return !ss.fail() && ss.eof();
+  }
+
+  uint64_t as_unsigned_integer() const {
+    uint64_t           to_return;
+    std::istringstream ss{m_f};
+    ss >> to_return;
+    assert(!ss.fail() && ss.eof());
+    return to_return;
+  }
+
   bool is_double() const {
     double             test;
     std::istringstream ss{m_f};

@@ -119,25 +119,27 @@ class line_parser {
                                       std::get<1>(remaining_files.back());
               size_t& cur_position = std::get<1>(remaining_files.back());
               if (file_remaining > remaining_budget) {
-                m_comm.async(rank,
-                             [](const std::string& fname, size_t bytes_begin,
-                                size_t bytes_end) {
-                               my_file_paths.push_back(
-                                   {fs::path(fname), bytes_begin, bytes_end});
-                             },
-                             (std::string)std::get<0>(remaining_files.back()),
-                             cur_position, cur_position + remaining_budget);
+                m_comm.async(
+                    rank,
+                    [](const std::string& fname, size_t bytes_begin,
+                       size_t bytes_end) {
+                      my_file_paths.push_back(
+                          {fs::path(fname), bytes_begin, bytes_end});
+                    },
+                    (std::string)std::get<0>(remaining_files.back()),
+                    cur_position, cur_position + remaining_budget);
                 cur_position += remaining_budget;
                 remaining_budget = 0;
               } else if (file_remaining <= remaining_budget) {
-                m_comm.async(rank,
-                             [](const std::string& fname, size_t bytes_begin,
-                                size_t bytes_end) {
-                               my_file_paths.push_back(
-                                   {fs::path(fname), bytes_begin, bytes_end});
-                             },
-                             (std::string)std::get<0>(remaining_files.back()),
-                             cur_position, std::get<2>(remaining_files.back()));
+                m_comm.async(
+                    rank,
+                    [](const std::string& fname, size_t bytes_begin,
+                       size_t bytes_end) {
+                      my_file_paths.push_back(
+                          {fs::path(fname), bytes_begin, bytes_end});
+                    },
+                    (std::string)std::get<0>(remaining_files.back()),
+                    cur_position, std::get<2>(remaining_files.back()));
                 remaining_budget -= file_remaining;
                 remaining_files.pop_back();
               }
@@ -153,19 +155,20 @@ class line_parser {
         // m_comm.cout("Opening: ", std::get<0>(fname), " ", std::get<1>(fname),
         //             " ", std::get<2>(fname));
         std::ifstream ifs(std::get<0>(fname));
-        size_t        bytes_begin = std::get<1>(fname);
-        size_t        bytes_end   = std::get<2>(fname);
+        // Note: Current process is responsible for reading up to *AND
+        // INCLUDING* bytes_end
+        size_t bytes_begin = std::get<1>(fname);
+        size_t bytes_end   = std::get<2>(fname);
         ASSERT_RELEASE(ifs.good());
         ifs.imbue(std::locale::classic());
         std::string line;
+        // Throw away line containing bytes_begin as it was read by the previous
+        // process (unless it corresponds to the beginning of a file)
         if (bytes_begin > 0) {
-          ifs.seekg(bytes_begin - 1);
-          if (ifs.peek() != '\n') {
-            std::getline(ifs, line);
-          } else {
-            ifs.get();
-          }
+          ifs.seekg(bytes_begin);
+          std::getline(ifs, line);
         }
+        // Keep reading until line containing bytes_end is read
         while (ifs.tellg() <= bytes_end && std::getline(ifs, line)) {
           fn(line);
           // if(ifs.tellg() > bytes_end) break;

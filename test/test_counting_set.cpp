@@ -55,5 +55,51 @@ int main(int argc, char **argv) {
     ASSERT_RELEASE(cset.count_all() == 3 * (size_t)world.size());
   }
 
+  //
+  // Test counting_sets YGM pointer
+  {
+    ygm::container::counting_set<std::string> cset(world);
+
+    auto cset_ptr = cset.get_ygm_ptr();
+
+    // Mix operations with pointer and counting_set
+    cset_ptr->async_insert("dog");
+    cset_ptr->async_insert("apple");
+    cset.async_insert("red");
+
+    ASSERT_RELEASE(cset_ptr->count("dog") == (size_t)world.size());
+    ASSERT_RELEASE(cset_ptr->count("apple") == (size_t)world.size());
+    ASSERT_RELEASE(cset.count("red") == (size_t)world.size());
+    ASSERT_RELEASE(cset.size() == 3);
+
+    auto count_map = cset.all_gather({"dog", "cat", "apple"});
+    ASSERT_RELEASE(count_map["dog"] == (size_t)world.size());
+    ASSERT_RELEASE(count_map["apple"] == (size_t)world.size());
+    ASSERT_RELEASE(cset.count("cat") == 0);
+
+    ASSERT_RELEASE(cset.count_all() == 3 * (size_t)world.size());
+  }
+
+  //
+  // Test topk
+  {
+    ygm::container::counting_set<std::string> cset(world);
+
+    cset.async_insert("dog");
+    cset.async_insert("dog");
+    cset.async_insert("dog");
+    cset.async_insert("cat");
+    cset.async_insert("cat");
+    cset.async_insert("bird");
+
+    auto topk = cset.topk(
+        2, [](const auto &a, const auto &b) { return a.second > b.second; });
+
+    ASSERT_RELEASE(topk[0].first == "dog");
+    ASSERT_RELEASE(topk[0].second == 3 * world.size());
+    ASSERT_RELEASE(topk[1].first == "cat");
+    ASSERT_RELEASE(topk[1].second == 2 * world.size());
+  }
+
   return 0;
 }
