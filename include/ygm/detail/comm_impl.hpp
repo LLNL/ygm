@@ -50,53 +50,6 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     // }
   };
 
-  /*
-// NR Routing
-int next_hop(const int dest) {
-ASSERT_RELEASE(config.routing != detail::routing_type::NONE);
-//
-// Trevor's
-// if (m_layout.is_local(dest)) {
-//   return dest;
-// } else {
-//   if (config.routing ==
-//   detail::comm_environment::detail::routing_type::NR) {
-//     return m_layout.strided_ranks()[m_layout.node_id(dest)];
-//   }  // else is NLNR
-//   const auto [dest_node, dest_local] = m_layout.rank_to_nl(dest);
-//   auto dest_layer_offset             = dest_node % m_layout.local_size();
-//   if (m_layout.local_id() == dest_layer_offset) {
-//     auto my_layer_offset = m_layout.node_id() % m_layout.local_size();
-//     return m_layout.nl_to_rank(dest_node, my_layer_offset);
-//   } else {
-//     return m_layout.nl_to_rank(m_layout.node_id(), dest_layer_offset);
-//   }
-// }
-
-//
-//  Roger's hack
-static int my_node_id          = m_layout.rank() / m_layout.local_size();
-static int my_offset           = m_layout.rank() % m_layout.local_size();
-static int my_node_r0          = my_node_id * m_layout.local_size();
-static int my_node_nlnr_offset = my_node_id % m_layout.local_size();
-int        dest_node           = dest / m_layout.local_size();
-if (my_node_id == dest_node) {
-return dest;
-} else {
-if (config.routing != detail::routing_type::NONE) {
-  return dest_node * m_layout.local_size() + my_offset;
-}  // else is NLNR
-
-int responsible_core = my_node_r0 + (dest_node % m_layout.local_size());
-
-if (m_layout.rank() == responsible_core) {
-  return (dest_node * m_layout.local_size()) + my_node_nlnr_offset;
-}
-return responsible_core;
-}
-}
-  */
-
   size_t pack_header(std::vector<std::byte> &packed, const int dest,
                      size_t size) {
     size_t size_before = packed.size();
@@ -409,6 +362,8 @@ return responsible_core;
   }
 
   const detail::layout &layout() const { return m_layout; }
+
+  const detail::comm_router &router() const { return m_router; }
 
  private:
   std::pair<uint64_t, uint64_t> barrier_reduce_counts() {
@@ -763,7 +718,7 @@ return responsible_core;
     // Add dummy header with dest of -1 and size of 0.
     // This is to avoid peeling off and replacing the dest as messages are
     // forwarded in a bcast
-    if (config.routing) {
+    if (config.routing != detail::routing_type::NONE) {
       size_t header_bytes = pack_header(send_buff, -1, 0);
       m_send_buffer_bytes += header_bytes;
     }
@@ -800,7 +755,6 @@ return responsible_core;
           m_recv_count++;
           stats.rpc_execute();
         } else {
-          // int next_dest = next_hop(h.dest);
           int next_dest = m_router.next_hop(h.dest);
 
           if (m_vec_send_buffers[next_dest].empty()) {
@@ -1003,6 +957,10 @@ inline void comm::async_mcast(const std::vector<int> &dests, AsyncFunction fn,
 }
 
 inline const detail::layout &comm::layout() const { return pimpl->layout(); }
+
+inline const detail::comm_router &comm::router() const {
+  return pimpl->router();
+}
 
 inline int comm::size() const { return pimpl->size(); }
 inline int comm::rank() const { return pimpl->rank(); }

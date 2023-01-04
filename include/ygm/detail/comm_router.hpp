@@ -20,6 +20,20 @@ class comm_router {
   comm_router(const layout &l, const routing_type route = routing_type::NONE)
       : m_layout(l), m_default_route(route) {}
 
+  /**
+   * @brief Calculates the next hop based on the given routing scheme and final
+   * destination
+   *
+   * @note The routes calculated should always satisfy the following
+   * assumptions:
+   * 1. routing_type::NONE sends directly to the destination
+   * 2. routing_type::NR makes at most 2 hops, a remote hop followed by an
+   * on-node hop
+   * 3. routing_type::NLNR makes at most 3 hops, an on-node hop, followed by a
+   * remote hop, followed by an on-node hop
+   * 4. The pairs of remote processes communicating in routing_type::NLNR is a
+   * subset of those communicating in routing_type::NR
+   */
   int next_hop(const int dest, const routing_type route) const {
     int to_return;
     switch (route) {
