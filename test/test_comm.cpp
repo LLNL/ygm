@@ -8,101 +8,110 @@
 #include <ygm/detail/ygm_ptr.hpp>
 
 int main(int argc, char** argv) {
-  ygm::comm world(&argc, &argv);
+  ASSERT_MPI(MPI_Init(nullptr, nullptr));
 
-  //
-  // Test Rank 0 async to all others
-  {
-    size_t counter{};
-    auto   pcounter = world.make_ygm_ptr(counter);
-    if (world.rank0()) {
+  std::vector<std::string> routing_schemes{"NONE", "NR", "NLNR"};
+  for (const auto& routing_scheme : routing_schemes) {
+    setenv("YGM_COMM_ROUTING", routing_scheme.c_str(), 1);
+
+    ygm::comm world(MPI_COMM_WORLD);
+
+    //
+    // Test Rank 0 async to all others
+    {
+      size_t counter{};
+      auto   pcounter = world.make_ygm_ptr(counter);
+      if (world.rank0()) {
+        for (int dest = 0; dest < world.size(); ++dest) {
+          world.async(
+              dest, [](auto pcounter) { (*pcounter)++; }, pcounter);
+        }
+      }
+      world.barrier();
+      ASSERT_RELEASE(counter == 1);
+    }
+
+    //
+    // Test all ranks async to all others
+    {
+      size_t counter{};
+      auto   pcounter = world.make_ygm_ptr(counter);
       for (int dest = 0; dest < world.size(); ++dest) {
         world.async(
             dest, [](auto pcounter) { (*pcounter)++; }, pcounter);
       }
-    }
-    world.barrier();
-    ASSERT_RELEASE(counter == 1);
-  }
-
-  //
-  // Test all ranks async to all others
-  {
-    size_t counter{};
-    auto   pcounter = world.make_ygm_ptr(counter);
-    for (int dest = 0; dest < world.size(); ++dest) {
-      world.async(
-          dest, [](auto pcounter) { (*pcounter)++; }, pcounter);
-    }
-    world.barrier();
-    ASSERT_RELEASE(counter == (size_t)world.size());
-  }
-
-  //
-  // Test async_bcast
-  {
-    size_t counter{};
-    auto   pcounter = world.make_ygm_ptr(counter);
-    if (world.rank0()) {
-      world.async_bcast([](auto pcounter) { (*pcounter)++; }, pcounter);
+      world.barrier();
+      ASSERT_RELEASE(counter == (size_t)world.size());
     }
 
-    world.barrier();
-    ASSERT_RELEASE(counter == 1);
-  }
-
-  //
-  // Test async_mcast
-  {
-    size_t counter{};
-    auto   pcounter = world.make_ygm_ptr(counter);
-    if (world.rank0()) {
-      std::vector<int> dests;
-      for (int dest = 0; dest < world.size(); dest += 2) {
-        dests.push_back(dest);
+    //
+    // Test async_bcast
+    {
+      size_t counter{};
+      auto   pcounter = world.make_ygm_ptr(counter);
+      if (world.rank0()) {
+        world.async_bcast([](auto pcounter) { (*pcounter)++; }, pcounter);
       }
-      world.async_mcast(
-          dests, [](auto pcounter) { (*pcounter)++; }, pcounter);
-    }
 
-    world.barrier();
-    if (world.rank() % 2) {
-      ASSERT_RELEASE(counter == 0);
-    } else {
+      world.barrier();
       ASSERT_RELEASE(counter == 1);
     }
+
+    //
+    // Test async_mcast
+    {
+      size_t counter{};
+      auto   pcounter = world.make_ygm_ptr(counter);
+      if (world.rank0()) {
+        std::vector<int> dests;
+        for (int dest = 0; dest < world.size(); dest += 2) {
+          dests.push_back(dest);
+        }
+        world.async_mcast(
+            dests, [](auto pcounter) { (*pcounter)++; }, pcounter);
+      }
+
+      world.barrier();
+      if (world.rank() % 2) {
+        ASSERT_RELEASE(counter == 0);
+      } else {
+        ASSERT_RELEASE(counter == 1);
+      }
+    }
+
+    //
+    // Test reductions
+    {
+      auto max = world.all_reduce_max(size_t(world.rank()));
+      ASSERT_RELEASE(max == (size_t)world.size() - 1);
+
+      auto min = world.all_reduce_min(size_t(world.rank()));
+      ASSERT_RELEASE(min == 0);
+
+      auto sum = world.all_reduce_sum(size_t(world.rank()));
+      ASSERT_RELEASE(sum ==
+                     (((size_t)world.size() - 1) * (size_t)world.size()) / 2);
+
+      size_t id  = world.rank();
+      auto   red = world.all_reduce(id, [](size_t a, size_t b) {
+        if (a < b) {
+          return a;
+        } else {
+          return b;
+        }
+        });
+      ASSERT_RELEASE(red == 0);
+      auto red2 = world.all_reduce(id, [](size_t a, size_t b) {
+        if (a > b) {
+          return a;
+        } else {
+          return b;
+        }
+      });
+      ASSERT_RELEASE(red2 == (size_t)world.size() - 1);
+    }
   }
 
-  //
-  // Test reductions
-  {
-    auto max = world.all_reduce_max(size_t(world.rank()));
-    ASSERT_RELEASE(max == (size_t)world.size() - 1);
-
-    auto min = world.all_reduce_min(size_t(world.rank()));
-    ASSERT_RELEASE(min == 0);
-
-    auto sum = world.all_reduce_sum(size_t(world.rank()));
-    ASSERT_RELEASE(sum ==
-                   (((size_t)world.size() - 1) * (size_t)world.size()) / 2);
-
-    size_t id  = world.rank();
-    auto   red = world.all_reduce(id, [](size_t a, size_t b) {
-      if (a < b) {
-        return a;
-      } else {
-        return b;
-      }
-    });
-    ASSERT_RELEASE(red == 0);
-    auto red2 = world.all_reduce(id, [](size_t a, size_t b) {
-      if (a > b) {
-        return a;
-      } else {
-        return b;
-      }
-    });
-    ASSERT_RELEASE(red2 == (size_t)world.size() - 1);
-  }
+  ASSERT_MPI(MPI_Finalize());
   return 0;
 }
