@@ -42,7 +42,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
 
   struct header_t {
     uint32_t message_size;
-    uint32_t dest;
+    int32_t  dest;
 
     // template <typename Archive>
     // void serialize(Archive &ar) {
@@ -751,7 +751,7 @@ return responsible_core;
     m_send_count++;
 
     //
-    // add data to the to dest buffer
+    // add data to the dest buffer
     if (m_vec_send_buffers[dest].empty()) {
       m_send_dest_queue.push_back(dest);
       m_vec_send_buffers[dest].reserve(config.buffer_size /
@@ -759,6 +759,14 @@ return responsible_core;
     }
 
     std::vector<std::byte> &send_buff = m_vec_send_buffers[dest];
+
+    // Add dummy header with dest of -1 and size of 0.
+    // This is to avoid peeling off and replacing the dest as messages are
+    // forwarded in a bcast
+    if (config.routing) {
+      size_t header_bytes = pack_header(send_buff, -1, 0);
+      m_send_buffer_bytes += header_bytes;
+    }
 
     size_t size_before = send_buff.size();
     send_buff.resize(size_before + packed.size());
@@ -784,7 +792,8 @@ return responsible_core;
       if (config.routing != detail::routing_type::NONE) {
         header_t h;
         iarchive.loadBinary(&h, sizeof(header_t));
-        if (h.dest == m_layout.rank()) {
+        if (h.dest == m_layout.rank() ||
+            (h.dest == -1 && h.message_size == 0)) {
           uint16_t lid;
           iarchive.loadBinary(&lid, sizeof(lid));
           m_lambda_map.execute(lid, &tmp_comm, &iarchive);
