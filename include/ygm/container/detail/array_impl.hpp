@@ -79,10 +79,10 @@ class array_impl {
                                     const value_type &value,
                                     const BinaryOp   &b) {
     ASSERT_RELEASE(index < m_global_size);
-    auto updater = [](const index_type i, value_type &v,
-                      const value_type &new_value) {
+    auto updater = [](std::pair<const index_type, value_type &> &iv,
+                      const value_type                          &new_value) {
       BinaryOp *binary_op;
-      v = (*binary_op)(v, new_value);
+      iv.second = (*binary_op)(iv.second, new_value);
     };
 
     async_visit(index, updater, value);
@@ -91,9 +91,9 @@ class array_impl {
   template <typename UnaryOp>
   void async_unary_op_update_value(const index_type index, const UnaryOp &u) {
     ASSERT_RELEASE(index < m_global_size);
-    auto updater = [](const index_type i, value_type &v) {
+    auto updater = [](std::pair<const index_type, value_type &> &iv) {
       UnaryOp *u;
-      v = (*u)(v);
+      iv.second = (*u)(iv.second);
     };
 
     async_visit(index, updater);
@@ -110,8 +110,11 @@ class array_impl {
       ASSERT_RELEASE(l_index < parray->m_local_vec.size());
       value_type &l_value = parray->m_local_vec[l_index];
       Visitor    *vis     = nullptr;
+      // using a value_type reference is dangerous, because even if the lambda
+      // parameter is declared const, we can still modify iv.second.
+      std::pair<const index_type, value_type &> iv{i, l_value};
       ygm::meta::apply_optional(*vis, std::make_tuple(parray),
-                                std::forward_as_tuple(i, l_value, args...));
+                                std::forward_as_tuple(iv, args...));
     };
 
     m_comm.async(dest, visit_wrapper, pthis, index,
@@ -122,8 +125,9 @@ class array_impl {
   void for_all(Function fn) {
     m_comm.barrier();
     for (int i = 0; i < m_local_vec.size(); ++i) {
-      index_type g_index = global_index(i);
-      fn(g_index, m_local_vec[i]);
+      index_type                                g_index = global_index(i);
+      std::pair<const index_type, value_type &> iv{g_index, m_local_vec[i]};
+      fn(iv);
     }
   }
 
