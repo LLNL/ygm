@@ -132,5 +132,24 @@ int main(int argc, char **argv) {
     }
   }
 
+  //
+  // Test for_all
+  {
+    ygm::container::multimap<std::string, std::string> smap1(world);
+    ygm::container::multimap<std::string, std::string> smap2(world);
+
+    smap1.async_insert("dog", "cat");
+    smap1.async_insert("apple", "orange");
+    smap1.async_insert("red", "green");
+
+    smap1.for_all([&smap2](const auto &key, auto value) {
+      smap2.async_insert(key, value);
+    });
+
+    ASSERT_RELEASE(smap2.count("dog") == (size_t)world.size());
+    ASSERT_RELEASE(smap2.count("apple") == (size_t)world.size());
+    ASSERT_RELEASE(smap2.count("red") == (size_t)world.size());
+  }
+
   return 0;
 }

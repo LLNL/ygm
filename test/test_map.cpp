@@ -161,7 +161,7 @@ int main(int argc, char **argv) {
   {
     ygm::container::map<std::string, std::vector<std::string>> smap(world);
     auto str_push_back = [](std::pair<const auto, auto> &key_value,
-                            const std::string &          str) {
+                            const std::string           &str) {
       // auto str_push_back = [](auto key_value, const std::string &str) {
       key_value.second.push_back(str);
     };
@@ -184,6 +184,25 @@ int main(int argc, char **argv) {
     } else {
       ASSERT_RELEASE(gmap["foo"].empty());
     }
+  }
+
+  //
+  // Test for_all
+  {
+    ygm::container::map<std::string, std::string> smap1(world);
+    ygm::container::map<std::string, std::string> smap2(world);
+
+    smap1.async_insert("dog", "cat");
+    smap1.async_insert("apple", "orange");
+    smap1.async_insert("red", "green");
+
+    smap1.for_all([&smap2](const auto &key, const auto &value) {
+      smap2.async_insert(key, value);
+    });
+
+    ASSERT_RELEASE(smap2.count("dog") == 1);
+    ASSERT_RELEASE(smap2.count("apple") == 1);
+    ASSERT_RELEASE(smap2.count("red") == 1);
   }
 
   return 0;

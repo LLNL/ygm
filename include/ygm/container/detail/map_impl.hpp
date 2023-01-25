@@ -290,7 +290,9 @@ class map_impl {
 
   template <typename Function>
   void local_for_all(Function fn) {
-    std::for_each(m_local_map.begin(), m_local_map.end(), fn);
+    for (std::pair<const key_type, value_type> &kv : m_local_map) {
+      fn(kv.first, kv.second);
+    }
   }
 
   template <typename CompareFunction>
