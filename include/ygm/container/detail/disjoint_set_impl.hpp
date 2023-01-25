@@ -294,7 +294,7 @@ class disjoint_set_impl {
                       const value_type                           &other_parent,
                       const value_type &other_item, const rank_type other_rank,
                       const value_type &orig_a, const value_type &orig_b,
-                      FunctionArgs &...args) {
+                      const FunctionArgs &...args) {
         // Note: other_item needs rank info for comparison with my_item's
         // parent. All others need rank and item to determine if other_item
         // has been visited/initialized.
