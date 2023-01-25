@@ -205,5 +205,22 @@ int main(int argc, char **argv) {
     ASSERT_RELEASE(smap2.count("red") == 1);
   }
 
+  //
+  // Test for_all (legacy lambdas)
+  {
+    ygm::container::map<std::string, std::string> smap1(world);
+    ygm::container::map<std::string, std::string> smap2(world);
+
+    smap1.async_insert("dog", "cat");
+    smap1.async_insert("apple", "orange");
+    smap1.async_insert("red", "green");
+
+    smap1.for_all([&smap2](const auto &kv) { smap2.async_insert(kv); });
+
+    ASSERT_RELEASE(smap2.count("dog") == 1);
+    ASSERT_RELEASE(smap2.count("apple") == 1);
+    ASSERT_RELEASE(smap2.count("red") == 1);
+  }
+
   return 0;
 }

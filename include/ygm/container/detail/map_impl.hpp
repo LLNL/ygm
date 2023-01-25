@@ -15,6 +15,9 @@
 
 namespace ygm::container::detail {
 
+template <class...>
+constexpr std::false_type always_false{};
+
 template <typename Key, typename Value,
           typename Partitioner = detail::hash_partitioner<Key>,
           typename Compare     = std::less<Key>,
@@ -290,8 +293,20 @@ class map_impl {
 
   template <typename Function>
   void local_for_all(Function fn) {
-    for (std::pair<const key_type, value_type> &kv : m_local_map) {
-      fn(kv.first, kv.second);
+    if constexpr (std::is_invocable<decltype(fn), const key_type,
+                                    value_type &>()) {
+      for (std::pair<const key_type, value_type> &kv : m_local_map) {
+        fn(kv.first, kv.second);
+      }
+    } else if constexpr (std::is_invocable<
+                             decltype(fn),
+                             std::pair<const key_type, value_type &>>()) {
+      for (std::pair<const key_type, value_type> &kv : m_local_map) {
+        fn(kv);
+      }
+      // std::for_each(m_local_map.begin(), m_local_map.end(), fn);
+    } else {
+      static_assert(always_false<>);  // check your lambda signatures!
     }
   }
 
