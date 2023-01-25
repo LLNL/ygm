@@ -275,9 +275,19 @@ class map_impl {
     ygm::detail::interrupt_mask mask(m_comm);
 
     auto range = m_local_map.equal_range(key);
-    for (auto itr = range.first; itr != range.second; ++itr) {
-      ygm::meta::apply_optional(fn, std::make_tuple(pthis),
-                                std::forward_as_tuple(*itr, args...));
+    if constexpr (std::is_invocable<decltype(fn),
+                                    std::pair<const key_type, value_type> &,
+                                    VisitorArgs &...>() ||
+                  std::is_invocable<decltype(fn),
+                                    typename ygm::ygm_ptr<self_type>,
+                                    std::pair<const key_type, value_type> &,
+                                    VisitorArgs &...>()) {
+      for (auto itr = range.first; itr != range.second; ++itr) {
+        ygm::meta::apply_optional(fn, std::make_tuple(pthis),
+                                  std::forward_as_tuple(*itr, args...));
+      }
+    } else {
+      static_assert(always_false<>);  // check your lambda signatures!
     }
   }
 
