@@ -54,6 +54,30 @@ int main(int argc, char **argv) {
 
     world.barrier();
 
+    smap.async_visit(
+        "dog", [](auto key, auto &value) { ASSERT_RELEASE(value == "cat"); });
+    smap.async_visit("apple", [](auto key, auto &value) {
+      ASSERT_RELEASE(value == "orange");
+    });
+    smap.async_visit(
+        "red", [](auto key, auto &value) { ASSERT_RELEASE(value == "green"); });
+  }
+
+  //
+  // Test async_insert_if_missing (legacy lambdas)
+  {
+    ygm::container::map<std::string, std::string> smap(world);
+
+    smap.async_insert_if_missing("dog", "cat");
+    smap.async_insert_if_missing("apple", "orange");
+
+    world.barrier();
+
+    smap.async_insert_if_missing("dog", "dog");
+    smap.async_insert_if_missing("red", "green");
+
+    world.barrier();
+
     smap.async_visit("dog", [](std::pair<const std::string, std::string> &s) {
       ASSERT_RELEASE(s.second == "cat");
     });

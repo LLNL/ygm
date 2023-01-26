@@ -44,6 +44,42 @@ int main(int argc, char **argv) {
   {
     ygm::container::multimap<std::string, std::string> smap(world,
                                                             "default_string");
+    smap.async_visit("dog",
+                     [](const std::string &key, const std::string &value) {
+                       ASSERT_RELEASE(key == "dog");
+                       ASSERT_RELEASE(value == "default_string");
+                     });
+    smap.async_visit("cat",
+                     [](const std::string &key, const std::string &value) {
+                       ASSERT_RELEASE(key == "cat");
+                       ASSERT_RELEASE(value == "default_string");
+                     });
+    smap.async_visit_if_exists("red", [](const auto &key, const auto &value) {
+      ASSERT_RELEASE(false);
+    });
+
+    ASSERT_RELEASE(smap.count("dog") == 1);
+    ASSERT_RELEASE(smap.count("cat") == 1);
+    ASSERT_RELEASE(smap.count("red") == 0);
+
+    ASSERT_RELEASE(smap.size() == 2);
+
+    if (world.rank() == 0) {
+      smap.async_erase("dog");
+    }
+    ASSERT_RELEASE(smap.count("dog") == 0);
+    ASSERT_RELEASE(smap.size() == 1);
+    smap.async_erase("cat");
+    ASSERT_RELEASE(smap.count("cat") == 0);
+
+    ASSERT_RELEASE(smap.size() == 0);
+  }
+
+  //
+  // Test all ranks default & async_visit_if_exists (legacy)
+  {
+    ygm::container::multimap<std::string, std::string> smap(world,
+                                                            "default_string");
     smap.async_visit("dog", [](std::pair<const std::string, std::string> s) {
       ASSERT_RELEASE(s.first == "dog");
       ASSERT_RELEASE(s.second == "default_string");
