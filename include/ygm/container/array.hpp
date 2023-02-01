@@ -99,6 +99,11 @@ class array {
     m_impl.for_all(fn);
   }
 
+  template <typename IntType, typename Function>
+  void for_some(IntType count, Function fn) {
+    m_impl.for_some(count, fn);
+  }
+
   index_type size() { return m_impl.size(); }
 
   typename ygm::ygm_ptr<impl_type> get_ygm_ptr() const {

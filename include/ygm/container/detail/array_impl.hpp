@@ -6,6 +6,7 @@
 #pragma once
 #include <vector>
 #include <ygm/comm.hpp>
+#include <ygm/detail/random.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 
 namespace ygm::container::detail {
@@ -124,6 +125,17 @@ class array_impl {
     for (int i = 0; i < m_local_vec.size(); ++i) {
       index_type g_index = global_index(i);
       fn(g_index, m_local_vec[i]);
+    }
+  }
+
+  template <typename IntType, typename Function>
+  void for_some(IntType count, Function fn) {
+    m_comm.barrier();
+    std::vector<std::size_t> samples =
+        random_subset(0, m_local_vec.size(), count);
+    for (const std::size_t sample : samples) {
+      index_type g_index = global_index(sample);
+      fn(g_index, m_local_vec[sample]);
     }
   }
 

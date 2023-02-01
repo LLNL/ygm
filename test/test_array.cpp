@@ -111,5 +111,31 @@ int main(int argc, char **argv) {
     });
   }
 
+  // Test for_some
+  {
+    int size           = world.size() * 8;
+    int local_requests = 4;
+
+    ygm::container::array<int> arr(world, size);
+
+    if (world.rank0()) {
+      for (int i(0); i < size; ++i) {
+        arr.async_set(i, i);
+      }
+    }
+
+    world.barrier();
+
+    static int local_fulfilled(0);
+    arr.for_some(local_requests, [&world](const auto index, const auto value) {
+      ASSERT_RELEASE(index == value);
+      ++local_fulfilled;
+    });
+
+    world.barrier();
+
+    ASSERT_RELEASE(local_requests == local_fulfilled);
+  }
+
   return 0;
 }
