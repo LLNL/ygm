@@ -131,6 +131,7 @@ class array_impl {
   template <typename IntType, typename Function>
   void for_some(IntType count, Function fn) {
     m_comm.barrier();
+    ASSERT_RELEASE(count < m_local_vec.size());
     std::vector<std::size_t> samples =
         random_subset(0, m_local_vec.size(), count);
     for (const std::size_t sample : samples) {
