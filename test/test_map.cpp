@@ -161,7 +161,7 @@ int main(int argc, char **argv) {
   {
     ygm::container::map<std::string, std::vector<std::string>> smap(world);
     auto str_push_back = [](std::pair<const auto, auto> &key_value,
-                            const std::string &          str) {
+                            const std::string           &str) {
       // auto str_push_back = [](auto key_value, const std::string &str) {
       key_value.second.push_back(str);
     };
@@ -184,6 +184,34 @@ int main(int argc, char **argv) {
     } else {
       ASSERT_RELEASE(gmap["foo"].empty());
     }
+  }
+
+  // Test for_some
+  {
+    int size           = world.size() * 8;
+    int local_requests = 4;
+
+    ygm::container::map<int, int> arr(world, size);
+
+    if (world.rank0()) {
+      for (int i(0); i < size; ++i) {
+        arr.async_insert(i, i);
+      }
+    }
+
+    world.barrier();
+
+    static int local_fulfilled(0);
+    arr.for_some(local_requests, [&world](const auto &kv) {
+      const auto &key   = kv.first;
+      const auto &value = kv.second;
+      ASSERT_RELEASE(key == value);
+      ++local_fulfilled;
+    });
+
+    world.barrier();
+
+    ASSERT_RELEASE(local_requests == local_fulfilled);
   }
 
   return 0;
