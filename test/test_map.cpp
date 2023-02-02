@@ -191,18 +191,18 @@ int main(int argc, char **argv) {
     int size           = world.size() * 8;
     int local_requests = 4;
 
-    ygm::container::map<int, int> arr(world, size);
+    ygm::container::map<int, int> imap(world);
 
     if (world.rank0()) {
       for (int i(0); i < size; ++i) {
-        arr.async_insert(i, i);
+        imap.async_insert(i, i);
       }
     }
 
     world.barrier();
 
     static int local_fulfilled(0);
-    arr.for_some(local_requests, [&world](const auto &kv) {
+    imap.for_some(local_requests, [&world](const auto &kv) {
       const auto &key   = kv.first;
       const auto &value = kv.second;
       ASSERT_RELEASE(key == value);
