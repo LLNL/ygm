@@ -95,6 +95,7 @@ class bag_impl {
     }
   }
 
+<<<<<<< HEAD
   template <typename IntType, typename Function, typename RNG>
   void local_for_random_samples(IntType count, Function fn,
                                 RNG gen = std::mt19937{
@@ -103,6 +104,14 @@ class bag_impl {
     ASSERT_RELEASE(count < m_local_bag.size());
     std::vector<std::size_t> samples =
         random_subset(0, m_local_bag.size(), count, gen);
+=======
+  template <typename IntType, typename Function>
+  void for_some(IntType count, Function fn) {
+    m_comm.barrier();
+    ASSERT_RELEASE(count < m_local_bag.size());
+    std::vector<std::size_t> samples =
+        random_subset(0, m_local_bag.size(), count);
+>>>>>>> 4dabd62 (Added ygm::container::bag::for_some())
     for (const std::size_t sample : samples) {
       fn(m_local_bag[sample]);
     }
