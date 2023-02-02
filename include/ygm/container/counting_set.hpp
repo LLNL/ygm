@@ -34,6 +34,11 @@ class counting_set {
     m_map.for_all(fn);
   }
 
+  template <typename IntType, typename Function>
+  void for_some(IntType count, Function fn) {
+    m_map.for_some(count, fn);
+  }
+
   void clear() { m_map.clear(); }
 
   size_t size() { return m_map.size(); }
@@ -119,10 +124,12 @@ class counting_set {
     auto key          = m_count_cache[slot].first;
     auto cached_count = m_count_cache[slot].second;
     ASSERT_DEBUG(cached_count > 0);
-    m_map.async_visit(key,
-                      [](std::pair<const key_type, size_t> &key_count,
-                         int32_t to_add) { key_count.second += to_add; },
-                      cached_count);
+    m_map.async_visit(
+        key,
+        [](std::pair<const key_type, size_t> &key_count, int32_t to_add) {
+          key_count.second += to_add;
+        },
+        cached_count);
     m_count_cache[slot].first  = key_type();
     m_count_cache[slot].second = -1;
   }

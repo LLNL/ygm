@@ -101,5 +101,36 @@ int main(int argc, char **argv) {
     ASSERT_RELEASE(topk[1].second == 2 * world.size());
   }
 
+  //
+  // Test for_some
+  {
+    int size           = world.size() * 8;
+    int local_requests = 4;
+
+    ygm::container::counting_set<int> iset(world);
+
+    if (world.rank0()) {
+      for (int i(0); i < size; ++i) {
+        for (int j(0); j < i; ++j) {
+          iset.async_insert(i);
+        }
+      }
+    }
+
+    world.barrier();
+
+    static int local_fulfilled(0);
+    iset.for_some(local_requests, [&world](const auto &kc) {
+      const auto &key   = kc.first;
+      const auto &count = kc.second;
+      ASSERT_RELEASE(key == count);
+      ++local_fulfilled;
+    });
+
+    world.barrier();
+
+    ASSERT_RELEASE(local_requests == local_fulfilled);
+  }
+
   return 0;
 }
