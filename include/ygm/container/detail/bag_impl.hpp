@@ -8,6 +8,7 @@
 #include <fstream>
 #include <vector>
 #include <ygm/comm.hpp>
+#include <ygm/detail/random.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 
 namespace ygm::container::detail {
@@ -82,10 +83,20 @@ class bag_impl {
     std::for_each(m_local_bag.begin(), m_local_bag.end(), fn);
   }
 
+  template <typename IntType, typename Function>
+  void for_some(IntType count, Function fn) {
+    m_comm.barrier();
+    ASSERT_RELEASE(count < m_local_bag.size());
+    std::vector<std::size_t> samples =
+        random_subset(0, m_local_bag.size(), count);
+    for (const std::size_t sample : samples) {
+      fn(m_local_bag[sample]);
+    }
+  }
 
   std::vector<value_type> gather_to_vector(int dest) {
     std::vector<value_type> result;
-    auto p_res = m_comm.make_ygm_ptr(result);
+    auto                    p_res = m_comm.make_ygm_ptr(result);
     m_comm.barrier();
     auto gatherer = [](auto res, const std::vector<value_type> &outer_data) {
       res->insert(res->end(), outer_data.begin(), outer_data.end());
@@ -97,10 +108,10 @@ class bag_impl {
 
   std::vector<value_type> gather_to_vector() {
     std::vector<value_type> result;
-    auto p_res = m_comm.make_ygm_ptr(result);
+    auto                    p_res = m_comm.make_ygm_ptr(result);
     m_comm.barrier();
     auto result0 = gather_to_vector(0);
-    if(m_comm.rank0()){
+    if (m_comm.rank0()) {
       auto distribute = [](auto res, const std::vector<value_type> &data) {
         res->insert(res->end(), data.begin(), data.end());
       };
@@ -109,7 +120,6 @@ class bag_impl {
     m_comm.barrier();
     return result;
   }
-
 
  protected:
   size_t                           m_round_robin = 0;
