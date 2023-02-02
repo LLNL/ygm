@@ -83,6 +83,11 @@ class set {
     m_impl.for_all(fn);
   }
 
+  template <typename IntType, typename Function>
+  void for_some(IntType count, Function fn) {
+    m_impl.for_some(count, fn);
+  }
+
   void clear() { m_impl.clear(); }
 
   size_t size() { return m_impl.size(); }

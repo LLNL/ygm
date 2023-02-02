@@ -9,6 +9,7 @@
 #include <set>
 #include <ygm/comm.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
+#include <ygm/detail/random.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 
 namespace ygm::container::detail {
@@ -114,6 +115,18 @@ class set_impl {
   template <typename Function>
   void local_for_all(Function fn) {
     std::for_each(m_local_set.begin(), m_local_set.end(), fn);
+  }
+
+  template <typename IntType, typename Function>
+  void for_some(IntType count, Function fn) {
+    m_comm.barrier();
+    ASSERT_RELEASE(count < m_local_set.size());
+    std::vector<std::size_t> samples =
+        random_subset(0, m_local_set.size(), count);
+    auto itr = std::begin(m_local_set);
+    for (const std::size_t sample : samples) {
+      fn(*std::next(itr, sample));
+    }
   }
 
   int owner(const key_type &key) const {
