@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
   world.barrier();
 
   // Legacy lambdas with optional map pointer arguments and no visitor arguments
-  // must specify that the second argument is a pair. (auto pamp, auto kv_pair)
+  // must specify that the second argument is a pair. (auto pmap, auto kv_pair)
   // will throw a compiler error.
   auto visit_lambda = [](auto pmap, std::pair<auto, auto> kv_pair) {
     std::cout << "Rank " << pmap->comm().rank() << " is receiving a lookup\n"
