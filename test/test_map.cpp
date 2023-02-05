@@ -54,6 +54,30 @@ int main(int argc, char **argv) {
 
     world.barrier();
 
+    smap.async_visit(
+        "dog", [](auto key, auto &value) { ASSERT_RELEASE(value == "cat"); });
+    smap.async_visit("apple", [](auto key, auto &value) {
+      ASSERT_RELEASE(value == "orange");
+    });
+    smap.async_visit(
+        "red", [](auto key, auto &value) { ASSERT_RELEASE(value == "green"); });
+  }
+
+  //
+  // Test async_insert_if_missing (legacy lambdas)
+  {
+    ygm::container::map<std::string, std::string> smap(world);
+
+    smap.async_insert_if_missing("dog", "cat");
+    smap.async_insert_if_missing("apple", "orange");
+
+    world.barrier();
+
+    smap.async_insert_if_missing("dog", "dog");
+    smap.async_insert_if_missing("red", "green");
+
+    world.barrier();
+
     smap.async_visit("dog", [](std::pair<const std::string, std::string> &s) {
       ASSERT_RELEASE(s.second == "cat");
     });
@@ -161,7 +185,7 @@ int main(int argc, char **argv) {
   {
     ygm::container::map<std::string, std::vector<std::string>> smap(world);
     auto str_push_back = [](std::pair<const auto, auto> &key_value,
-                            const std::string &          str) {
+                            const std::string           &str) {
       // auto str_push_back = [](auto key_value, const std::string &str) {
       key_value.second.push_back(str);
     };
@@ -184,6 +208,42 @@ int main(int argc, char **argv) {
     } else {
       ASSERT_RELEASE(gmap["foo"].empty());
     }
+  }
+
+  //
+  // Test for_all
+  {
+    ygm::container::map<std::string, std::string> smap1(world);
+    ygm::container::map<std::string, std::string> smap2(world);
+
+    smap1.async_insert("dog", "cat");
+    smap1.async_insert("apple", "orange");
+    smap1.async_insert("red", "green");
+
+    smap1.for_all([&smap2](const auto &key, const auto &value) {
+      smap2.async_insert(key, value);
+    });
+
+    ASSERT_RELEASE(smap2.count("dog") == 1);
+    ASSERT_RELEASE(smap2.count("apple") == 1);
+    ASSERT_RELEASE(smap2.count("red") == 1);
+  }
+
+  //
+  // Test for_all (legacy lambdas)
+  {
+    ygm::container::map<std::string, std::string> smap1(world);
+    ygm::container::map<std::string, std::string> smap2(world);
+
+    smap1.async_insert("dog", "cat");
+    smap1.async_insert("apple", "orange");
+    smap1.async_insert("red", "green");
+
+    smap1.for_all([&smap2](const auto &kv) { smap2.async_insert(kv); });
+
+    ASSERT_RELEASE(smap2.count("dog") == 1);
+    ASSERT_RELEASE(smap2.count("apple") == 1);
+    ASSERT_RELEASE(smap2.count("red") == 1);
   }
 
   return 0;
