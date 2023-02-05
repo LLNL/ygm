@@ -138,7 +138,7 @@ class disjoint_set_impl {
           p_dset->async_visit(my_child, update_parent_lambda, my_parent);
         }
 
-        if (my_parent == other_parent) {
+        if (my_parent == other_parent || my_parent == other_item) {
           return;
         }
 
