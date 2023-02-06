@@ -35,6 +35,12 @@ class bag_impl {
     local_for_all(fn);
   }
 
+  template <typename Function>
+  void for_all_pairs(Function fn) {
+    m_comm.barrier();
+    local_for_all_pairs(fn);
+  }
+
   void clear() {
     m_comm.barrier();
     m_local_bag.clear();
@@ -82,10 +88,20 @@ class bag_impl {
     std::for_each(m_local_bag.begin(), m_local_bag.end(), fn);
   }
 
+  /// @brief apply local lambda to all data. Only to be used when the value_type
+  ///        is a pair of some sort.
+  /// @tparam Function
+  /// @param fn the local lambda
+  template <typename Function>
+  void local_for_all_pairs(Function fn) {
+    for (auto &kv : m_local_bag) {
+      fn(kv.first, kv.second);
+    }
+  }
 
   std::vector<value_type> gather_to_vector(int dest) {
     std::vector<value_type> result;
-    auto p_res = m_comm.make_ygm_ptr(result);
+    auto                    p_res = m_comm.make_ygm_ptr(result);
     m_comm.barrier();
     auto gatherer = [](auto res, const std::vector<value_type> &outer_data) {
       res->insert(res->end(), outer_data.begin(), outer_data.end());
@@ -97,10 +113,10 @@ class bag_impl {
 
   std::vector<value_type> gather_to_vector() {
     std::vector<value_type> result;
-    auto p_res = m_comm.make_ygm_ptr(result);
+    auto                    p_res = m_comm.make_ygm_ptr(result);
     m_comm.barrier();
     auto result0 = gather_to_vector(0);
-    if(m_comm.rank0()){
+    if (m_comm.rank0()) {
       auto distribute = [](auto res, const std::vector<value_type> &data) {
         res->insert(res->end(), data.begin(), data.end());
       };
@@ -109,7 +125,6 @@ class bag_impl {
     m_comm.barrier();
     return result;
   }
-
 
  protected:
   size_t                           m_round_robin = 0;
