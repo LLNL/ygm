@@ -102,7 +102,7 @@ int main(int argc, char **argv) {
   }
 
   //
-  // Test for_some
+  // Test local_for_random_samples
   {
     int size           = world.size() * 8;
     int local_requests = 4;
@@ -120,7 +120,7 @@ int main(int argc, char **argv) {
     world.barrier();
 
     static int local_fulfilled(0);
-    iset.for_some(local_requests, [&world](const auto &kc) {
+    iset.local_for_random_samples(local_requests, [&world](const auto &kc) {
       const auto &key   = kc.first;
       const auto &count = kc.second;
       ASSERT_RELEASE(key == count);

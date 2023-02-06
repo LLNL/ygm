@@ -84,8 +84,8 @@ class set {
   }
 
   template <typename IntType, typename Function>
-  void for_some(IntType count, Function fn) {
-    m_impl.for_some(count, fn);
+  void local_for_random_samples(IntType count, Function fn) {
+    m_impl.local_for_random_samples(count, fn);
   }
 
   void clear() { m_impl.clear(); }

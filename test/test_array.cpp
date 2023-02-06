@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
     });
   }
 
-  // Test for_some
+  // Test local_for_random_samples
   {
     int size           = world.size() * 8;
     int local_requests = 4;
@@ -127,10 +127,11 @@ int main(int argc, char **argv) {
     world.barrier();
 
     static int local_fulfilled(0);
-    arr.for_some(local_requests, [&world](const auto index, const auto value) {
-      ASSERT_RELEASE(index == value);
-      ++local_fulfilled;
-    });
+    arr.local_for_random_samples(local_requests,
+                                 [&world](const auto index, const auto value) {
+                                   ASSERT_RELEASE(index == value);
+                                   ++local_fulfilled;
+                                 });
 
     world.barrier();
 

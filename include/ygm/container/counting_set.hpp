@@ -35,8 +35,8 @@ class counting_set {
   }
 
   template <typename IntType, typename Function>
-  void for_some(IntType count, Function fn) {
-    m_map.for_some(count, fn);
+  void local_for_random_samples(IntType count, Function fn) {
+    m_map.local_for_random_samples(count, fn);
   }
 
   void clear() { m_map.clear(); }

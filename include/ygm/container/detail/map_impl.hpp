@@ -335,7 +335,7 @@ class map_impl {
   }
 
   template <typename IntType, typename Function>
-  void for_some(IntType count, Function fn) {
+  void local_for_random_samples(IntType count, Function fn) {
     m_comm.barrier();
     ASSERT_RELEASE(count < m_local_map.size());
     std::vector<std::size_t> samples =
