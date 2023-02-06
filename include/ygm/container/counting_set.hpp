@@ -34,9 +34,11 @@ class counting_set {
     m_map.for_all(fn);
   }
 
-  template <typename IntType, typename Function>
-  void local_for_random_samples(IntType count, Function fn) {
-    m_map.local_for_random_samples(count, fn);
+  template <typename IntType, typename Function, typename RNG = std::mt19937>
+  void local_for_random_samples(IntType count, Function fn,
+                                RNG gen = std::mt19937{
+                                    std::random_device{}()}) {
+    m_map.local_for_random_samples(count, fn, gen);
   }
 
   void clear() { m_map.clear(); }

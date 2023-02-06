@@ -99,9 +99,11 @@ class array {
     m_impl.for_all(fn);
   }
 
-  template <typename IntType, typename Function>
-  void local_for_random_samples(IntType count, Function fn) {
-    m_impl.local_for_random_samples(count, fn);
+  template <typename IntType, typename Function, typename RNG = std::mt19937>
+  void local_for_random_samples(IntType count, Function fn,
+                                RNG gen = std::mt19937{
+                                    std::random_device{}()}) {
+    m_impl.local_for_random_samples(count, fn, gen);
   }
 
   index_type size() { return m_impl.size(); }

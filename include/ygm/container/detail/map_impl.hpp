@@ -334,12 +334,14 @@ class map_impl {
     }
   }
 
-  template <typename IntType, typename Function>
-  void local_for_random_samples(IntType count, Function fn) {
+  template <typename IntType, typename Function, typename RNG = std::mt19937>
+  void local_for_random_samples(IntType count, Function fn,
+                                RNG gen = std::mt19937{
+                                    std::random_device{}()}) {
     m_comm.barrier();
     ASSERT_RELEASE(count < m_local_map.size());
     std::vector<std::size_t> samples =
-        random_subset(0, m_local_map.size(), count);
+        random_subset(0, m_local_map.size(), count, gen);
     auto itr = std::begin(m_local_map);
     for (const std::size_t sample : samples) {
       fn(*std::next(itr, sample));

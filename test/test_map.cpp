@@ -261,13 +261,17 @@ int main(int argc, char **argv) {
 
     world.barrier();
 
-    static int local_fulfilled(0);
-    imap.local_for_random_samples(local_requests, [&world](const auto &kv) {
-      const auto &key   = kv.first;
-      const auto &value = kv.second;
-      ASSERT_RELEASE(key == value);
-      ++local_fulfilled;
-    });
+    std::mt19937 gen{std::random_device{}()};
+    static int   local_fulfilled(0);
+    imap.local_for_random_samples(
+        local_requests,
+        [&world](const auto &kv) {
+          const auto &key   = kv.first;
+          const auto &value = kv.second;
+          ASSERT_RELEASE(key == value);
+          ++local_fulfilled;
+        },
+        gen);
 
     world.barrier();
 

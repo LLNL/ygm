@@ -17,12 +17,13 @@ namespace ygm {
 /// @param ub the upper bound of the range
 /// @param count the number of samples to draw
 /// @return returns a vector
+template <typename RNGType = std::mt19937>
 std::vector<std::size_t> random_subset(std::size_t lb, std::size_t ub,
-                                       std::size_t count) {
+                                       std::size_t count,
+                                       RNGType     gen = std::mt19937{
+                                           std::random_device{}()}) {
   ASSERT_RELEASE(count < ub - lb);
   std::unordered_set<int> samples;
-  std::random_device      rd;
-  std::mt19937            gen(rd());
 
   for (int alternative(ub - count); alternative < ub; ++alternative) {
     std::size_t candidate =

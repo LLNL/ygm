@@ -128,12 +128,14 @@ class array_impl {
     }
   }
 
-  template <typename IntType, typename Function>
-  void local_for_random_samples(IntType count, Function fn) {
+  template <typename IntType, typename Function, typename RNG = std::mt19937>
+  void local_for_random_samples(IntType count, Function fn,
+                                RNG gen = std::mt19937{
+                                    std::random_device{}()}) {
     m_comm.barrier();
     ASSERT_RELEASE(count < m_local_vec.size());
     std::vector<std::size_t> samples =
-        random_subset(0, m_local_vec.size(), count);
+        random_subset(0, m_local_vec.size(), count, gen);
     for (const std::size_t sample : samples) {
       index_type g_index = global_index(sample);
       fn(g_index, m_local_vec[sample]);
