@@ -44,6 +44,42 @@ int main(int argc, char **argv) {
   {
     ygm::container::multimap<std::string, std::string> smap(world,
                                                             "default_string");
+    smap.async_visit("dog",
+                     [](const std::string &key, const std::string &value) {
+                       ASSERT_RELEASE(key == "dog");
+                       ASSERT_RELEASE(value == "default_string");
+                     });
+    smap.async_visit("cat",
+                     [](const std::string &key, const std::string &value) {
+                       ASSERT_RELEASE(key == "cat");
+                       ASSERT_RELEASE(value == "default_string");
+                     });
+    smap.async_visit_if_exists("red", [](const auto &key, const auto &value) {
+      ASSERT_RELEASE(false);
+    });
+
+    ASSERT_RELEASE(smap.count("dog") == 1);
+    ASSERT_RELEASE(smap.count("cat") == 1);
+    ASSERT_RELEASE(smap.count("red") == 0);
+
+    ASSERT_RELEASE(smap.size() == 2);
+
+    if (world.rank() == 0) {
+      smap.async_erase("dog");
+    }
+    ASSERT_RELEASE(smap.count("dog") == 0);
+    ASSERT_RELEASE(smap.size() == 1);
+    smap.async_erase("cat");
+    ASSERT_RELEASE(smap.count("cat") == 0);
+
+    ASSERT_RELEASE(smap.size() == 0);
+  }
+
+  //
+  // Test all ranks default & async_visit_if_exists (legacy)
+  {
+    ygm::container::multimap<std::string, std::string> smap(world,
+                                                            "default_string");
     smap.async_visit("dog", [](std::pair<const std::string, std::string> s) {
       ASSERT_RELEASE(s.first == "dog");
       ASSERT_RELEASE(s.second == "default_string");
@@ -130,6 +166,42 @@ int main(int argc, char **argv) {
     } else {
       ASSERT_RELEASE(values.size() == 0);
     }
+  }
+
+  //
+  // Test for_all
+  {
+    ygm::container::multimap<std::string, std::string> smap1(world);
+    ygm::container::multimap<std::string, std::string> smap2(world);
+
+    smap1.async_insert("dog", "cat");
+    smap1.async_insert("apple", "orange");
+    smap1.async_insert("red", "green");
+
+    smap1.for_all([&smap2](const auto &key, auto value) {
+      smap2.async_insert(key, value);
+    });
+
+    ASSERT_RELEASE(smap2.count("dog") == (size_t)world.size());
+    ASSERT_RELEASE(smap2.count("apple") == (size_t)world.size());
+    ASSERT_RELEASE(smap2.count("red") == (size_t)world.size());
+  }
+
+  //
+  // Test for_all (legacy lambdas)
+  {
+    ygm::container::multimap<std::string, std::string> smap1(world);
+    ygm::container::multimap<std::string, std::string> smap2(world);
+
+    smap1.async_insert("dog", "cat");
+    smap1.async_insert("apple", "orange");
+    smap1.async_insert("red", "green");
+
+    smap1.for_all([&smap2](const auto &kv) { smap2.async_insert(kv); });
+
+    ASSERT_RELEASE(smap2.count("dog") == (size_t)world.size());
+    ASSERT_RELEASE(smap2.count("apple") == (size_t)world.size());
+    ASSERT_RELEASE(smap2.count("red") == (size_t)world.size());
   }
 
   return 0;

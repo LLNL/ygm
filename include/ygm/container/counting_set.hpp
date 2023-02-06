@@ -55,7 +55,8 @@ class counting_set {
 
   size_t count_all() {
     size_t local_count{0};
-    for_all([&local_count](const auto &kv) { local_count += kv.second; });
+    for_all(
+        [&local_count](const auto &key, auto &value) { local_count += value; });
     return m_map.comm().all_reduce_sum(local_count);
   }
 
