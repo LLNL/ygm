@@ -265,13 +265,40 @@ int main(int argc, char **argv) {
     static int   local_fulfilled(0);
     imap.local_for_random_samples(
         local_requests,
-        [&world](const auto &kv) {
-          const auto &key   = kv.first;
-          const auto &value = kv.second;
+        [&world](const auto &key, const auto &value) {
           ASSERT_RELEASE(key == value);
           ++local_fulfilled;
         },
         gen);
+
+    world.barrier();
+
+    ASSERT_RELEASE(local_requests == local_fulfilled);
+  }
+
+  //
+  // Test local_for_random_samples (legacy)
+  {
+    int size           = world.size() * 8;
+    int local_requests = 4;
+
+    ygm::container::map<int, int> imap(world);
+
+    if (world.rank0()) {
+      for (int i(0); i < size; ++i) {
+        imap.async_insert(i, i);
+      }
+    }
+
+    world.barrier();
+
+    static int local_fulfilled(0);
+    imap.local_for_random_samples(local_requests, [&world](const auto &kv) {
+      const auto &key   = kv.first;
+      const auto &value = kv.second;
+      ASSERT_RELEASE(key == value);
+      ++local_fulfilled;
+    });
 
     world.barrier();
 

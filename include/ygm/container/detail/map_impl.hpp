@@ -328,7 +328,6 @@ class map_impl {
       for (std::pair<const key_type, value_type> &kv : m_local_map) {
         fn(kv);
       }
-      // std::for_each(m_local_map.begin(), m_local_map.end(), fn);
     } else {
       static_assert(always_false<>);  // check your lambda signatures!
     }
@@ -343,8 +342,20 @@ class map_impl {
     std::vector<std::size_t> samples =
         random_subset(0, m_local_map.size(), count, gen);
     auto itr = std::begin(m_local_map);
-    for (const std::size_t sample : samples) {
-      fn(*std::next(itr, sample));
+    if constexpr (std::is_invocable<decltype(fn), const key_type,
+                                    value_type &>()) {
+      for (const std::size_t sample : samples) {
+        auto cur_itr = std::next(itr, sample);
+        fn(cur_itr->first, cur_itr->second);
+      }
+    } else if constexpr (std::is_invocable<
+                             decltype(fn),
+                             std::pair<const key_type, value_type &>>()) {
+      for (const std::size_t sample : samples) {
+        fn(*std::next(itr, sample));
+      }
+    } else {
+      static_assert(always_false<>);  // check your lambda signatures!
     }
   }
 
