@@ -8,6 +8,7 @@
 #include <fstream>
 #include <vector>
 #include <ygm/comm.hpp>
+#include <ygm/detail/meta/template.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 
 namespace ygm::container::detail {
@@ -33,12 +34,6 @@ class bag_impl {
   void for_all(Function fn) {
     m_comm.barrier();
     local_for_all(fn);
-  }
-
-  template <typename Function>
-  void for_all_pairs(Function fn) {
-    m_comm.barrier();
-    local_for_all_pairs(fn);
   }
 
   void clear() {
@@ -85,17 +80,10 @@ class bag_impl {
 
   template <typename Function>
   void local_for_all(Function fn) {
-    std::for_each(m_local_bag.begin(), m_local_bag.end(), fn);
-  }
-
-  /// @brief apply local lambda to all data. Only to be used when the value_type
-  ///        is a pair of some sort.
-  /// @tparam Function
-  /// @param fn the local lambda
-  template <typename Function>
-  void local_for_all_pairs(Function fn) {
-    for (auto &kv : m_local_bag) {
-      fn(kv.first, kv.second);
+    if constexpr (meta::is_std_pair<Item>::value) {
+      local_for_all_pair_types(fn);  // pairs get special handling
+    } else {
+      std::for_each(m_local_bag.begin(), m_local_bag.end(), fn);
     }
   }
 
@@ -124,6 +112,22 @@ class bag_impl {
     }
     m_comm.barrier();
     return result;
+  }
+
+ private:
+  template <typename Function>
+  void local_for_all_pair_types(Function fn) {
+    if constexpr (std::is_invocable<decltype(fn), Item &>()) {
+      std::for_each(m_local_bag.begin(), m_local_bag.end(), fn);
+    } else if constexpr (std::is_invocable<decltype(fn),
+                                           typename Item::first_type &,
+                                           typename Item::second_type &>()) {
+      for (auto &kv : m_local_bag) {
+        fn(kv.first, kv.second);
+      }
+    } else {
+      static_assert(meta::always_false<>);  // check your lambda signatures!
+    }
   }
 
  protected:

@@ -16,6 +16,12 @@ namespace meta {
 template <class...>
 constexpr std::false_type always_false{};
 
+template <typename>
+struct is_std_pair : std::false_type {};
+
+template <typename T1, typename T2>
+struct is_std_pair<std::pair<T1, T2>> : std::true_type {};
+
 }  // namespace meta
 
 }  // namespace ygm
