@@ -29,8 +29,8 @@ class times {
 template <typename Key, typename Value, typename OpPlus, typename OpMultiply>
 ygm::container::map<Key, Value> spmv(
     ygm::container::experimental::maptrix<Key, Value> &A,
-    ygm::container::map<Key, Value> &                  x,
-    const OpPlus &    plus_op  = std::plus<Value>(),
+    ygm::container::map<Key, Value>                   &x,
+    const OpPlus     &plus_op  = std::plus<Value>(),
     const OpMultiply &times_op = times<Value>()) {
   using key_type   = Key;
   using value_type = Value;
@@ -39,10 +39,8 @@ ygm::container::map<Key, Value> spmv(
   map_type y(A.comm());
   auto     y_ptr = y.get_ygm_ptr();
 
-  auto kv_lambda = [&A, &y_ptr, &plus_op, &times_op](const auto &kv_pair) {
-    auto &col       = kv_pair.first;
-    auto &col_value = kv_pair.second;
-
+  auto kv_lambda = [&A, &y_ptr, &plus_op, &times_op](const auto &col,
+                                                     const auto &col_value) {
     auto csc_visit_lambda = [](const auto &col, const auto &row,
                                const auto &A_value, const auto &x_value,
                                const auto &y_ptr, const auto &plus_op,

@@ -15,6 +15,9 @@
 
 namespace ygm::container::detail {
 
+template <class...>
+constexpr std::false_type always_false{};
+
 template <typename Key, typename Value,
           typename Partitioner = detail::hash_partitioner<Key>,
           typename Compare     = std::less<Key>,
@@ -22,6 +25,7 @@ template <typename Key, typename Value,
 class map_impl {
  public:
   using self_type  = map_impl<Key, Value, Partitioner, Compare, Alloc>;
+  using ptr_type   = typename ygm::ygm_ptr<self_type>;
   using value_type = Value;
   using key_type   = Key;
 
@@ -272,9 +276,31 @@ class map_impl {
     ygm::detail::interrupt_mask mask(m_comm);
 
     auto range = m_local_map.equal_range(key);
-    for (auto itr = range.first; itr != range.second; ++itr) {
-      ygm::meta::apply_optional(fn, std::make_tuple(pthis),
-                                std::forward_as_tuple(*itr, args...));
+    // the order of conditionals matters
+    // Legacy lambdas with optional map pointer arguments and no visitor
+    // arguments must specify that the second argument is a pair. (auto pmap,
+    // auto kv_pair) will throw a compiler error.
+    if constexpr (std::is_invocable<decltype(fn), const key_type &,
+                                    value_type &, VisitorArgs &...>() ||
+                  std::is_invocable<decltype(fn), ptr_type, const key_type &,
+                                    value_type &, VisitorArgs &...>()) {
+      for (auto itr = range.first; itr != range.second; ++itr) {
+        ygm::meta::apply_optional(
+            fn, std::make_tuple(pthis),
+            std::forward_as_tuple(itr->first, itr->second, args...));
+      }
+    } else if constexpr (
+        std::is_invocable<decltype(fn), std::pair<const key_type, value_type> &,
+                          VisitorArgs &...>() ||
+        std::is_invocable<decltype(fn), ptr_type,
+                          std::pair<const key_type, value_type> &,
+                          VisitorArgs &...>()) {
+      for (auto itr = range.first; itr != range.second; ++itr) {
+        ygm::meta::apply_optional(fn, std::make_tuple(pthis),
+                                  std::forward_as_tuple(*itr, args...));
+      }
+    } else {
+      static_assert(always_false<>);  // check your lambda signatures!
     }
   }
 
@@ -290,7 +316,21 @@ class map_impl {
 
   template <typename Function>
   void local_for_all(Function fn) {
-    std::for_each(m_local_map.begin(), m_local_map.end(), fn);
+    if constexpr (std::is_invocable<decltype(fn), const key_type,
+                                    value_type &>()) {
+      for (std::pair<const key_type, value_type> &kv : m_local_map) {
+        fn(kv.first, kv.second);
+      }
+    } else if constexpr (std::is_invocable<
+                             decltype(fn),
+                             std::pair<const key_type, value_type &>>()) {
+      for (std::pair<const key_type, value_type> &kv : m_local_map) {
+        fn(kv);
+      }
+      // std::for_each(m_local_map.begin(), m_local_map.end(), fn);
+    } else {
+      static_assert(always_false<>);  // check your lambda signatures!
+    }
   }
 
   template <typename CompareFunction>
@@ -330,6 +370,6 @@ class map_impl {
   value_type                                          m_default_value;
   std::multimap<key_type, value_type, Compare, Alloc> m_local_map;
   ygm::comm                                           m_comm;
-  typename ygm::ygm_ptr<self_type>                    pthis;
+  ptr_type                                            pthis;
 };
 }  // namespace ygm::container::detail

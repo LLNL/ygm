@@ -11,16 +11,20 @@ env:
 
 jobs:
   build-test:
-    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, ubuntu-20.04]
         gcc-version: [8, 9, 10]
         mpi-type: [mpich, openmpi]
+        exclude:
+          - os: ubuntu-latest
+            gcc-version: 8
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Cache boost
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         id: cache-boost
         with:
           path: "~/boost_1_77_0"
@@ -31,6 +35,13 @@ jobs:
           cd ~
           wget --no-verbose https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.bz2
           tar -xjf boost_1_77_0.tar.bz2
+      - name: Install Apache Arrow
+        run: |
+          cd ~
+          wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+          sudo apt install ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+          sudo apt update
+          sudo apt install libarrow-dev libparquet-dev
       - name: Install mpich
         if: matrix.mpi-type == 'mpich'
         run: sudo apt-get install mpich

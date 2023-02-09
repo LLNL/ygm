@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.14)
 
 project(
     ygm
-    VERSION 0.4
+    VERSION 0.5
     DESCRIPTION "HPC Communication Library"
     LANGUAGES CXX
 )
@@ -128,6 +128,34 @@ else ()
     message(WARNING ${PROJECT_NAME}
                     " did not find Boost >=1.75. Building without Boost."
     )
+endif ()
+
+#
+# Arrow
+#
+#
+find_package(Arrow 8.0 QUIET)
+if (NOT Arrow_FOUND)
+	find_package(Arrow 9.0 QUIET)
+endif()
+if (NOT Arrow_FOUND)
+	find_package(Arrow 10.0 QUIET)
+endif()
+if (Arrow_FOUND)
+   message(STATUS ${PROJECT_NAME} " found Arrow ")
+   message(STATUS "Arrow version: ${ARROW_VERSION}")
+   message(STATUS "Arrow SO version: ${ARROW_FULL_SO_VERSION}")
+   set(ARROW_CMAKE_DIR ${Arrow_DIR})
+   find_package(Parquet PATHS ${ARROW_CMAKE_DIR})
+   if (Parquet_FOUND)
+       message(STATUS ${PROJECT_NAME} " found Parquet ")
+       message(STATUS "Parquet version: ${PARQUET_VERSION}")
+       message(STATUS "Parquet SO version: ${PARQUET_FULL_SO_VERSION}") 
+   else ()
+       message(WARNING ${PROJECT_NAME} " did not find Parquet. Building without Parquet.") 
+   endif () 
+else ()
+   message(WARNING ${PROJECT_NAME} " did not find Arrow >= 8.0. Building without Arrow.") 
 endif ()
 
 #
