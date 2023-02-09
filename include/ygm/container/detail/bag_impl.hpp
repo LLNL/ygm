@@ -7,8 +7,6 @@
 #include <cereal/archives/json.hpp>
 #include <fstream>
 #include <vector>
-#include <algorithm>
-#include <random>
 #include <ygm/comm.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 
@@ -50,11 +48,6 @@ class bag_impl {
   void swap(self_type &s) {
     m_comm.barrier();
     m_local_bag.swap(s.m_local_bag);
-  }
-
-  void local_shuffle() {
-    m_comm.barrier();
-    std::shuffle(m_local_bag.begin(), m_local_bag.end(), std::default_random_engine(std::random_device()()));
   }
 
   ygm::comm &comm() { return m_comm; }

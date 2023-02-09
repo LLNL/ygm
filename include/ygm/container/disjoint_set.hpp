@@ -36,8 +36,6 @@ class disjoint_set {
     m_impl.for_all(fn);
   }
 
-  void clear() { m_impl.clear(); }
-
   std::map<value_type, value_type> all_find(
       const std::vector<value_type> &items) {
     return m_impl.all_find(items);
