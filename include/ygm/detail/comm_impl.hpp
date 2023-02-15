@@ -627,19 +627,26 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
                        (c->layout().node_size() % c->layout().local_size() > 0);
       int num_ranks_per_layer =
           c->layout().local_size() * c->layout().local_size();
-      int layer_comm_partner_offset =
-          c->layout().local_id() * c->layout().local_size() +
-          c->layout().node_id() % c->layout().local_size();
-      int curr_partner = layer_comm_partner_offset;
-      for (int l = 0; l < num_layers; l++) {
-        if (curr_partner >= c->layout().size()) {
-          break;
-        }
-        if (!c->layout().is_local(curr_partner)) {
-          c->pimpl->queue_message_bytes(packed_msg, curr_partner);
-        }
+      int node_partner_offset =
+          (c->layout().local_id() - c->layout().node_id()) %
+          c->layout().local_size();
+      if (node_partner_offset < 0) {
+        node_partner_offset += c->layout().local_size();
+      }
 
-        curr_partner += num_ranks_per_layer;
+      // Only forward remotely if initial remote node exists
+      if (node_partner_offset < c->layout().node_size()) {
+        int curr_partner = c->layout().strided_ranks()[node_partner_offset];
+        for (int l = 0; l < num_layers; l++) {
+          if (curr_partner >= c->layout().size()) {
+            break;
+          }
+          if (!c->layout().is_local(curr_partner)) {
+            c->pimpl->queue_message_bytes(packed_msg, curr_partner);
+          }
+
+          curr_partner += num_ranks_per_layer;
+        }
       }
 
       auto t1 = std::make_tuple((comm *)c);
