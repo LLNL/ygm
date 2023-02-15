@@ -630,6 +630,9 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
       int node_partner_offset =
           (c->layout().local_id() - c->layout().node_id()) %
           c->layout().local_size();
+
+      // % operator is remainder, not actually mod. Need to fix result if result
+      // was negative
       if (node_partner_offset < 0) {
         node_partner_offset += c->layout().local_size();
       }
