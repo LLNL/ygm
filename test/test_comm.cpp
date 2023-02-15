@@ -57,6 +57,18 @@ int main(int argc, char** argv) {
       ASSERT_RELEASE(counter == 1);
     }
 
+    {
+      size_t counter{};
+      int    num_bcasts = 100;
+      auto   pcounter   = world.make_ygm_ptr(counter);
+      for (int i = 0; i < num_bcasts; ++i) {
+        world.async_bcast([](auto pcounter) { (*pcounter)++; }, pcounter);
+      }
+
+      world.barrier();
+      ASSERT_RELEASE(counter == num_bcasts * world.size());
+    }
+
     //
     // Test async_mcast
     {
