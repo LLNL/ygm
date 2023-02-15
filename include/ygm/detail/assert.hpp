@@ -10,7 +10,7 @@
 #include <cassert>
 
 // work  on this:  https://github.com/lattera/glibc/blob/master/assert/assert.c
-void release_assert_fail(const char *assertion, const char *file,
+inline void release_assert_fail(const char *assertion, const char *file,
                          unsigned int line, const char *function) {
   std::stringstream ss;
   ss << " " << assertion << " " << file << ":" << line << " " << function

@@ -7,7 +7,7 @@
 #include <ygm/container/map.hpp>
 #include <ygm/container/set.hpp>
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
 
   ygm::container::set<std::string>              str_set(world);
@@ -27,8 +27,8 @@ int main(int argc, char** argv) {
 
   str_set.for_all([](auto k) { std::cout << "str_set: " << k << std::endl; });
 
-  str_map.for_all([](auto kv) {
-    std::cout << "str_map: " << kv.first << " -> " << kv.second << std::endl;
+  str_map.for_all([](const auto &key, auto &value) {
+    std::cout << "str_map: " << key << " -> " << value << std::endl;
   });
   return 0;
 }

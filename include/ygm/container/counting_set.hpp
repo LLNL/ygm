@@ -50,7 +50,8 @@ class counting_set {
 
   size_t count_all() {
     size_t local_count{0};
-    for_all([&local_count](const auto &kv) { local_count += kv.second; });
+    for_all(
+        [&local_count](const auto &key, auto &value) { local_count += value; });
     return m_map.comm().all_reduce_sum(local_count);
   }
 
@@ -119,10 +120,12 @@ class counting_set {
     auto key          = m_count_cache[slot].first;
     auto cached_count = m_count_cache[slot].second;
     ASSERT_DEBUG(cached_count > 0);
-    m_map.async_visit(key,
-                      [](std::pair<const key_type, size_t> &key_count,
-                         int32_t to_add) { key_count.second += to_add; },
-                      cached_count);
+    m_map.async_visit(
+        key,
+        [](std::pair<const key_type, size_t> &key_count, int32_t to_add) {
+          key_count.second += to_add;
+        },
+        cached_count);
     m_count_cache[slot].first  = key_type();
     m_count_cache[slot].second = -1;
   }
