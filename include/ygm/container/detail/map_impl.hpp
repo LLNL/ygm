@@ -155,6 +155,24 @@ class map_impl {
                  std::forward<const VisitorArgs>(args)...);
   }
 
+  template <typename ReductionOp>
+  void async_reduce(const key_type &key, const value_type &value,
+                    ReductionOp reducer) {
+    int  dest           = owner(key);
+    auto reduce_wrapper = [](auto pmap, const key_type &key,
+                             const value_type &value) {
+      auto itr = pmap->m_local_map.find(key);
+      if (itr == pmap->m_local_map.end()) {
+        pmap->m_local_map.insert(std::make_pair(key, value));
+      } else {
+        ReductionOp *reducer = nullptr;
+        itr->second          = (*reducer)(itr->second, value);
+      }
+    };
+
+    m_comm.async(dest, reduce_wrapper, pthis, key, value);
+  }
+
   void async_erase(const key_type &key) {
     int  dest          = owner(key);
     auto erase_wrapper = [](auto pcomm, auto pmap, const key_type &key) {
