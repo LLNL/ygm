@@ -5,6 +5,7 @@
 
 add_ygm_example(word_counter)
 add_ygm_example(map_visit_optional_arguments)
+add_ygm_example(map_visit_optional_arguments_legacy)
 add_ygm_example(map_set)
 add_ygm_example(map_visit)
 add_ygm_example(bag_gather)
