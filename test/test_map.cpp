@@ -181,7 +181,7 @@ int main(int argc, char **argv) {
     smap.for_all([&world, &num_reductions](const auto &key, const auto &value) {
       if (key == "sum") {
         ASSERT_RELEASE(value == world.size() * num_reductions *
-                                    (num_reductions + 1) / 2);
+                                    (num_reductions - 1) / 2);
       } else if (key == "min") {
         ASSERT_RELEASE(value == 0);
       } else if (key == "max") {
