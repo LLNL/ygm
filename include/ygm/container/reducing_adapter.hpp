@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: MIT
 
 #pragma once
+#include <ygm/container/detail/container_traits.hpp>
+#include <ygm/detail/ygm_traits.hpp>
 
 namespace ygm::container {
 
@@ -15,7 +17,15 @@ class reducing_adapter {
   void async_reduce(const typename Container::key_type   &key,
                     const typename Container::value_type &value) {
     ReductionOp *r;
-    m_container.async_reduce(key, value, *r);
+
+    if constexpr (ygm::container::detail::is_map<Container>) {
+      m_container.async_reduce(key, value, *r);
+    } else if constexpr (ygm::container::detail::is_array<Container>) {
+      m_container.async_binary_op_update_value(key, value, *r);
+    } else {
+      static_assert(ygm::detail::always_false<>,
+                    "Container unsuitable for reducing_adapter");
+    }
   }
 
  private:
