@@ -7,6 +7,7 @@
 #include <type_traits>
 #include <ygm/container/array.hpp>
 #include <ygm/container/bag.hpp>
+#include <ygm/container/counting_set.hpp>
 #include <ygm/container/disjoint_set.hpp>
 #include <ygm/container/map.hpp>
 #include <ygm/container/set.hpp>
@@ -62,5 +63,15 @@ struct is_disjoint_set_impl<disjoint_set<Ts...>> : std::true_type {};
 
 template <typename T>
 constexpr bool is_disjoint_set = is_disjoint_set_impl<T>::value;
+
+// is_counting_set
+template <typename T>
+struct is_counting_set_impl : std::false_type {};
+
+template <typename... Ts>
+struct is_counting_set_impl<counting_set<Ts...>> : std::true_type {};
+
+template <typename T>
+constexpr bool is_counting_set = is_counting_set_impl<T>::value;
 
 }  // namespace ygm::container::detail
