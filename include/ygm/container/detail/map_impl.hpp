@@ -12,11 +12,9 @@
 #include <ygm/container/detail/hash_partitioner.hpp>
 #include <ygm/detail/interrupt_mask.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
+#include <ygm/detail/ygm_traits.hpp>
 
 namespace ygm::container::detail {
-
-template <class...>
-constexpr std::false_type always_false{};
 
 template <typename Key, typename Value,
           typename Partitioner = detail::hash_partitioner<Key>,
@@ -157,6 +155,24 @@ class map_impl {
 
     m_comm.async(dest, insert_else_visit_wrapper, pthis, key, value,
                  std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename ReductionOp>
+  void async_reduce(const key_type &key, const value_type &value,
+                    ReductionOp reducer) {
+    int  dest           = owner(key);
+    auto reduce_wrapper = [](auto pmap, const key_type &key,
+                             const value_type &value) {
+      auto itr = pmap->m_local_map.find(key);
+      if (itr == pmap->m_local_map.end()) {
+        pmap->m_local_map.insert(std::make_pair(key, value));
+      } else {
+        ReductionOp *reducer = nullptr;
+        itr->second          = (*reducer)(itr->second, value);
+      }
+    };
+
+    m_comm.async(dest, reduce_wrapper, pthis, key, value);
   }
 
   void async_erase(const key_type &key) {
@@ -300,7 +316,8 @@ class map_impl {
                                   std::forward_as_tuple(*itr, args...));
       }
     } else {
-      static_assert(always_false<>);  // check your lambda signatures!
+      static_assert(
+          ygm::detail::always_false<>);  // check your lambda signatures!
     }
   }
 
@@ -329,7 +346,8 @@ class map_impl {
       }
       // std::for_each(m_local_map.begin(), m_local_map.end(), fn);
     } else {
-      static_assert(always_false<>);  // check your lambda signatures!
+      static_assert(
+          ygm::detail::always_false<>);  // check your lambda signatures!
     }
   }
 
