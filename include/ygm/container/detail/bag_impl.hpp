@@ -132,10 +132,6 @@ class bag_impl {
     return result;
   }
 
-  int local_size() {
-    return m_local_bag.size();
-  }
-
 
  protected:
   size_t                           m_round_robin = 0;

@@ -46,9 +46,6 @@ class bag {
   std::vector<value_type> gather_to_vector(int dest) { return m_impl.gather_to_vector(dest); }
   std::vector<value_type> gather_to_vector() { return m_impl.gather_to_vector(); }
 
-  int local_size() { return m_impl.local_size(); }
-
-
  private:
   detail::bag_impl<value_type> m_impl;
 };
