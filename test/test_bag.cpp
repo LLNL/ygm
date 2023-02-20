@@ -38,4 +38,30 @@ int main(int argc, char** argv) {
       ASSERT_RELEASE(all_data.size() == 3 * (size_t)world.size());
     }
   }
+
+  {
+    ygm::container::bag<int> bbag(world);
+    int num_of_items = 20;
+    if (world.rank0()) {
+      for (int i = 0; i < num_of_items; i++) {
+        bbag.async_insert(i);
+      }
+    }
+    std::default_random_engine rand_eng = std::default_random_engine(std::random_device()());
+    bbag.local_shuffle(rand_eng);
+    bbag.global_shuffle();
+
+    ASSERT_RELEASE(bbag.size() == num_of_items);
+
+    auto bag_content = bbag.gather_to_vector(0);
+    if (world.rank0()) {
+      bool all_items_present = true;
+      for (int i = 0; i < num_of_items; i++) {
+        if (std::find(bag_content.begin(), bag_content.end(), i) == bag_content.end()) {
+          all_items_present = false;
+        }
+      }
+      ASSERT_RELEASE(all_items_present);
+    }
+  }
 }
