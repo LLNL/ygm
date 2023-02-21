@@ -51,13 +51,14 @@ class bag_impl {
     m_local_bag.swap(s.m_local_bag);
   }
 
-  template <typename rand_num_gen>
-  void local_shuffle(rand_num_gen gen) {
+  template <typename RandomFunc>
+  void local_shuffle(RandomFunc r) {
     m_comm.barrier();
-    std::shuffle(m_local_bag.begin(), m_local_bag.end(), gen);
+    std::shuffle(m_local_bag.begin(), m_local_bag.end(), r);
   }
 
-  void global_shuffle() {
+  template <typename RandomFunc>
+  void global_shuffle(RandomFunc r) {
     m_comm.barrier();
     std::vector<value_type> old_local_bag;
     std::swap(old_local_bag, m_local_bag);
@@ -66,9 +67,8 @@ class bag_impl {
       bag->m_local_bag.push_back(item);
     }; 
 
-    std::default_random_engine rand_eng = std::default_random_engine(std::random_device()());
     for (value_type i : old_local_bag) {
-        m_comm.async((rand_eng() % m_comm.size()), send_item, pthis, i);
+        m_comm.async((r() % m_comm.size()), send_item, pthis, i);
     }
   }
 

@@ -29,10 +29,11 @@ class bag {
 
   void swap(self_type &s) { m_impl.swap(s.m_impl); }
 
-  template <typename rand_num_gen>
-  void local_shuffle(rand_num_gen gen) { m_impl.local_shuffle(gen); }
+  template <typename RandomFunc>
+  void local_shuffle(RandomFunc r) { m_impl.local_shuffle(r); }
 
-  void global_shuffle() { m_impl.global_shuffle(); }
+  template <typename RandomFunc>
+  void global_shuffle(RandomFunc r) { m_impl.global_shuffle(r); }
 
   template <typename Function>
   void local_for_all(Function fn) {

@@ -47,9 +47,11 @@ int main(int argc, char** argv) {
         bbag.async_insert(i);
       }
     }
-    std::default_random_engine rand_eng = std::default_random_engine(std::random_device()());
-    bbag.local_shuffle(rand_eng);
-    bbag.global_shuffle();
+    std::default_random_engine rand_eng1 = std::default_random_engine(std::random_device()());
+    bbag.local_shuffle(rand_eng1);
+
+    std::default_random_engine rand_eng2 = std::default_random_engine(std::random_device()());
+    bbag.global_shuffle(rand_eng2);
 
     ASSERT_RELEASE(bbag.size() == num_of_items);
 
