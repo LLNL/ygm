@@ -67,6 +67,12 @@ class map {
         key, value, visitor, std::forward<const VisitorArgs>(args)...);
   }
 
+  template <typename ReductionOp>
+  void async_reduce(const key_type& key, const value_type& value,
+                    ReductionOp reducer) {
+    m_impl.async_reduce(key, value, reducer);
+  }
+
   void async_erase(const key_type& key) { m_impl.async_erase(key); }
 
   size_t local_count(const key_type& key) { return m_impl.local_count(key); }
