@@ -346,7 +346,8 @@ class map_impl {
         fn(kv);
       }
     } else {
-      static_assert(always_false<>);  // check your lambda signatures!
+      static_assert(
+          ygm::detail::always_false<>);  // check your lambda signatures!
     }
   }
 
