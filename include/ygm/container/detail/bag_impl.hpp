@@ -8,8 +8,9 @@
 #include <fstream>
 #include <vector>
 #include <ygm/comm.hpp>
-#include <ygm/detail/meta/template.hpp>
+#include <ygm/detail/std_traits.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
+#include <ygm/detail/ygm_traits.hpp>
 
 namespace ygm::container::detail {
 template <typename Item, typename Alloc = std::allocator<Item>>
@@ -80,7 +81,7 @@ class bag_impl {
 
   template <typename Function>
   void local_for_all(Function fn) {
-    if constexpr (meta::is_std_pair<Item>::value) {
+    if constexpr (ygm::detail::is_std_pair<Item>) {
       local_for_all_pair_types(fn);  // pairs get special handling
     } else {
       std::for_each(m_local_bag.begin(), m_local_bag.end(), fn);
@@ -126,7 +127,8 @@ class bag_impl {
         fn(kv.first, kv.second);
       }
     } else {
-      static_assert(meta::always_false<>);  // check your lambda signatures!
+      static_assert(
+          ygm::detail::always_false<>);  // check your lambda signatures!
     }
   }
 

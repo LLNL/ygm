@@ -14,6 +14,7 @@ class array {
   using self_type  = array<Value, Index>;
   using value_type = Value;
   using index_type = Index;
+  using key_type   = Index;
   using impl_type  = detail::array_impl<value_type, index_type>;
 
   array() = delete;

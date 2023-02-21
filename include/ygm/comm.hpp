@@ -8,6 +8,7 @@
 #include <functional>
 #include <memory>
 #include <vector>
+#include <ygm/detail/comm_router.hpp>
 #include <ygm/detail/layout.hpp>
 #include <ygm/detail/mpi.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
@@ -108,6 +109,8 @@ class comm {
   int rank() const;
 
   const detail::layout &layout() const;
+
+  const detail::comm_router &router() const;
 
   std::ostream &cout0() const {
     static std::ostringstream dummy;
