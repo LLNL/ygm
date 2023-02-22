@@ -63,8 +63,8 @@ class map_impl {
   void async_insert_if_missing(const key_type &key, const value_type &value) {
     async_insert_if_missing_else_visit(
         key, value,
-        [](const std::pair<key_type, value_type> &kv,
-           const value_type                      &new_value) {});
+        [](const key_type &k, const value_type &v,
+           const value_type &new_value) {});
   }
 
   void async_insert_multi(const key_type &key, const value_type &value) {
@@ -305,16 +305,6 @@ class map_impl {
             fn, std::make_tuple(pthis),
             std::forward_as_tuple(itr->first, itr->second, args...));
       }
-    } else if constexpr (
-        std::is_invocable<decltype(fn), std::pair<const key_type, value_type> &,
-                          VisitorArgs &...>() ||
-        std::is_invocable<decltype(fn), ptr_type,
-                          std::pair<const key_type, value_type> &,
-                          VisitorArgs &...>()) {
-      for (auto itr = range.first; itr != range.second; ++itr) {
-        ygm::meta::apply_optional(fn, std::make_tuple(pthis),
-                                  std::forward_as_tuple(*itr, args...));
-      }
     } else {
       static_assert(
           ygm::detail::always_false<>);  // check your lambda signatures!
@@ -338,13 +328,6 @@ class map_impl {
       for (std::pair<const key_type, value_type> &kv : m_local_map) {
         fn(kv.first, kv.second);
       }
-    } else if constexpr (std::is_invocable<
-                             decltype(fn),
-                             std::pair<const key_type, value_type &>>()) {
-      for (std::pair<const key_type, value_type> &kv : m_local_map) {
-        fn(kv);
-      }
-      // std::for_each(m_local_map.begin(), m_local_map.end(), fn);
     } else {
       static_assert(
           ygm::detail::always_false<>);  // check your lambda signatures!
