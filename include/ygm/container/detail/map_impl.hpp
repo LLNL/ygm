@@ -306,8 +306,10 @@ class map_impl {
             std::forward_as_tuple(itr->first, itr->second, args...));
       }
     } else {
-      static_assert(
-          ygm::detail::always_false<>);  // check your lambda signatures!
+      static_assert(ygm::detail::always_false<>,
+                    "remote map lambda signature must be invocable with (const "
+                    "&key_type, value_type&, ...) or (ptr_type, const "
+                    "&key_type, value_type&, ...) signatures");
     }
   }
 
@@ -329,8 +331,9 @@ class map_impl {
         fn(kv.first, kv.second);
       }
     } else {
-      static_assert(
-          ygm::detail::always_false<>);  // check your lambda signatures!
+      static_assert(ygm::detail::always_false<>,
+                    "local map lambda signature must be invocable with (const "
+                    "&key_type, value_type&, ...) signature");
     }
   }
 
