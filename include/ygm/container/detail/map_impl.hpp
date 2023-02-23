@@ -292,10 +292,6 @@ class map_impl {
     ygm::detail::interrupt_mask mask(m_comm);
 
     auto range = m_local_map.equal_range(key);
-    // the order of conditionals matters
-    // Legacy lambdas with optional map pointer arguments and no visitor
-    // arguments must specify that the second argument is a pair. (auto pmap,
-    // auto kv_pair) will throw a compiler error.
     if constexpr (std::is_invocable<decltype(fn), const key_type &,
                                     value_type &, VisitorArgs &...>() ||
                   std::is_invocable<decltype(fn), ptr_type, const key_type &,
