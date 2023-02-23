@@ -84,7 +84,13 @@ class bag_impl {
     if constexpr (ygm::detail::is_std_pair<Item>) {
       local_for_all_pair_types(fn);  // pairs get special handling
     } else {
-      std::for_each(m_local_bag.begin(), m_local_bag.end(), fn);
+      if constexpr (std::is_invocable<decltype(fn), Item &>()) {
+        std::for_each(m_local_bag.begin(), m_local_bag.end(), fn);
+      } else {
+        static_assert(ygm::detail::always_false<>,
+                      "local bag lambdas must be invocable with (value_type &) "
+                      "signatures");
+      }
     }
   }
 
@@ -127,8 +133,9 @@ class bag_impl {
         fn(kv.first, kv.second);
       }
     } else {
-      static_assert(
-          ygm::detail::always_false<>);  // check your lambda signatures!
+      static_assert(ygm::detail::always_false<>,
+                    "local bag<pair> lambdas must be invocable with (pair &) "
+                    "or (pair::first_type &, pair::second_type &) signatures");
     }
   }
 
