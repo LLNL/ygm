@@ -234,8 +234,6 @@ class multimap {
 
   const value_type& default_value() const { return m_impl.default_value(); }
 
-  self_type make_similar() { return self_type(comm(), default_value()); }
-
  private:
   impl_type m_impl;
 };
