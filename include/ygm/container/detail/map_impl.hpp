@@ -329,7 +329,7 @@ class map_impl {
     } else {
       static_assert(ygm::detail::always_false<>,
                     "local map lambda signature must be invocable with (const "
-                    "&key_type, value_type&, ...) signature");
+                    "&key_type, value_type&) signature");
     }
   }
 
