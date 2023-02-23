@@ -143,6 +143,8 @@ class array_impl {
     return m_comm.rank() * m_block_size + index;
   }
 
+  const value_type &default_value() const { return m_default_value; }
+
  protected:
   array_impl() = delete;
 

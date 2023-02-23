@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <string>
 #include <ygm/comm.hpp>
+#include <ygm/container/detail/container_traits.hpp>
 #include <ygm/container/map.hpp>
 
 int main(int argc, char **argv) {
@@ -277,6 +278,22 @@ int main(int argc, char **argv) {
     ASSERT_RELEASE(smap2.count("dog") == 1);
     ASSERT_RELEASE(smap2.count("apple") == 1);
     ASSERT_RELEASE(smap2.count("red") == 1);
+  }
+
+  //
+  // Test make_similar (unset default)
+  {
+    ygm::container::map<std::string, std::string> smap1(world);
+    ygm::container::map<std::string, std::string> smap2 = make_similar(smap1);
+    ASSERT_RELEASE(smap1.default_value() == smap2.default_value());
+  }
+
+  //
+  // Test make_similar (set default)
+  {
+    ygm::container::map<std::string, std::string> smap1(world, "thing");
+    ygm::container::map<std::string, std::string> smap2 = make_similar(smap1);
+    ASSERT_RELEASE(smap1.default_value() == smap2.default_value());
   }
 
   return 0;

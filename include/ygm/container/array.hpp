@@ -108,8 +108,15 @@ class array {
 
   ygm::comm& comm() { return m_impl.comm(); }
 
+  const value_type& default_value() const { return m_impl.default_value(); }
+
  private:
   impl_type m_impl;
 };
+
+template <typename... Ts>
+array<Ts...> make_similar(array<Ts...>& rhs) {
+  return {rhs.comm(), rhs.size(), rhs.default_value()};
+}
 
 }  // namespace ygm::container

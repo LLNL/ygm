@@ -146,4 +146,9 @@ class counting_set {
   typename ygm::ygm_ptr<self_type>                  pthis;
 };
 
+template <typename... Ts>
+counting_set<Ts...> make_similar(counting_set<Ts...> &rhs) {
+  return {rhs.comm()};
+}
+
 }  // namespace ygm::container

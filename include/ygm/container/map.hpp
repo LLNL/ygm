@@ -132,6 +132,11 @@ class map {
   impl_type m_impl;
 };
 
+template <typename... Ts>
+map<Ts...> make_similar(map<Ts...>& rhs) {
+  return {rhs.comm(), rhs.default_value()};
+}
+
 template <typename Key, typename Value,
           typename Partitioner = detail::hash_partitioner<Key>,
           typename Compare     = std::less<Key>,
@@ -237,5 +242,10 @@ class multimap {
  private:
   impl_type m_impl;
 };
+
+template <typename... Ts>
+multimap<Ts...> make_similar(multimap<Ts...>& rhs) {
+  return {rhs.comm(), rhs.default_value()};
+}
 
 }  // namespace ygm::container

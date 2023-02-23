@@ -59,6 +59,12 @@ class multiset {
  private:
   impl_type m_impl;
 };
+
+template <typename... Ts>
+multiset<Ts...> make_similar(multiset<Ts...>& rhs) {
+  return {rhs.comm()};
+}
+
 template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
           typename Compare = std::less<Key>,
           class Alloc      = std::allocator<const Key>>
@@ -110,5 +116,10 @@ class set {
  private:
   impl_type m_impl;
 };
+
+template <typename... Ts>
+set<Ts...> make_similar(set<Ts...>& rhs) {
+  return {rhs.comm()};
+}
 
 }  // namespace ygm::container

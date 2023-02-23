@@ -111,5 +111,27 @@ int main(int argc, char **argv) {
     });
   }
 
+  //
+  // Test make_similar (unset default)
+  {
+    int size = 64;
+
+    ygm::container::array<std::string> arr1(world, size);
+    ygm::container::array<std::string> arr2 = make_similar(arr1);
+    ASSERT_RELEASE(arr1.size() == arr2.size());
+    ASSERT_RELEASE(arr1.default_value() == arr2.default_value());
+  }
+
+  //
+  // Test make_similar (set default)
+  {
+    int size = 64;
+
+    ygm::container::array<std::string> arr1(world, size, "string");
+    ygm::container::array<std::string> arr2 = make_similar(arr1);
+    ASSERT_RELEASE(arr1.size() == arr2.size());
+    ASSERT_RELEASE(arr1.default_value() == arr2.default_value());
+  }
+
   return 0;
 }

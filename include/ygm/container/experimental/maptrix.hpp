@@ -98,6 +98,8 @@ class maptrix {
 
   void swap(self_type& s) { m_impl.swap(s); }
 
+  const value_type& default_value() const { return m_impl.default_value(); }
+
 #ifdef api_creation
   void async_erase(const key_type& row, const key_type& col) {
     m_impl.async_erase(row, col);
@@ -108,6 +110,12 @@ class maptrix {
  private:
   impl_type m_impl;
 };
+
+template <typename... Ts>
+maptrix<Ts...> make_similar(maptrix<Ts...>& rhs) {
+  return {rhs.comm(), rhs.default_value()};
+}
+
 }  // namespace ygm::container::experimental
 
 #include <ygm/container/experimental/detail/algorithms/spmv.hpp>
