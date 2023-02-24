@@ -148,6 +148,8 @@ class array_impl {
 
   ygm::comm &comm() { return m_comm; }
 
+  const value_type &default_value() const { return m_default_value; }
+
   int owner(const index_type index) { return index / m_block_size; }
 
   index_type local_index(const index_type index) {
