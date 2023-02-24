@@ -21,9 +21,8 @@ int main(int argc, char **argv) {
   world.cout0("Visiting individual key-value pairs with async_visit");
 
   // async_visit gives access to individual key-value pairs
-  auto visit_lambda = [](auto kv_pair) {
-    std::cout << "One thing a " << kv_pair.first << " says is "
-              << kv_pair.second << std::endl;
+  auto visit_lambda = [](const auto &key, const auto &value) {
+    std::cout << "One thing a " << key << " says is " << value << std::endl;
   };
 
   if (world.rank() % 2) {
