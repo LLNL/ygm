@@ -138,7 +138,7 @@ class array_impl {
     } else {
       static_assert(ygm::detail::always_false<>,
                     "local array lambda must be invocable with (const "
-                    "index_typ &, value_type &) or (value_type &) signatures");
+                    "index_type, value_type &) or (value_type &) signatures");
     }
   }
 
