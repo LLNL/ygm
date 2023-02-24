@@ -111,6 +111,30 @@ int main(int argc, char **argv) {
     });
   }
 
+  //
+  // Test value-only for_all
+  {
+    int size = 64;
+
+    ygm::container::array<int> arr(world, size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        arr.async_set(i, 1);
+      }
+    }
+
+    world.barrier();
+
+    for (int i = 0; i < size; ++i) {
+      arr.async_increment(i);
+    }
+
+    arr.for_all([&world](const auto value) {
+      ASSERT_RELEASE(value == world.size() + 1);
+    });
+  }
+
   // Test local_for_random_samples
   {
     int size           = world.size() * 8;
@@ -125,7 +149,6 @@ int main(int argc, char **argv) {
     }
 
     world.barrier();
-
     static int local_fulfilled(0);
     arr.local_for_random_samples(local_requests,
                                  [&world](const auto index, const auto value) {
@@ -137,6 +160,5 @@ int main(int argc, char **argv) {
 
     ASSERT_RELEASE(local_requests == local_fulfilled);
   }
-
   return 0;
 }

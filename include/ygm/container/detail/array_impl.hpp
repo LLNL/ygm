@@ -8,6 +8,7 @@
 #include <ygm/comm.hpp>
 #include <ygm/detail/random.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
+#include <ygm/detail/ygm_traits.hpp>
 
 namespace ygm::container::detail {
 
@@ -122,9 +123,23 @@ class array_impl {
   template <typename Function>
   void for_all(Function fn) {
     m_comm.barrier();
-    for (int i = 0; i < m_local_vec.size(); ++i) {
-      index_type g_index = global_index(i);
-      fn(g_index, m_local_vec[i]);
+    local_for_all(fn);
+  }
+
+  template <typename Function>
+  void local_for_all(Function fn) {
+    if constexpr (std::is_invocable<decltype(fn), const index_type,
+                                    value_type &>()) {
+      for (int i = 0; i < m_local_vec.size(); ++i) {
+        index_type g_index = global_index(i);
+        fn(g_index, m_local_vec[i]);
+      }
+    } else if constexpr (std::is_invocable<decltype(fn), value_type &>()) {
+      std::for_each(std::begin(m_local_vec), std::end(m_local_vec), fn);
+    } else {
+      static_assert(ygm::detail::always_false<>,
+                    "local array lambda must be invocable with (const "
+                    "index_type, value_type &) or (value_type &) signatures");
     }
   }
 
