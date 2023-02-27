@@ -150,7 +150,11 @@ class array_impl {
 
   const value_type &default_value() const { return m_default_value; }
 
-  int owner(const index_type index) { return index / m_block_size; }
+  int owner(const index_type index) const { return index / m_block_size; }
+
+  bool is_mine(const index_type index) const {
+    return owner(index) == m_comm.rank();
+  }
 
   index_type local_index(const index_type index) {
     return index % m_block_size;
