@@ -34,8 +34,8 @@ int main(int argc, char **argv) {
     value = value + update_val;
   };
 
-  auto deg_acc_lambda = [](auto &rv_pair, const auto &update_val) {
-    rv_pair.second = rv_pair.second + update_val;
+  auto deg_acc_lambda = [](auto &row, auto &val, const auto &update_val) {
+    val = val + update_val;
   };
 
   std::string key1, key2;
@@ -85,9 +85,8 @@ int main(int argc, char **argv) {
 
     auto adding_damping_pr_lambda = [&map_res, d_val, N](const auto &vtx,
                                                          const auto &pg_rnk) {
-      auto visit_lambda = [](auto &vtx_pr_pair, auto &da_val, auto &d_val) {
-        vtx_pr_pair.second = da_val + d_val * vtx_pr_pair.second;
-      };
+      auto visit_lambda = [](const auto &vtx_id, auto &pr, auto &da_val,
+                             auto &d_val) { pr = da_val + d_val * pr; };
       map_res.async_insert_if_missing_else_visit(vtx, (float(1 - d_val) / N),
                                                  visit_lambda, d_val);
     };

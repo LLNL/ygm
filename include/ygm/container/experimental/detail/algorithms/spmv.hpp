@@ -47,10 +47,9 @@ ygm::container::map<Key, Value> spmv(
                                const auto &times_op) {
       auto element_wise = times_op(A_value, x_value);
 
-      auto update_lambda = [](auto &rv_pair, const auto &update_val,
-                              const auto &plus_op) {
-        auto row_id    = rv_pair.first;
-        rv_pair.second = plus_op(rv_pair.second, update_val);
+      auto update_lambda = [](const auto &row_id, auto &row_val,
+                              const auto &update_val, const auto &plus_op) {
+        row_val = plus_op(row_val, update_val);
       };
 
       y_ptr->async_insert_if_missing_else_visit(row, element_wise,
