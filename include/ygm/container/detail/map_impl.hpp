@@ -326,10 +326,14 @@ class map_impl {
       for (std::pair<const key_type, value_type> &kv : m_local_map) {
         fn(kv.first, kv.second);
       }
+    } else if constexpr (std::is_invocable<decltype(fn), value_type &>()) {
+      for (std::pair<const key_type, value_type> &kv : m_local_map) {
+        fn(kv.second);
+      }
     } else {
       static_assert(ygm::detail::always_false<>,
                     "local map lambda signature must be invocable with (const "
-                    "&key_type, value_type&) signature");
+                    "key_type &, value_type &) or (value_type &) signatures");
     }
   }
 

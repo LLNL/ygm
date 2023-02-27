@@ -224,7 +224,7 @@ int main(int argc, char **argv) {
   }
 
   //
-  // Test for_all
+  // Test for_all (key-value)
   {
     ygm::container::map<std::string, std::string> smap1(world);
     ygm::container::map<std::string, std::string> smap2(world);
@@ -240,6 +240,29 @@ int main(int argc, char **argv) {
     ASSERT_RELEASE(smap2.count("dog") == 1);
     ASSERT_RELEASE(smap2.count("apple") == 1);
     ASSERT_RELEASE(smap2.count("red") == 1);
+  }
+
+  //
+  // Test for_all (value)
+  {
+    ygm::container::map<std::string, std::string> smap1(world);
+    ygm::container::map<std::string, std::string> smap2(world);
+
+    smap1.async_insert("dog", "cat");
+    smap1.async_insert("apple", "orange");
+    smap1.async_insert("red", "green");
+
+    smap1.for_all(
+        [&smap2](const auto &value) { smap2.async_insert(value, value); });
+
+    smap1.comm().barrier();
+
+    ASSERT_RELEASE(smap2.count("cat") == 1);
+    ASSERT_RELEASE(smap2.count("orange") == 1);
+    ASSERT_RELEASE(smap2.count("green") == 1);
+    ASSERT_RELEASE(smap2.count("dog") == 0);
+    ASSERT_RELEASE(smap2.count("apple") == 0);
+    ASSERT_RELEASE(smap2.count("red") == 0);
   }
 
   return 0;
