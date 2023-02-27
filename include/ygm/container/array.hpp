@@ -106,6 +106,10 @@ class array {
     return m_impl.get_ygm_ptr();
   }
 
+  int owner(const index_type index) const { return m_impl.owner(index); }
+
+  bool is_mine(const index_type index) const { return m_impl.is_mine(index); }
+
   ygm::comm& comm() { return m_impl.comm(); }
 
   const value_type& default_value() const { return m_impl.default_value(); }
