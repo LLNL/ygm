@@ -28,6 +28,9 @@ class bag {
   void clear() { m_impl.clear(); }
 
   size_t size() { return m_impl.size(); }
+  size_t local_size() { return m_impl.local_size(); }
+
+  void rebalence() { m_impl.rebalence(); }
 
   void swap(self_type &s) { m_impl.swap(s.m_impl); }
 
