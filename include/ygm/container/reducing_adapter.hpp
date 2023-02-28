@@ -37,16 +37,16 @@ class reducing_adapter {
   };
 
   void cache_reduce(const key_type &key, const value_type &value) {
-    if (m_cache_empty) {
-      m_cache_empty = false;
-      m_container.comm().register_pre_barrier_callback(
-          [this]() { this->cache_flush_all(); });
-    }
-
     // Bypass cache if current rank owns key
     if (m_container.comm().rank() == m_container.owner(key)) {
       container_reduction(key, value);
     } else {
+      if (m_cache_empty) {
+        m_cache_empty = false;
+        m_container.comm().register_pre_barrier_callback(
+            [this]() { this->cache_flush_all(); });
+      }
+
       size_t slot = std::hash<key_type>{}(key) % cache_size;
 
       if (m_cache[slot].occupied == false) {
