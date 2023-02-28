@@ -52,6 +52,7 @@ add_ygm_test(test_multi_output)
 add_ygm_test(test_daily_output)
 add_ygm_test(test_interrupt_mask)
 add_ygm_test(test_reducing_adapter)
+add_ygm_test(test_random)
 add_ygm_test(test_container_traits)
 
 if (Boost_FOUND)
