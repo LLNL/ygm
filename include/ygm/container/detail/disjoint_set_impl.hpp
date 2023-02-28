@@ -8,6 +8,7 @@
 #include <ygm/comm.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
+#include <ygm/detail/ygm_traits.hpp>
 
 namespace ygm::container::detail {
 template <typename Item, typename Partitioner>
@@ -96,12 +97,12 @@ class disjoint_set_impl {
 
   template <typename Function, typename... FunctionArgs>
   void async_union_and_execute(const value_type &a, const value_type &b,
-                               Function fn, const FunctionArgs &... args) {
+                               Function fn, const FunctionArgs &...args) {
     // Walking up parent trees can be expressed as a recursive operation
     struct simul_parent_walk_functor {
       void operator()(self_ygm_ptr_type pdset, const value_type &my_item,
                       const value_type &other_item, const value_type &orig_a,
-                      const value_type &orig_b, const FunctionArgs &... args) {
+                      const value_type &orig_b, const FunctionArgs &...args) {
         const auto my_parent = pdset->local_get_parent(my_item);
 
         // Found root
@@ -110,9 +111,18 @@ class disjoint_set_impl {
 
           // Perform user function after merge
           Function *f = nullptr;
-          ygm::meta::apply_optional(
-              *f, std::make_tuple(pdset),
-              std::forward_as_tuple(orig_a, orig_b, args...));
+          if constexpr (std::is_invocable<decltype(fn), const value_type &,
+                                          const value_type &,
+                                          FunctionArgs &...>()) {
+            ygm::meta::apply_optional(
+                *f, std::make_tuple(pdset),
+                std::forward_as_tuple(orig_a, orig_b, args...));
+          } else {
+            static_assert(
+                ygm::detail::always_false<>,
+                "remote distjoint_set lambda signature must be invocable "
+                "with (const value_type &, const value_type &) signature");
+          }
 
           return;
         }
@@ -284,8 +294,18 @@ class disjoint_set_impl {
   void for_all(Function fn) {
     all_compress();
 
-    std::for_each(m_local_item_parent_map.begin(),
-                  m_local_item_parent_map.end(), fn);
+    if constexpr (std::is_invocable<decltype(fn), const value_type &,
+                                    const value_type &>()) {
+      for (const std::pair<value_type, value_type> &item_rep :
+           m_local_item_parent_map) {
+        const auto [item, rep] = item_rep;
+        fn(item, rep);
+      }
+    } else {
+      static_assert(ygm::detail::always_false<>,
+                    "local distjoint_set lambda signature must be invocable "
+                    "with (const value_type &, const value_type &) signature");
+    }
   }
 
   std::map<value_type, value_type> all_find(
@@ -317,7 +337,7 @@ class disjoint_set_impl {
           pdset->comm().async(
               source_rank,
               [](ygm_ptr<return_type> p_to_return,
-                 const value_type &   source_item,
+                 const value_type    &source_item,
                  const value_type &rep) { (*p_to_return)[source_item] = rep; },
               p_to_return, source_item, parent);
         } else {

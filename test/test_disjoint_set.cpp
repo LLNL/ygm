@@ -162,8 +162,8 @@ int main(int argc, char** argv) {
       dset.async_union(i, i);
     }
 
-    dset.for_all([&counter](const auto& item_rep_pair) {
-      ASSERT_RELEASE(item_rep_pair.first == item_rep_pair.second);
+    dset.for_all([&counter](const auto& item, const auto& rep) {
+      ASSERT_RELEASE(item == rep);
       ++counter;
     });
 
@@ -182,8 +182,8 @@ int main(int argc, char** argv) {
                                  [](const int u, const int v) { counter++; });
     dset.async_union_and_execute(1, 2,
                                  [](const int u, const int v) { counter++; });
-    dset.async_union_and_execute(3, 4,
-                                 [](const int u, const int v) { counter++; });
+    dset.async_union_and_execute(
+        3, 4, [](const int u, const int v, const auto thing) { counter++; }, 0);
 
     world.barrier();
 
