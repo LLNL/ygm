@@ -132,6 +132,8 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   int size() const { return m_layout.size(); }
   int rank() const { return m_layout.rank(); }
 
+  MPI_Comm get_mpi_comm() const { return m_comm_other; }
+
   void stats_reset() { stats.reset(); }
   void stats_print(const std::string &name, std::ostream &os) {
     comm tmp_comm(shared_from_this());
@@ -974,6 +976,7 @@ inline const detail::comm_router &comm::router() const {
 
 inline int comm::size() const { return pimpl->size(); }
 inline int comm::rank() const { return pimpl->rank(); }
+inline int comm::get_mpi_comm() const { return pimpl->get_mpi_comm(); }
 
 inline void comm::barrier() { pimpl->barrier(); }
 
