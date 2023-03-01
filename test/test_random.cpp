@@ -14,13 +14,13 @@ int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
 
   //
-  // Test simpe_offset_rng
+  // Test default_random_engine
   {
-    std::uint32_t                                seed = 100;
-    ygm::random::simple_offset_rng<std::mt19937> rng(world, seed);
-    ygm::container::counting_set<int>            seed_set(world);
-    ygm::container::counting_set<int>            rn_set(world);
-    ygm::container::counting_set<int>            sample_set(world);
+    std::uint32_t                                    seed = 100;
+    ygm::random::default_random_engine<std::mt19937> rng(world, seed);
+    ygm::container::counting_set<int>                seed_set(world);
+    ygm::container::counting_set<int>                rn_set(world);
+    ygm::container::counting_set<int>                sample_set(world);
 
     std::uint32_t                                local_rn = rng();
     std::uniform_int_distribution<std::uint32_t> dist(0, 10000000);
@@ -47,13 +47,13 @@ int main(int argc, char** argv) {
   }
 
   //
-  // Test shared_rng
+  // Test shared_random_engine
   {
-    std::uint32_t                         seed = 100;
-    ygm::random::shared_rng<std::mt19937> rng(world, seed);
-    ygm::container::counting_set<int>     seed_set(world);
-    ygm::container::counting_set<int>     rn_set(world);
-    ygm::container::counting_set<int>     sample_set(world);
+    std::uint32_t                                   seed = 100;
+    ygm::random::shared_random_engine<std::mt19937> rng(world, seed);
+    ygm::container::counting_set<int>               seed_set(world);
+    ygm::container::counting_set<int>               rn_set(world);
+    ygm::container::counting_set<int>               sample_set(world);
 
     std::uint32_t                                local_rn = rng();
     std::uniform_int_distribution<std::uint32_t> dist(0, 10000000);
