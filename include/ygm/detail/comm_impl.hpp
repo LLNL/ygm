@@ -976,7 +976,8 @@ inline const detail::comm_router &comm::router() const {
 
 inline int comm::size() const { return pimpl->size(); }
 inline int comm::rank() const { return pimpl->rank(); }
-inline int comm::get_mpi_comm() const { return pimpl->get_mpi_comm(); }
+
+inline MPI_Comm comm::get_mpi_comm() const { return pimpl->get_mpi_comm(); }
 
 inline void comm::barrier() { pimpl->barrier(); }
 
