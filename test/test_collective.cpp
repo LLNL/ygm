@@ -33,5 +33,41 @@ int main(int argc, char** argv) {
     ASSERT_RELEASE(ygm::logical_or(world.rank() % 2 == 0, world) == 1);
   }
 
+  {
+    double value(0);
+    int    root = 0;
+    if (world.rank() == root) {
+      value = 3.14;
+    }
+    ygm::bcast(value, root, world);
+    ASSERT_RELEASE(value == 3.14);
+  }
+
+  {
+    if (world.size() > 3) {
+      size_t value(3);
+      int    root = 3;
+      if (world.rank() == root) {
+        value = 42;
+      }
+      ygm::bcast(value, root, world);
+      ASSERT_RELEASE(value == 42);
+    }
+  }
+
+  ASSERT_RELEASE(is_same(42, world));
+  std::set<std::string> string_set;
+  if (world.rank() == 0) {
+    string_set.insert("Howdy");
+    string_set.insert("Aggs");
+  }
+
+  ASSERT_RELEASE(not is_same(string_set, world));
+  string_set.insert("Howdy");
+  string_set.insert("Aggs");
+  ASSERT_RELEASE(is_same(string_set, world));
+
+  ASSERT_RELEASE(not is_same(world.rank(), world));
+
   return 0;
 }
