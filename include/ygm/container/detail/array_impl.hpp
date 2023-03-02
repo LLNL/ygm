@@ -15,6 +15,7 @@ template <typename Value, typename Index>
 class array_impl {
  public:
   using self_type  = array_impl<Value, Index>;
+  using ptr_type   = typename ygm::ygm_ptr<self_type>;
   using value_type = Value;
   using index_type = Index;
 
@@ -111,8 +112,20 @@ class array_impl {
       ASSERT_RELEASE(l_index < parray->m_local_vec.size());
       value_type &l_value = parray->m_local_vec[l_index];
       Visitor    *vis     = nullptr;
-      ygm::meta::apply_optional(*vis, std::make_tuple(parray),
-                                std::forward_as_tuple(i, l_value, args...));
+      if constexpr (std::is_invocable<decltype(visitor), const index_type &,
+                                      value_type &, VisitorArgs &...>() ||
+                    std::is_invocable<decltype(visitor), ptr_type,
+                                      const index_type &, value_type &,
+                                      VisitorArgs &...>()) {
+        ygm::meta::apply_optional(*vis, std::make_tuple(parray),
+                                  std::forward_as_tuple(i, l_value, args...));
+      } else {
+        static_assert(
+            ygm::detail::always_false<>,
+            "remote array lambda signature must be invocable with (const "
+            "&index_type, value_type&, ...) or (ptr_type, const "
+            "&index_type, value_type&, ...) signatures");
+      }
     };
 
     m_comm.async(dest, visit_wrapper, pthis, index,

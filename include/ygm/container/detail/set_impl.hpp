@@ -10,6 +10,7 @@
 #include <ygm/comm.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
+#include <ygm/detail/ygm_traits.hpp>
 
 namespace ygm::container::detail {
 template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
@@ -110,10 +111,15 @@ class set_impl {
 
   ygm::comm &comm() { return m_comm; }
 
-  // protected:
   template <typename Function>
   void local_for_all(Function fn) {
-    std::for_each(m_local_set.begin(), m_local_set.end(), fn);
+    if constexpr (std::is_invocable<decltype(fn), const key_type &>()) {
+      std::for_each(m_local_set.begin(), m_local_set.end(), fn);
+    } else {
+      static_assert(ygm::detail::always_false<>,
+                    "local set lambda signature must be invocable with (const "
+                    "key_type &) signature");
+    }
   }
 
   int owner(const key_type &key) const {
