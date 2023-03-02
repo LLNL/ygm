@@ -120,7 +120,7 @@ class disjoint_set_impl {
           } else {
             static_assert(
                 ygm::detail::always_false<>,
-                "remote distjoint_set lambda signature must be invocable "
+                "remote disjoint_set lambda signature must be invocable "
                 "with (const value_type &, const value_type &) signature");
           }
 
@@ -303,7 +303,7 @@ class disjoint_set_impl {
       }
     } else {
       static_assert(ygm::detail::always_false<>,
-                    "local distjoint_set lambda signature must be invocable "
+                    "local disjoint_set lambda signature must be invocable "
                     "with (const value_type &, const value_type &) signature");
     }
   }
