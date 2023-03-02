@@ -54,6 +54,7 @@ add_ygm_test(test_interrupt_mask)
 add_ygm_test(test_reducing_adapter)
 add_ygm_test(test_reduce_by_key)
 add_ygm_test(test_container_traits)
+add_ygm_test(test_collective)
 add_ygm_test(test_traits)
 
 if (Boost_FOUND)
