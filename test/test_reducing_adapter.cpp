@@ -8,8 +8,8 @@
 #include <string>
 #include <ygm/comm.hpp>
 #include <ygm/container/array.hpp>
+#include <ygm/container/detail/reducing_adapter.hpp>
 #include <ygm/container/map.hpp>
-#include <ygm/container/reducing_adapter.hpp>
 
 int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
   {
     ygm::container::map<std::string, int> test_map(world);
 
-    auto reducing_map = ygm::container::make_reducing_adapter(
+    auto reducing_map = ygm::container::detail::make_reducing_adapter(
         test_map,
         [](const int &a, const int &b) { return std::max<int>(a, b); });
 
@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
   {
     ygm::container::array<int> test_array(world, 10);
 
-    auto reducing_array = ygm::container::make_reducing_adapter(
+    auto reducing_array = ygm::container::detail::make_reducing_adapter(
         test_array,
         [](const int &a, const int &b) { return std::max<int>(a, b); });
 
