@@ -22,16 +22,6 @@ ResultType simple_offset(ygm::comm &comm, ResultType seed) {
   return seed + comm.rank();
 }
 
-/// @brief Applies no change to the specified seed
-/// @tparam ResultType The random number (seed) type
-/// @param comm The ygm::comm to be used
-/// @param seed The specified seed
-/// @return simply returns the unmodified seed
-template <typename ResultType>
-ResultType no_offset(ygm::comm &comm, ResultType seed) {
-  return seed;
-}
-
 /// @brief A wrapper around a per-rank random engine that manipulates each
 ///        rank's seed according to a specified strategy
 /// @tparam RandomEngine The underlying random engine, e.g. std::mt19337
@@ -45,7 +35,7 @@ class random_engine {
   using rng_type    = RandomEngine;
   using result_type = typename RandomEngine::result_type;
 
-  random_engine(ygm::comm &comm, result_type seed = std::random_engine{}())
+  random_engine(ygm::comm &comm, result_type seed = std::random_device{}())
       : m_seed(Function(comm, seed)), m_rng(Function(comm, seed)) {}
 
   result_type operator()() { return m_rng(); }
@@ -64,11 +54,6 @@ class random_engine {
 /// @tparam RandomEngine The underlying random engine, e.g. std::mt19337
 template <typename RandomEngine>
 using default_random_engine = random_engine<RandomEngine, simple_offset>;
-
-/// @brief A shared rng alias, where each rank has the same seed
-/// @tparam RandomEngine The underlying random engine, e.g. std::mt19337
-template <typename RandomEngine>
-using shared_random_engine = random_engine<RandomEngine, no_offset>;
 
 }  // namespace random
 }  // namespace ygm
