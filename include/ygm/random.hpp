@@ -40,15 +40,15 @@ ResultType no_offset(ygm::comm &comm, ResultType seed) {
 template <typename RandomEngine,
           typename RandomEngine::result_type (*Function)(
               ygm::comm &, typename RandomEngine::result_type)>
-class random_device {
+class random_engine {
  public:
   using rng_type    = RandomEngine;
   using result_type = typename RandomEngine::result_type;
 
-  random_device(ygm::comm &comm, result_type seed = std::random_device{}())
-      : m_seed(Function(comm, seed)), m_gen(Function(comm, seed)) {}
+  random_engine(ygm::comm &comm, result_type seed = std::random_engine{}())
+      : m_seed(Function(comm, seed)), m_rng(Function(comm, seed)) {}
 
-  result_type operator()() { return m_gen(); }
+  result_type operator()() { return m_rng(); }
 
   constexpr const result_type &seed() const { return m_seed; }
 
@@ -56,19 +56,19 @@ class random_device {
   static constexpr result_type max() { return rng_type::max(); }
 
  private:
-  rng_type    m_gen;
+  rng_type    m_rng;
   result_type m_seed;
 };
 
 /// @brief A simple offset rng alias
 /// @tparam RandomEngine The underlying random engine, e.g. std::mt19337
 template <typename RandomEngine>
-using default_random_engine = random_device<RandomEngine, simple_offset>;
+using default_random_engine = random_engine<RandomEngine, simple_offset>;
 
 /// @brief A shared rng alias, where each rank has the same seed
 /// @tparam RandomEngine The underlying random engine, e.g. std::mt19337
 template <typename RandomEngine>
-using shared_random_engine = random_device<RandomEngine, no_offset>;
+using shared_random_engine = random_engine<RandomEngine, no_offset>;
 
 }  // namespace random
 }  // namespace ygm
