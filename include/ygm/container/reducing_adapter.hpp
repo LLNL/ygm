@@ -20,6 +20,7 @@ class reducing_adapter {
 
   reducing_adapter(Container &c, ReductionOp reducer)
       : m_container(c), m_reducer(reducer), pthis(this) {
+    pthis.check(c.comm());
     m_cache.resize(cache_size);
   }
 
