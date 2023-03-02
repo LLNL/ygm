@@ -5,41 +5,47 @@
 
 #pragma once
 
+#include <ygm/comm.hpp>
+
 #include <random>
-#include <unordered_set>
-#include <vector>
 
-namespace ygm {
+namespace ygm::detail {
 
-/// @brief sample a set of `count` elements from the range `[lb,ub]` without
-/// replacement. Based upon the algorithm by Robert Floyd.
-/// @param lb the lower bound of the range
-/// @param ub the upper bound of the range
-/// @param count the number of samples to draw
-/// @return returns a vector
-template <typename RNGType = std::mt19937>
-std::vector<std::size_t> random_subset(std::size_t lb, std::size_t ub,
-                                       std::size_t count,
-                                       RNGType     gen = std::mt19937{
-                                           std::random_device{}()}) {
-  ASSERT_RELEASE(count < ub - lb);
-  std::unordered_set<int> samples;
-
-  for (int alternative(ub - count); alternative < ub; ++alternative) {
-    std::size_t candidate =
-        std::uniform_int_distribution<std::size_t>(lb, alternative)(gen);
-    if (samples.find(candidate) == std::end(samples)) {
-      samples.insert(candidate);
-    } else {
-      samples.insert(alternative);
-    }
-  }
-  std::vector<std::size_t> vec;
-  vec.reserve(count);
-  for (auto it(std::begin(samples)); it != std::end(samples); ++it) {
-    // vec.push_back(std::move(samples.extract(it).value()));
-    vec.push_back(*it);
-  }
-  return vec;
+/// @brief Applies a simple offset to the specified seed according to rank index
+/// @tparam ResultType The random number (seed) type; defaults to std::mt19937
+/// @param comm The ygm::comm to be used
+/// @param seed The specified seed
+/// @return simply returns seed + rank
+template <typename ResultType>
+ResultType simple_offset(ygm::comm &comm, ResultType seed) {
+  return seed + comm.rank();
 }
-}  // namespace ygm
+
+/// @brief A wrapper around a per-rank random engine that manipulates each
+///        rank's seed according to a specified strategy
+/// @tparam RandomEngine The underlying random engine, e.g. std::mt19337
+/// @tparam Function A `(ygm::comm, result_type) -> result_type` function that
+///         modifies seeds for each rank
+template <typename RandomEngine,
+          typename RandomEngine::result_type (*Function)(
+              ygm::comm &, typename RandomEngine::result_type)>
+class random_engine {
+ public:
+  using rng_type    = RandomEngine;
+  using result_type = typename RandomEngine::result_type;
+
+  random_engine(ygm::comm &comm, result_type seed = std::random_device{}())
+      : m_seed(Function(comm, seed)), m_rng(Function(comm, seed)) {}
+
+  result_type operator()() { return m_rng(); }
+
+  constexpr const result_type &seed() const { return m_seed; }
+
+  static constexpr result_type min() { return rng_type::min(); }
+  static constexpr result_type max() { return rng_type::max(); }
+
+ private:
+  rng_type    m_rng;
+  result_type m_seed;
+};
+}  // namespace ygm::detail
