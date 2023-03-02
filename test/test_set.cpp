@@ -10,7 +10,7 @@
 #include <ygm/comm.hpp>
 #include <ygm/container/set.hpp>
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
 
   //
@@ -68,6 +68,23 @@ int main(int argc, char** argv) {
   }
 
   //
+  // Test for_all
+  {
+    ygm::container::set<std::string> sset1(world);
+    ygm::container::set<std::string> sset2(world);
+
+    sset1.async_insert("dog");
+    sset1.async_insert("apple");
+    sset1.async_insert("red");
+
+    sset1.for_all([&sset2](const auto &key) { sset2.async_insert(key); });
+
+    ASSERT_RELEASE(sset2.count("dog") == 1);
+    ASSERT_RELEASE(sset2.count("apple") == 1);
+    ASSERT_RELEASE(sset2.count("red") == 1);
+  }
+
+  //
   // Test local_for_random_samples
   {
     int size           = world.size() * 8;
@@ -85,7 +102,7 @@ int main(int argc, char** argv) {
 
     static int local_fulfilled(0);
     iset.local_for_random_samples(
-        local_requests, [&world](const auto& elem) { ++local_fulfilled; });
+        local_requests, [&world](const auto &elem) { ++local_fulfilled; });
 
     world.barrier();
 
