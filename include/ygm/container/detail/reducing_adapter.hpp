@@ -7,7 +7,7 @@
 #include <ygm/container/detail/container_traits.hpp>
 #include <ygm/detail/ygm_traits.hpp>
 
-namespace ygm::container {
+namespace ygm::container::detail {
 
 template <typename Container, typename ReductionOp>
 class reducing_adapter {
@@ -38,4 +38,4 @@ reducing_adapter<Container, ReductionOp> make_reducing_adapter(
   return reducing_adapter<Container, ReductionOp>(c, reducer);
 }
 
-}  // namespace ygm::container
+}  // namespace ygm::container::detail
