@@ -108,6 +108,8 @@ class comm {
   int size() const;
   int rank() const;
 
+  MPI_Comm get_mpi_comm() const;
+
   const detail::layout &layout() const;
 
   const detail::comm_router &router() const;
