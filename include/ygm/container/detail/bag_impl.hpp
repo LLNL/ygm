@@ -35,7 +35,7 @@ class bag_impl {
     m_comm.async(dest, inserter, pthis, item);
   }
 
-  void sync_insert(const value_type &item, int dest) {
+  void async_insert(const value_type &item, int dest) {
     auto inserter = [](auto mailbox, auto map, const value_type &item) {
       map->m_local_bag.push_back(item);
     };
@@ -68,6 +68,19 @@ class bag_impl {
     return m_local_bag.size();
   }
 
+
+  void rebalence() {
+    int lsize = local_size();
+    int* SA = (int*)malloc(sizeof(int) * m_comm.size())
+    MPI_allgather(&lsize, 1, MPI_INT, 
+                  SA, 1, MPI_INT,
+                  m_comm.get_mpi_comm());
+
+    
+  }
+
+
+  /*
   void rebalence() {
     using size_vect_type = std::vector< std::pair<int, int> >;
 
@@ -76,7 +89,6 @@ class bag_impl {
     int local_k, min, max;
     float mean;
 
-    /* Define helper functions for rebalence specifically */
     auto update_all_size_vect = [&sv, this]() {
       m_comm.barrier();
 
@@ -123,7 +135,6 @@ class bag_impl {
       gather_size_huristics();
 
       if (!balenced) {
-        /* Normalize bag bins based on their kth index */
         int partner_k = m_comm.size() - local_k - 1;
         int partner_rank = sv[partner_k].first;
         if (local_k >= m_comm.size() / 2.0) {
@@ -131,19 +142,18 @@ class bag_impl {
             sync_insert(local_pop(), partner_rank);
         }
 
-        /* Update size vect and size huristics */
         update_all_size_vect();
         gather_size_huristics();
       }
 
       if (!balenced) {
-        /* Flatten largest peak by 1 to dislodge */
         if (local_k == m_comm.size() - 1)
           sync_insert(local_pop(), sv[0].first);
       }
 
     } while(!balenced);
   }
+  */
 
   void swap(self_type &s) {
     m_comm.barrier();
