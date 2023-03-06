@@ -36,7 +36,8 @@ class bag_impl {
     int dest = (m_round_robin++ + m_comm.rank()) % m_comm.size();
     m_comm.async(dest, inserter, pthis, item);
   }
-  void sync_insert(const value_type &item, int dest) {
+
+  void async_insert(const value_type &item, int dest) {
     auto inserter = [](auto mailbox, auto map, const value_type &item) {
       map->m_local_bag.push_back(item);
     };
@@ -69,81 +70,29 @@ class bag_impl {
     return m_local_bag.size();
   }
 
-  void rebalence() {
-    using size_vect_type = std::vector< std::pair<int, int> >;
 
-    size_vect_type sv;
-    bool balenced = false;
-    int local_k, min, max;
-    float mean;
+  void rebalance() {
+    m_comm.barrier();
 
-    /* Define helper functions for rebalence specifically */
-    auto update_all_size_vect = [&sv, this]() {
-      m_comm.barrier();
+    // Find current rank's prefix val and desired target size
+    size_t prefix_val = ygm::prefix_sum(local_size(), m_comm);
+    size_t target_size = std::ceil((size() * 1.0) / m_comm.size());
 
-      std::map<int, int> local_size_map = {{m_comm.rank(), m_local_bag.size()}};
-      auto all_size_map = m_comm.all_reduce(local_size_map, [](std::map<int, int> a, std::map<int, int> b) {
-        a.insert(b.begin(), b.end());
-        return a;
-      });
+    // Init to_send array where index is dest and value is the num to send
+    int to_send[m_comm.size()] = {0};
+    for (int i = 0; i < local_size(); i++) {
+      size_t idx = prefix_val + i;
+      int target_rank = idx / target_size;
+      if (target_rank != m_comm.rank()) 
+        to_send[target_rank]++;
+    }
+    m_comm.barrier();
 
-      sv.assign(all_size_map.begin(), all_size_map.end());
-      std::sort(sv.begin(), sv.end(), [](auto& left, auto& right) {
-        return left.second < right.second;
-      });
-    };
-
-    auto gather_size_huristics = [&]() {
-      local_k = 0;
-      min = INT_MAX;
-      max = 0;
-      mean = 0.0;
-
-      bool found = false;
-      for (auto it: sv) {
-        if (it.first == m_comm.rank())
-          found = true;
-        if (!found)
-          local_k++;
-        
-        mean += it.second;
-
-        if (it.second < min)
-          min = it.second;
-        if (it.second > max)
-          max = it.second;
-      }
-      mean /= m_comm.size();
-
-      if (max - min <= 1)
-        balenced = true;
-    };
-
-    do {
-      update_all_size_vect();
-      gather_size_huristics();
-
-      if (!balenced) {
-        /* Normalize bag bins based on their kth index */
-        int partner_k = m_comm.size() - local_k - 1;
-        int partner_rank = sv[partner_k].first;
-        if (local_k >= m_comm.size() / 2.0) {
-          while (m_local_bag.size() > std::round(mean)) 
-            sync_insert(local_pop(), partner_rank);
-        }
-
-        /* Update size vect and size huristics */
-        update_all_size_vect();
-        gather_size_huristics();
-      }
-
-      if (!balenced) {
-        /* Flatten largest peak by 1 to dislodge */
-        if (local_k == m_comm.size() - 1)
-          sync_insert(local_pop(), sv[0].first);
-      }
-
-    } while(!balenced);
+    // Build and send bag indexes as calculated by to_send
+    for (int r = 0; r < m_comm.size(); r++)
+      if (to_send[r] > 0)
+        async_insert(local_pop(to_send[r]), r);
+    m_comm.barrier();
   }
 
   void swap(self_type &s) {
