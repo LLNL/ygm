@@ -9,7 +9,6 @@
 #include <vector>
 #include <map>
 #include <utility>
-#include <cmath>
 #include <algorithm>
 #include <random>
 #include <ygm/comm.hpp>
@@ -17,6 +16,7 @@
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
 #include <ygm/random.hpp>
+#include <ygm/detail/mpi.hpp>
 
 namespace ygm::container::detail {
 template <typename Item, typename Alloc = std::allocator<Item>>
@@ -40,6 +40,13 @@ class bag_impl {
   void async_insert(const value_type &item, int dest) {
     auto inserter = [](auto mailbox, auto map, const value_type &item) {
       map->m_local_bag.push_back(item);
+    };
+    m_comm.async(dest, inserter, pthis, item);
+  }
+
+  void async_insert(const std::vector<value_type> item, int dest) {
+    auto inserter = [](auto mailbox, auto map, const std::vector<value_type> item) {
+      map->m_local_bag.insert(map->m_local_bag.end(), item.begin(), item.end());
     };
     m_comm.async(dest, inserter, pthis, item);
   }
