@@ -9,12 +9,12 @@
 #include <vector>
 #include <map>
 #include <utility>
-#include <cmath>
 #include <algorithm>
 #include <ygm/comm.hpp>
 #include <ygm/detail/std_traits.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
+#include <ygm/detail/mpi.hpp>
 
 namespace ygm::container::detail {
 template <typename Item, typename Alloc = std::allocator<Item>>
@@ -38,6 +38,13 @@ class bag_impl {
   void async_insert(const value_type &item, int dest) {
     auto inserter = [](auto mailbox, auto map, const value_type &item) {
       map->m_local_bag.push_back(item);
+    };
+    m_comm.async(dest, inserter, pthis, item);
+  }
+
+  void async_insert(const std::vector<value_type> item, int dest) {
+    auto inserter = [](auto mailbox, auto map, const std::vector<value_type> item) {
+      map->m_local_bag.insert(map->m_local_bag.end(), item.begin(), item.end());
     };
     m_comm.async(dest, inserter, pthis, item);
   }
@@ -69,91 +76,62 @@ class bag_impl {
   }
 
 
-  void rebalence() {
-    int lsize = local_size();
-    int* SA = (int*)malloc(sizeof(int) * m_comm.size())
-    MPI_allgather(&lsize, 1, MPI_INT, 
-                  SA, 1, MPI_INT,
+  void rebalance() {
+    m_comm.barrier();
+
+    size_t lsize = local_size();
+    size_t* SA = (size_t*)malloc(sizeof(size_t) * m_comm.size());
+    MPI_Allgather(&lsize, 1, ygm::detail::mpi_typeof(size_t()),
+                  SA, 1, ygm::detail::mpi_typeof(size_t()), 
+                  m_comm.get_mpi_comm());
+    
+    size_t target = size() / m_comm.size() + (m_comm.rank() < size() % m_comm.size());
+    size_t* TA = (size_t*)malloc(sizeof(size_t) * m_comm.size());
+    MPI_Allgather(&target, 1, ygm::detail::mpi_typeof(size_t()),
+                  TA, 1, ygm::detail::mpi_typeof(size_t()),
                   m_comm.get_mpi_comm());
 
-    
-  }
+    std::vector< std::pair<int, size_t> > send_vect;
 
-
-  /*
-  void rebalence() {
-    using size_vect_type = std::vector< std::pair<int, int> >;
-
-    size_vect_type sv;
-    bool balenced = false;
-    int local_k, min, max;
-    float mean;
-
-    auto update_all_size_vect = [&sv, this]() {
-      m_comm.barrier();
-
-      std::map<int, int> local_size_map = {{m_comm.rank(), m_local_bag.size()}};
-      auto all_size_map = m_comm.all_reduce(local_size_map, [](std::map<int, int> a, std::map<int, int> b) {
-        a.insert(b.begin(), b.end());
-        return a;
-      });
-
-      sv.assign(all_size_map.begin(), all_size_map.end());
-      std::sort(sv.begin(), sv.end(), [](auto& left, auto& right) {
-        return left.second < right.second;
-      });
-    };
-
-    auto gather_size_huristics = [&]() {
-      local_k = 0;
-      min = INT_MAX;
-      max = 0;
-      mean = 0.0;
-
-      bool found = false;
-      for (auto it: sv) {
-        if (it.first == m_comm.rank())
-          found = true;
-        if (!found)
-          local_k++;
-        
-        mean += it.second;
-
-        if (it.second < min)
-          min = it.second;
-        if (it.second > max)
-          max = it.second;
-      }
-      mean /= m_comm.size();
-
-      if (max - min <= 1)
-        balenced = true;
-    };
-
-    do {
-      update_all_size_vect();
-      gather_size_huristics();
-
-      if (!balenced) {
-        int partner_k = m_comm.size() - local_k - 1;
-        int partner_rank = sv[partner_k].first;
-        if (local_k >= m_comm.size() / 2.0) {
-          while (m_local_bag.size() > std::round(mean)) 
-            sync_insert(local_pop(), partner_rank);
+    /* Concurrently iterate through two iterable variables
+     *   - c: Cur rank with excess items
+     *   - i: Input rank taking items from c
+     */
+    int c = 0;
+    for (int i = 0; i < m_comm.size(); i++) {
+      while (SA[i] < TA[i]) { 
+        while (SA[c] <= TA[c]) {
+          c++; 
         }
 
-        update_all_size_vect();
-        gather_size_huristics();
+        size_t i_needed = TA[i] - SA[i];
+        size_t c_excess = SA[c] - TA[c];
+        size_t transfer_num = std::min(i_needed, c_excess);
+
+        if (c == m_comm.rank()) {
+          send_vect.push_back(std::make_pair(i, transfer_num));
+        }
+
+        SA[c] -= transfer_num;
+        SA[i] += transfer_num;
       }
 
-      if (!balenced) {
-        if (local_k == m_comm.size() - 1)
-          sync_insert(local_pop(), sv[0].first);
+      // There is no point in calculating anything higher than personal rank
+      if (c > m_comm.rank()) {
+        break;
       }
+    }
 
-    } while(!balenced);
+    for (auto it: send_vect) {
+      std::vector<value_type> send_vals(it.second);
+      for (int i = 0; i < it.second; i++) {
+        send_vals[i] = local_pop();
+      }
+      async_insert(send_vals, it.first);
+    }
+
+    m_comm.barrier();
   }
-  */
 
   void swap(self_type &s) {
     m_comm.barrier();
