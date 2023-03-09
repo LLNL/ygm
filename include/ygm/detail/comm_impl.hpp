@@ -381,29 +381,12 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     stats.iallreduce();
     bool iallreduce_complete(false);
     while (!iallreduce_complete) {
-      MPI_Request twin_req[2];
-      twin_req[0] = req;
-      twin_req[1] = m_recv_queue.front().request;
-
-      int        outcount;
-      int        twin_indices[2];
-      MPI_Status twin_status[2];
-
-      {
-        auto timer = stats.waitsome_iallreduce();
-        ASSERT_MPI(
-            MPI_Waitsome(2, twin_req, &outcount, twin_indices, twin_status));
-      }
-
-      for (int i = 0; i < outcount; ++i) {
-        if (twin_indices[i] == 0) {  // completed a Iallreduce
-          iallreduce_complete = true;
-          // std::cout << m_layout.rank() << ": iallreduce_complete: " <<
-          // global_counts[0] << " " << global_counts[1] << std::endl;
-        } else {
-          handle_next_receive(twin_status[i]);
-          flush_all_local_and_process_incoming();
-        }
+      int flag;
+      ASSERT_MPI(MPI_Test(&req, &flag, MPI_STATUS_IGNORE));
+      if (flag) {
+        iallreduce_complete = true;
+      } else {
+        flush_all_local_and_process_incoming();
       }
     }
     return {global_counts[0], global_counts[1]};
