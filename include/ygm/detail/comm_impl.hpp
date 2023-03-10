@@ -381,12 +381,31 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     stats.iallreduce();
     bool iallreduce_complete(false);
     while (!iallreduce_complete) {
-      int flag;
-      ASSERT_MPI(MPI_Test(&req, &flag, MPI_STATUS_IGNORE));
-      if (flag) {
-        iallreduce_complete = true;
-      } else {
-        flush_all_local_and_process_incoming();
+      MPI_Request twin_req[2];
+      twin_req[0] = req;
+      twin_req[1] = m_recv_queue.front().request;
+
+      int        outcount;
+      int        twin_indices[2];
+      MPI_Status twin_status[2];
+
+      {
+        auto timer = stats.waitsome_iallreduce();
+        ASSERT_MPI(
+            MPI_Waitsome(2, twin_req, &outcount, twin_indices, twin_status));
+      }
+
+      for (int i = 0; i < outcount; ++i) {
+        if (twin_indices[i] == 0) {  // completed a Iallreduce
+          iallreduce_complete = true;
+          // std::cout << m_layout.rank() << ": iallreduce_complete: " <<
+          // global_counts[0] << " " << global_counts[1] << std::endl;
+        } else {
+          mpi_irecv_request req_buffer = m_recv_queue.front();
+          m_recv_queue.pop_front();
+          handle_next_receive(twin_status[i], req_buffer.buffer);
+          flush_all_local_and_process_incoming();
+        }
       }
     }
     return {global_counts[0], global_counts[1]};
@@ -731,13 +750,14 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
    */
   static void reference() {}
 
-  void handle_next_receive(MPI_Status status) {
+  void handle_next_receive(MPI_Status                   status,
+                           std::shared_ptr<std::byte[]> buffer) {
     comm tmp_comm(shared_from_this());
     int  count{0};
     ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &count));
     stats.irecv(status.MPI_SOURCE, count);
     // std::cout << m_layout.rank() << ": received " << count << std::endl;
-    cereal::YGMInputArchive iarchive(m_recv_queue.front().buffer.get(), count);
+    cereal::YGMInputArchive iarchive(buffer.get(), count);
     while (!iarchive.empty()) {
       if (config.routing != detail::routing_type::NONE) {
         header_t h;
@@ -777,8 +797,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
         stats.rpc_execute();
       }
     }
-    post_new_irecv(m_recv_queue.front().buffer);
-    m_recv_queue.pop_front();
+    post_new_irecv(buffer);
     flush_to_capacity();
   }
 
@@ -819,8 +838,10 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
           m_free_send_buffers.push_back(m_send_queue.front().buffer);
           m_send_queue.pop_front();
         } else {  // completed an iRecv -- COPIED FROM BELOW
-          received_to_return = true;
-          handle_next_receive(twin_status[i]);
+          received_to_return           = true;
+          mpi_irecv_request req_buffer = m_recv_queue.front();
+          m_recv_queue.pop_front();
+          handle_next_receive(twin_status[i], req_buffer.buffer);
         }
       }
     } else {
@@ -844,8 +865,10 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
       ASSERT_MPI(MPI_Test(&(m_recv_queue.front().request), &flag, &status));
       stats.irecv_test();
       if (flag) {
-        received_to_return = true;
-        handle_next_receive(status);
+        received_to_return           = true;
+        mpi_irecv_request req_buffer = m_recv_queue.front();
+        m_recv_queue.pop_front();
+        handle_next_receive(status, req_buffer.buffer);
       } else {
         break;  // not ready yet
       }
