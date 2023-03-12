@@ -111,5 +111,70 @@ int main(int argc, char **argv) {
     });
   }
 
+  // Test async_visit
+  {
+    int size = 64;
+
+    ygm::container::array<int> arr(world, size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        arr.async_set(i, i);
+      }
+    }
+
+    world.barrier();
+
+    for (int i = 0; i < size; ++i) {
+      arr.async_visit(i, [](const auto index, const auto value) {
+        ASSERT_RELEASE(value == index);
+      });
+    }
+  }
+
+  // Test async_visit (ptr)
+  {
+    int size = 64;
+
+    ygm::container::array<int> arr(world, size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        arr.async_set(i, i);
+      }
+    }
+
+    world.barrier();
+
+    for (int i = 0; i < size; ++i) {
+      arr.async_visit(i, [](auto ptr, const auto index, const auto value) {
+        ASSERT_RELEASE(value == index);
+      });
+    }
+  }
+
+  // Test value-only for_all
+  {
+    int size = 64;
+
+    ygm::container::array<int> arr(world, size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        arr.async_set(i, 1);
+      }
+    }
+
+    world.barrier();
+
+    for (int i = 0; i < size; ++i) {
+      arr.async_increment(i);
+    }
+
+    arr.for_all([&world](const auto value) {
+      ASSERT_RELEASE(value == world.size() + 1);
+    });
+  }
+
   return 0;
 }

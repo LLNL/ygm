@@ -9,7 +9,9 @@
 #include <vector>
 #include <random>
 #include <ygm/comm.hpp>
+#include <ygm/detail/std_traits.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
+#include <ygm/detail/ygm_traits.hpp>
 
 namespace ygm::container::detail {
 template <typename Item, typename Alloc = std::allocator<Item>>
@@ -101,13 +103,22 @@ class bag_impl {
 
   template <typename Function>
   void local_for_all(Function fn) {
-    std::for_each(m_local_bag.begin(), m_local_bag.end(), fn);
+    if constexpr (ygm::detail::is_std_pair<Item>) {
+      local_for_all_pair_types(fn);  // pairs get special handling
+    } else {
+      if constexpr (std::is_invocable<decltype(fn), Item &>()) {
+        std::for_each(m_local_bag.begin(), m_local_bag.end(), fn);
+      } else {
+        static_assert(ygm::detail::always_false<>,
+                      "local bag lambdas must be invocable with (value_type &) "
+                      "signatures");
+      }
+    }
   }
-
 
   std::vector<value_type> gather_to_vector(int dest) {
     std::vector<value_type> result;
-    auto p_res = m_comm.make_ygm_ptr(result);
+    auto                    p_res = m_comm.make_ygm_ptr(result);
     m_comm.barrier();
     auto gatherer = [](auto res, const std::vector<value_type> &outer_data) {
       res->insert(res->end(), outer_data.begin(), outer_data.end());
@@ -119,10 +130,10 @@ class bag_impl {
 
   std::vector<value_type> gather_to_vector() {
     std::vector<value_type> result;
-    auto p_res = m_comm.make_ygm_ptr(result);
+    auto                    p_res = m_comm.make_ygm_ptr(result);
     m_comm.barrier();
     auto result0 = gather_to_vector(0);
-    if(m_comm.rank0()){
+    if (m_comm.rank0()) {
       auto distribute = [](auto res, const std::vector<value_type> &data) {
         res->insert(res->end(), data.begin(), data.end());
       };
@@ -132,6 +143,23 @@ class bag_impl {
     return result;
   }
 
+ private:
+  template <typename Function>
+  void local_for_all_pair_types(Function fn) {
+    if constexpr (std::is_invocable<decltype(fn), Item &>()) {
+      std::for_each(m_local_bag.begin(), m_local_bag.end(), fn);
+    } else if constexpr (std::is_invocable<decltype(fn),
+                                           typename Item::first_type &,
+                                           typename Item::second_type &>()) {
+      for (auto &kv : m_local_bag) {
+        fn(kv.first, kv.second);
+      }
+    } else {
+      static_assert(ygm::detail::always_false<>,
+                    "local bag<pair> lambdas must be invocable with (pair &) "
+                    "or (pair::first_type &, pair::second_type &) signatures");
+    }
+  }
 
  protected:
   size_t                           m_round_robin = 0;

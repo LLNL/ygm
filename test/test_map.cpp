@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 #undef NDEBUG
+#include <algorithm>
 #include <string>
 #include <ygm/comm.hpp>
 #include <ygm/container/map.hpp>
@@ -64,45 +65,20 @@ int main(int argc, char **argv) {
   }
 
   //
-  // Test async_insert_if_missing (legacy lambdas)
-  {
-    ygm::container::map<std::string, std::string> smap(world);
-
-    smap.async_insert_if_missing("dog", "cat");
-    smap.async_insert_if_missing("apple", "orange");
-
-    world.barrier();
-
-    smap.async_insert_if_missing("dog", "dog");
-    smap.async_insert_if_missing("red", "green");
-
-    world.barrier();
-
-    smap.async_visit("dog", [](std::pair<const std::string, std::string> &s) {
-      ASSERT_RELEASE(s.second == "cat");
-    });
-    smap.async_visit("apple", [](std::pair<const std::string, std::string> &s) {
-      ASSERT_RELEASE(s.second == "orange");
-    });
-    smap.async_visit("red", [](std::pair<const std::string, std::string> &s) {
-      ASSERT_RELEASE(s.second == "green");
-    });
-  }
-
-  //
   // Test all ranks default & async_visit_if_exists
   {
     ygm::container::map<std::string, std::string> smap(world, "default_string");
-    smap.async_visit("dog", [](std::pair<const std::string, std::string> &s) {
-      ASSERT_RELEASE(s.first == "dog");
-      ASSERT_RELEASE(s.second == "default_string");
+    smap.async_visit("dog",
+                     [](const std::string &key, const std::string &value) {
+                       ASSERT_RELEASE(key == "dog");
+                       ASSERT_RELEASE(value == "default_string");
+                     });
+    smap.async_visit("cat", [](const std::string &key, std::string &value) {
+      ASSERT_RELEASE(key == "cat");
+      ASSERT_RELEASE(value == "default_string");
     });
-    smap.async_visit("cat", [](std::pair<const std::string, std::string> &s) {
-      ASSERT_RELEASE(s.first == "cat");
-      ASSERT_RELEASE(s.second == "default_string");
-    });
-    smap.async_visit_if_exists("red",
-                               [](const auto &p) { ASSERT_RELEASE(false); });
+    smap.async_visit_if_exists(
+        "red", [](const auto &k, const auto &v) { ASSERT_RELEASE(false); });
 
     ASSERT_RELEASE(smap.count("dog") == 1);
     ASSERT_RELEASE(smap.count("cat") == 1);
@@ -134,7 +110,9 @@ int main(int argc, char **argv) {
 
     smap.async_insert_if_missing_else_visit(
         "dog", "other_dog",
-        [](const auto &kv, const auto &new_value) { dog_visit_counter++; });
+        [](const auto &key, const auto &value, const auto &new_value) {
+          dog_visit_counter++;
+        });
 
     world.barrier();
 
@@ -144,7 +122,9 @@ int main(int argc, char **argv) {
 
     smap.async_insert_if_missing_else_visit(
         "apple", "orange",
-        [](const auto &kv, const auto &new_value) { apple_visit_counter++; });
+        [](const auto &key, const auto &value, const auto &new_value) {
+          apple_visit_counter++;
+        });
 
     world.barrier();
 
@@ -153,10 +133,43 @@ int main(int argc, char **argv) {
 
     if (world.rank0()) {
       smap.async_insert_if_missing_else_visit(
-          "red", "green", [](const auto &kv, const auto &new_value) {
+          "red", "green",
+          [](const auto &key, const auto &value, const auto &new_value) {
             ASSERT_RELEASE(true == false);
           });
     }
+  }
+
+  //
+  // Test async_reduce
+  {
+    ygm::container::map<std::string, int> smap(world);
+
+    int num_reductions = 5;
+    for (int i = 0; i < num_reductions; ++i) {
+      smap.async_reduce("sum", i, std::plus<int>());
+      smap.async_reduce("min", i, [](const int &a, const int &b) {
+        return std::min<int>(a, b);
+      });
+      smap.async_reduce("max", i, [](const int &a, const int &b) {
+        return std::max<int>(a, b);
+      });
+    }
+
+    world.barrier();
+
+    smap.for_all([&world, &num_reductions](const auto &key, const auto &value) {
+      if (key == "sum") {
+        ASSERT_RELEASE(value == world.size() * num_reductions *
+                                    (num_reductions - 1) / 2);
+      } else if (key == "min") {
+        ASSERT_RELEASE(value == 0);
+      } else if (key == "max") {
+        ASSERT_RELEASE(value == num_reductions - 1);
+      } else {
+        ASSERT_RELEASE(false);
+      }
+    });
   }
 
   //
@@ -184,10 +197,10 @@ int main(int argc, char **argv) {
   // Test map<vector>
   {
     ygm::container::map<std::string, std::vector<std::string>> smap(world);
-    auto str_push_back = [](std::pair<const auto, auto> &key_value,
-                            const std::string           &str) {
+    auto str_push_back = [](const auto &key, auto &value,
+                            const std::string &str) {
       // auto str_push_back = [](auto key_value, const std::string &str) {
-      key_value.second.push_back(str);
+      value.push_back(str);
     };
     if (world.rank0()) {
       smap.async_visit("foo", str_push_back, std::string("bar"));
@@ -223,23 +236,6 @@ int main(int argc, char **argv) {
     smap1.for_all([&smap2](const auto &key, const auto &value) {
       smap2.async_insert(key, value);
     });
-
-    ASSERT_RELEASE(smap2.count("dog") == 1);
-    ASSERT_RELEASE(smap2.count("apple") == 1);
-    ASSERT_RELEASE(smap2.count("red") == 1);
-  }
-
-  //
-  // Test for_all (legacy lambdas)
-  {
-    ygm::container::map<std::string, std::string> smap1(world);
-    ygm::container::map<std::string, std::string> smap2(world);
-
-    smap1.async_insert("dog", "cat");
-    smap1.async_insert("apple", "orange");
-    smap1.async_insert("red", "green");
-
-    smap1.for_all([&smap2](const auto &kv) { smap2.async_insert(kv); });
 
     ASSERT_RELEASE(smap2.count("dog") == 1);
     ASSERT_RELEASE(smap2.count("apple") == 1);

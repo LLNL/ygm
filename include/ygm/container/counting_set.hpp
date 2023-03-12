@@ -122,8 +122,8 @@ class counting_set {
     ASSERT_DEBUG(cached_count > 0);
     m_map.async_visit(
         key,
-        [](std::pair<const key_type, size_t> &key_count, int32_t to_add) {
-          key_count.second += to_add;
+        [](const key_type &key, size_t &count, int32_t to_add) {
+          count += to_add;
         },
         cached_count);
     m_count_cache[slot].first  = key_type();

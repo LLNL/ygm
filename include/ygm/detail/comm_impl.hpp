@@ -14,6 +14,7 @@
 #include <vector>
 
 #include <ygm/detail/comm_environment.hpp>
+#include <ygm/detail/comm_router.hpp>
 #include <ygm/detail/comm_stats.hpp>
 #include <ygm/detail/lambda_map.hpp>
 #include <ygm/detail/layout.hpp>
@@ -49,50 +50,6 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     // }
   };
 
-  // NR Routing
-  int next_hop(const int dest) {
-    ASSERT_RELEASE(config.routing);
-    //
-    // Trevor's
-    // if (m_layout.is_local(dest)) {
-    //   return dest;
-    // } else {
-    //   if (config.routing == detail::comm_environment::routing_type::NR) {
-    //     return m_layout.strided_ranks()[m_layout.node_id(dest)];
-    //   }  // else is NLNR
-    //   const auto [dest_node, dest_local] = m_layout.rank_to_nl(dest);
-    //   auto dest_layer_offset             = dest_node % m_layout.local_size();
-    //   if (m_layout.local_id() == dest_layer_offset) {
-    //     auto my_layer_offset = m_layout.node_id() % m_layout.local_size();
-    //     return m_layout.nl_to_rank(dest_node, my_layer_offset);
-    //   } else {
-    //     return m_layout.nl_to_rank(m_layout.node_id(), dest_layer_offset);
-    //   }
-    // }
-
-    //
-    //  Roger's hack
-    static int my_node_id          = m_layout.rank() / m_layout.local_size();
-    static int my_offset           = m_layout.rank() % m_layout.local_size();
-    static int my_node_r0          = my_node_id * m_layout.local_size();
-    static int my_node_nlnr_offset = my_node_id % m_layout.local_size();
-    int        dest_node           = dest / m_layout.local_size();
-    if (my_node_id == dest_node) {
-      return dest;
-    } else {
-      if (config.routing == detail::comm_environment::routing_type::NR) {
-        return dest_node * m_layout.local_size() + my_offset;
-      }  // else is NLNR
-
-      int responsible_core = my_node_r0 + (dest_node % m_layout.local_size());
-
-      if (m_layout.rank() == responsible_core) {
-        return (dest_node * m_layout.local_size()) + my_node_nlnr_offset;
-      }
-      return responsible_core;
-    }
-  }
-
   size_t pack_header(std::vector<std::byte> &packed, const int dest,
                      size_t size) {
     size_t size_before = packed.size();
@@ -111,7 +68,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   }
 
  public:
-  impl(MPI_Comm c) : m_layout(c) {
+  impl(MPI_Comm c) : m_layout(c), m_router(m_layout, config.routing) {
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_async));
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_barrier));
     ASSERT_MPI(MPI_Comm_dup(c, &m_comm_other));
@@ -175,6 +132,8 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   int size() const { return m_layout.size(); }
   int rank() const { return m_layout.rank(); }
 
+  MPI_Comm get_mpi_comm() const { return m_comm_other; }
+
   void stats_reset() { stats.reset(); }
   void stats_print(const std::string &name, std::ostream &os) {
     comm tmp_comm(shared_from_this());
@@ -192,8 +151,9 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     //
     //
     int next_dest = dest;
-    if (config.routing) {
-      next_dest = next_hop(dest);
+    if (config.routing != detail::routing_type::NONE) {
+      // next_dest = next_hop(dest);
+      next_dest = m_router.next_hop(dest);
     }
 
     //
@@ -206,7 +166,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
 
     // // Add header without message size
     size_t header_bytes = 0;
-    if (config.routing) {
+    if (config.routing != detail::routing_type::NONE) {
       header_bytes = pack_header(m_vec_send_buffers[next_dest], dest, 0);
       m_send_buffer_bytes += header_bytes;
     }
@@ -216,7 +176,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     m_send_buffer_bytes += bytes;
 
     // // Add message size to header
-    if (config.routing) {
+    if (config.routing != detail::routing_type::NONE) {
       auto iter = m_vec_send_buffers[next_dest].end();
       iter -= (header_bytes + bytes);
       std::memcpy(&*iter, &bytes, sizeof(header_t::dest));
@@ -405,6 +365,8 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
 
   const detail::layout &layout() const { return m_layout; }
 
+  const detail::comm_router &router() const { return m_router; }
+
  private:
   std::pair<uint64_t, uint64_t> barrier_reduce_counts() {
     uint64_t local_counts[2]  = {m_recv_count, m_send_count};
@@ -439,7 +401,9 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
           // std::cout << m_layout.rank() << ": iallreduce_complete: " <<
           // global_counts[0] << " " << global_counts[1] << std::endl;
         } else {
-          handle_next_receive(twin_status[i]);
+          mpi_irecv_request req_buffer = m_recv_queue.front();
+          m_recv_queue.pop_front();
+          handle_next_receive(twin_status[i], req_buffer.buffer);
           flush_all_local_and_process_incoming();
         }
       }
@@ -667,19 +631,29 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
                        (c->layout().node_size() % c->layout().local_size() > 0);
       int num_ranks_per_layer =
           c->layout().local_size() * c->layout().local_size();
-      int layer_comm_partner_offset =
-          c->layout().local_id() * c->layout().local_size() +
-          c->layout().node_id() % c->layout().local_size();
-      int curr_partner = layer_comm_partner_offset;
-      for (int l = 0; l < num_layers; l++) {
-        if (curr_partner >= c->layout().size()) {
-          break;
-        }
-        if (!c->layout().is_local(curr_partner)) {
-          c->pimpl->queue_message_bytes(packed_msg, curr_partner);
-        }
+      int node_partner_offset =
+          (c->layout().local_id() - c->layout().node_id()) %
+          c->layout().local_size();
 
-        curr_partner += num_ranks_per_layer;
+      // % operator is remainder, not actually mod. Need to fix result if result
+      // was negative
+      if (node_partner_offset < 0) {
+        node_partner_offset += c->layout().local_size();
+      }
+
+      // Only forward remotely if initial remote node exists
+      if (node_partner_offset < c->layout().node_size()) {
+        int curr_partner = c->layout().strided_ranks()[node_partner_offset];
+        for (int l = 0; l < num_layers; l++) {
+          if (curr_partner >= c->layout().size()) {
+            break;
+          }
+          if (!c->layout().is_local(curr_partner)) {
+            c->pimpl->queue_message_bytes(packed_msg, curr_partner);
+          }
+
+          curr_partner += num_ranks_per_layer;
+        }
       }
 
       auto t1 = std::make_tuple((comm *)c);
@@ -758,7 +732,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     // Add dummy header with dest of -1 and size of 0.
     // This is to avoid peeling off and replacing the dest as messages are
     // forwarded in a bcast
-    if (config.routing) {
+    if (config.routing != detail::routing_type::NONE) {
       size_t header_bytes = pack_header(send_buff, -1, 0);
       m_send_buffer_bytes += header_bytes;
     }
@@ -776,15 +750,16 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
    */
   static void reference() {}
 
-  void handle_next_receive(MPI_Status status) {
+  void handle_next_receive(MPI_Status                   status,
+                           std::shared_ptr<std::byte[]> buffer) {
     comm tmp_comm(shared_from_this());
     int  count{0};
     ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &count));
     stats.irecv(status.MPI_SOURCE, count);
     // std::cout << m_layout.rank() << ": received " << count << std::endl;
-    cereal::YGMInputArchive iarchive(m_recv_queue.front().buffer.get(), count);
+    cereal::YGMInputArchive iarchive(buffer.get(), count);
     while (!iarchive.empty()) {
-      if (config.routing) {
+      if (config.routing != detail::routing_type::NONE) {
         header_t h;
         iarchive.loadBinary(&h, sizeof(header_t));
         if (h.dest == m_layout.rank() ||
@@ -795,7 +770,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
           m_recv_count++;
           stats.rpc_execute();
         } else {
-          int next_dest = next_hop(h.dest);
+          int next_dest = m_router.next_hop(h.dest);
 
           if (m_vec_send_buffers[next_dest].empty()) {
             m_send_dest_queue.push_back(next_dest);
@@ -822,8 +797,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
         stats.rpc_execute();
       }
     }
-    post_new_irecv(m_recv_queue.front().buffer);
-    m_recv_queue.pop_front();
+    post_new_irecv(buffer);
     flush_to_capacity();
   }
 
@@ -864,8 +838,10 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
           m_free_send_buffers.push_back(m_send_queue.front().buffer);
           m_send_queue.pop_front();
         } else {  // completed an iRecv -- COPIED FROM BELOW
-          received_to_return = true;
-          handle_next_receive(twin_status[i]);
+          received_to_return           = true;
+          mpi_irecv_request req_buffer = m_recv_queue.front();
+          m_recv_queue.pop_front();
+          handle_next_receive(twin_status[i], req_buffer.buffer);
         }
       }
     } else {
@@ -889,8 +865,10 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
       ASSERT_MPI(MPI_Test(&(m_recv_queue.front().request), &flag, &status));
       stats.irecv_test();
       if (flag) {
-        received_to_return = true;
-        handle_next_receive(status);
+        received_to_return           = true;
+        mpi_irecv_request req_buffer = m_recv_queue.front();
+        m_recv_queue.pop_front();
+        handle_next_receive(status, req_buffer.buffer);
       } else {
         break;  // not ready yet
       }
@@ -928,6 +906,7 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   detail::comm_stats             stats;
   const detail::comm_environment config;
   const detail::layout           m_layout;
+  detail::comm_router            m_router;
 
   ygm::detail::lambda_map<void (*)(comm *, cereal::YGMInputArchive *), uint16_t>
       m_lambda_map;
@@ -997,8 +976,14 @@ inline void comm::async_mcast(const std::vector<int> &dests, AsyncFunction fn,
 
 inline const detail::layout &comm::layout() const { return pimpl->layout(); }
 
+inline const detail::comm_router &comm::router() const {
+  return pimpl->router();
+}
+
 inline int comm::size() const { return pimpl->size(); }
 inline int comm::rank() const { return pimpl->rank(); }
+
+inline MPI_Comm comm::get_mpi_comm() const { return pimpl->get_mpi_comm(); }
 
 inline void comm::barrier() { pimpl->barrier(); }
 
