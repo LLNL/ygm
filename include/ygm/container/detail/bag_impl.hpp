@@ -12,6 +12,7 @@
 #include <ygm/detail/std_traits.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
+#include <ygm/random.hpp>
 
 namespace ygm::container::detail {
 template <typename Item, typename Alloc = std::allocator<Item>>
@@ -53,14 +54,12 @@ class bag_impl {
     m_local_bag.swap(s.m_local_bag);
   }
 
-  template <typename RandomFunc>
-  void local_shuffle(RandomFunc r) {
+  void local_shuffle(ygm::default_random_engine<> r) {
     m_comm.barrier();
     std::shuffle(m_local_bag.begin(), m_local_bag.end(), r);
   }
 
-  template <typename RandomFunc>
-  void global_shuffle(RandomFunc r) {
+  void global_shuffle(ygm::default_random_engine<> r) {
     m_comm.barrier();
     std::vector<value_type> old_local_bag;
     std::swap(old_local_bag, m_local_bag);
@@ -69,8 +68,9 @@ class bag_impl {
       bag->m_local_bag.push_back(item);
     }; 
 
+    std::uniform_int_distribution<> distrib(0, m_comm.size()-1);
     for (value_type i : old_local_bag) {
-        m_comm.async((r() % m_comm.size()), send_item, pthis, i);
+        m_comm.async(distrib(r), send_item, pthis, i);
     }
   }
 

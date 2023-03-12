@@ -5,6 +5,8 @@
 
 #pragma once
 #include <ygm/container/detail/bag_impl.hpp>
+// #include <ygm/detail/random.hpp>
+#include <ygm/random.hpp>
 
 namespace ygm::container {
 template <typename Item, typename Alloc = std::allocator<Item>>
@@ -29,11 +31,11 @@ class bag {
 
   void swap(self_type &s) { m_impl.swap(s.m_impl); }
 
-  template <typename RandomFunc>
-  void local_shuffle(RandomFunc r) { m_impl.local_shuffle(r); }
+  // template <typename RandomEngine>
+  void local_shuffle(ygm::default_random_engine<> r) { m_impl.local_shuffle(r); }
 
-  template <typename RandomFunc>
-  void global_shuffle(RandomFunc r) { m_impl.global_shuffle(r); }
+  // template <typename RandomEngine>
+  void global_shuffle(ygm::default_random_engine<> r) { m_impl.global_shuffle(r); }
 
   template <typename Function>
   void local_for_all(Function fn) {

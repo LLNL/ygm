@@ -8,6 +8,7 @@
 #include <string>
 #include <ygm/comm.hpp>
 #include <ygm/container/bag.hpp>
+#include <ygm/random.hpp>
 
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
@@ -49,11 +50,13 @@ int main(int argc, char** argv) {
         bbag.async_insert(i);
       }
     }
-    std::default_random_engine rand_eng1 = std::default_random_engine(std::random_device()());
-    bbag.local_shuffle(rand_eng1);
+    std::uint32_t seed = 100;
+    ygm::default_random_engine<> rng1 = ygm::default_random_engine<>(world, seed);
+    bbag.local_shuffle(rng1);
 
-    std::default_random_engine rand_eng2 = std::default_random_engine(std::random_device()());
-    bbag.global_shuffle(rand_eng2);
+    ygm::default_random_engine<> rng2 = ygm::default_random_engine<>(world, seed);
+    // std::default_random_engine rand_eng2 = std::default_random_engine(std::random_device()());
+    bbag.global_shuffle(rng2);
 
     ASSERT_RELEASE(bbag.size() == num_of_items);
 
@@ -67,6 +70,8 @@ int main(int argc, char** argv) {
       }
       ASSERT_RELEASE(all_items_present);
     }
+  }
+
   //
   // Test for_all
   {
