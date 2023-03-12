@@ -55,7 +55,6 @@ int main(int argc, char** argv) {
     bbag.local_shuffle(rng1);
 
     ygm::default_random_engine<> rng2 = ygm::default_random_engine<>(world, seed);
-    // std::default_random_engine rand_eng2 = std::default_random_engine(std::random_device()());
     bbag.global_shuffle(rng2);
 
     ASSERT_RELEASE(bbag.size() == num_of_items);
