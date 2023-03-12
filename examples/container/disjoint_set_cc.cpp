@@ -37,8 +37,7 @@ int main(int argc, char** argv) {
   connected_components.all_compress();
 
   world.cout0("Person : Representative");
-  connected_components.for_all([&world](const auto& person_rep_pair) {
-    std::cout << person_rep_pair.first << " : " << person_rep_pair.second
-              << std::endl;
+  connected_components.for_all([&world](const auto& person, const auto& rep) {
+    std::cout << person << " : " << rep << std::endl;
   });
 }

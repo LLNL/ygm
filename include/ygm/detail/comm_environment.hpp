@@ -6,12 +6,15 @@
 #pragma once
 
 #include <cstdlib>
+#include <iostream>
 #include <sstream>
 #include <string>
 
 namespace ygm {
 
 namespace detail {
+
+enum class routing_type { NONE, NR, NLNR };
 
 /**
  * @brief Configuration enviornment for ygm::comm.
@@ -53,11 +56,11 @@ class comm_environment {
     }
     if (const char* cc = std::getenv("YGM_COMM_ROUTING")) {
       if (std::string(cc) == "NONE") {
-        routing = NONE;
+        routing = routing_type::NONE;
       } else if (std::string(cc) == "NR") {
-        routing = NR;
+        routing = routing_type::NR;
       } else if (std::string(cc) == "NLNR") {
-        routing = NLNR;
+        routing = routing_type::NLNR;
       } else {
         throw std::runtime_error("comm_enviornment -- unknown routing type");
       }
@@ -73,13 +76,13 @@ class comm_environment {
        << "YGM_COMM_ISSEND_FREQ     = " << freq_issend << "\n"
        << "YGM_COMM_ROUTING         = ";
     switch (routing) {
-      case NONE:
+      case routing_type::NONE:
         os << "NONE\n";
         break;
-      case NR:
+      case routing_type::NR:
         os << "NR\n";
         break;
-      case NLNR:
+      case routing_type::NLNR:
         os << "NLNR\n";
         break;
     }
@@ -96,8 +99,7 @@ class comm_environment {
   size_t num_isends_wait = 4;
   size_t freq_issend     = 8;
 
-  enum routing_type { NONE = 0, NR = 1, NLNR = 2 };
-  routing_type routing = NONE;
+  routing_type routing = routing_type::NONE;
 
   bool welcome = false;
 };
