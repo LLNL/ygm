@@ -31,9 +31,13 @@ class bag {
 
   void swap(self_type &s) { m_impl.swap(s.m_impl); }
 
-  void local_shuffle(ygm::default_random_engine<> r) { m_impl.local_shuffle(r); }
+  template <typename RandomEngine>
+  void local_shuffle(ygm::default_random_engine<RandomEngine> &r) { m_impl.local_shuffle(r); }
+  void local_shuffle() { m_impl.local_shuffle(); }
 
-  void global_shuffle(ygm::default_random_engine<> r) { m_impl.global_shuffle(r); }
+  template <typename RandomEngine>
+  void global_shuffle(ygm::default_random_engine<RandomEngine> &r) { m_impl.global_shuffle(r); }
+  void global_shuffle() { m_impl.global_shuffle(); }
 
   template <typename Function>
   void local_for_all(Function fn) {

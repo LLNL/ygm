@@ -54,12 +54,19 @@ class bag_impl {
     m_local_bag.swap(s.m_local_bag);
   }
 
-  void local_shuffle(ygm::default_random_engine<> r) {
+  template <typename RandomEngine>
+  void local_shuffle(ygm::default_random_engine<RandomEngine> &r) {
     m_comm.barrier();
     std::shuffle(m_local_bag.begin(), m_local_bag.end(), r);
   }
 
-  void global_shuffle(ygm::default_random_engine<> r) {
+  void local_shuffle() {
+    ygm::default_random_engine<> r(m_comm, std::random_device()());
+    local_shuffle(r);
+  }
+
+  template <typename RandomEngine>
+  void global_shuffle(ygm::default_random_engine<RandomEngine> &r) {
     m_comm.barrier();
     std::vector<value_type> old_local_bag;
     std::swap(old_local_bag, m_local_bag);
@@ -72,6 +79,11 @@ class bag_impl {
     for (value_type i : old_local_bag) {
         m_comm.async(distrib(r), send_item, pthis, i);
     }
+  }
+
+  void global_shuffle() {
+    ygm::default_random_engine<> r(m_comm, std::random_device()());
+    global_shuffle(r);
   }
 
   ygm::comm &comm() { return m_comm; }
