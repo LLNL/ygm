@@ -50,24 +50,25 @@ int main(int argc, char** argv) {
         bbag.async_insert(i);
       }
     }
-    std::uint32_t seed = 100;
+    int seed = 100;
     ygm::default_random_engine<> rng1 = ygm::default_random_engine<>(world, seed);
     bbag.local_shuffle(rng1);
 
     ygm::default_random_engine<> rng2 = ygm::default_random_engine<>(world, seed);
     bbag.global_shuffle(rng2);
+  
+    bbag.local_shuffle();
+    bbag.global_shuffle();
 
     ASSERT_RELEASE(bbag.size() == num_of_items);
 
     auto bag_content = bbag.gather_to_vector(0);
     if (world.rank0()) {
-      bool all_items_present = true;
       for (int i = 0; i < num_of_items; i++) {
         if (std::find(bag_content.begin(), bag_content.end(), i) == bag_content.end()) {
-          all_items_present = false;
+          ASSERT_RELEASE(false);
         }
       }
-      ASSERT_RELEASE(all_items_present);
     }
   }
 

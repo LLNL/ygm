@@ -54,8 +54,8 @@ class bag_impl {
     m_local_bag.swap(s.m_local_bag);
   }
 
-  template <typename RandomEngine>
-  void local_shuffle(ygm::default_random_engine<RandomEngine> &r) {
+  template <typename RandomFunc>
+  void local_shuffle(RandomFunc &r) {
     m_comm.barrier();
     std::shuffle(m_local_bag.begin(), m_local_bag.end(), r);
   }
@@ -65,8 +65,8 @@ class bag_impl {
     local_shuffle(r);
   }
 
-  template <typename RandomEngine>
-  void global_shuffle(ygm::default_random_engine<RandomEngine> &r) {
+  template <typename RandomFunc>
+  void global_shuffle(RandomFunc &r) {
     m_comm.barrier();
     std::vector<value_type> old_local_bag;
     std::swap(old_local_bag, m_local_bag);
