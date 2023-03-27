@@ -47,6 +47,63 @@ int main(int argc, char **argv) {
   }
 
   //
+  // Test async_insert_exe_if_contains
+  {
+    static bool              found = false;
+    ygm::container::set<int> iset(world);
+    iset.async_insert_exe_if_contains(world.rank(), [](int) { found = true; });
+    world.barrier();
+    ASSERT_RELEASE(not found);
+
+    iset.async_insert_exe_if_contains(world.rank(), [](int) { found = true; });
+    world.barrier();
+    ASSERT_RELEASE(found);
+  }
+
+  //
+  // Test async_insert_exe_if_missing
+  {
+    static bool              missing = false;
+    ygm::container::set<int> iset(world);
+    iset.async_insert_exe_if_missing(world.rank(), [](int) { missing = true; });
+    world.barrier();
+    ASSERT_RELEASE(missing);
+  }
+
+  //
+  // Test async_exe_if_missing
+  {
+    static bool              missing = false;
+    ygm::container::set<int> iset(world);
+    iset.async_exe_if_missing(world.rank(), [](int) { missing = true; });
+    world.barrier();
+    ASSERT_RELEASE(missing);
+
+    iset.async_insert(world.rank());
+    world.barrier();
+
+    iset.async_exe_if_missing(world.rank(), [](int) { ASSERT_RELEASE(false); });
+    world.barrier();
+  }
+
+  //
+  // Test async_exe_if_contains
+  {
+    static bool              found = false;
+    ygm::container::set<int> iset(world);
+    iset.async_exe_if_contains(world.rank(), [](int) { found = true; });
+    world.barrier();
+    ASSERT_RELEASE(not found);
+
+    iset.async_insert(world.rank());
+    world.barrier();
+
+    iset.async_exe_if_contains(world.rank(), [](int) { found = true; });
+    world.barrier();
+    ASSERT_RELEASE(found);
+  }
+
+  //
   // Test swap & async_set
   {
     ygm::container::set<std::string> sset(world);
