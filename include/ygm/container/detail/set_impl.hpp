@@ -54,6 +54,69 @@ class set_impl {
     m_comm.async(dest, erase_wrapper, pthis, key);
   }
 
+  template <typename Visitor, typename... VisitorArgs>
+  void async_insert_exe_if_missing(const key_type &key, Visitor visitor,
+                                   const VisitorArgs &...args) {
+    auto insert_and_visit = [](auto mailbox, auto pset, const key_type &key,
+                               const VisitorArgs &...args) {
+      if (pset->m_local_set.count(key) == 0) {
+        pset->m_local_set.insert(key);
+        Visitor *vis = nullptr;
+        std::apply(*vis, std::forward_as_tuple(key, args...));
+      }
+    };
+    int dest = owner(key);
+    m_comm.async(dest, insert_and_visit, pthis, key,
+                 std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_insert_exe_if_contains(const key_type &key, Visitor visitor,
+                                    const VisitorArgs &...args) {
+    auto insert_and_visit = [](auto mailbox, auto pset, const key_type &key,
+                               const VisitorArgs &...args) {
+      if (pset->m_local_set.count(key) == 0) {
+        pset->m_local_set.insert(key);
+      } else {
+        Visitor *vis = nullptr;
+        std::apply(*vis, std::forward_as_tuple(key, args...));
+      }
+    };
+    int dest = owner(key);
+    m_comm.async(dest, insert_and_visit, pthis, key,
+                 std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_exe_if_missing(const key_type &key, Visitor visitor,
+                            const VisitorArgs &...args) {
+    auto checker = [](auto mailbox, auto pset, const key_type &key,
+                      const VisitorArgs &...args) {
+      if (pset->m_local_set.count(key) == 0) {
+        Visitor *vis = nullptr;
+        std::apply(*vis, std::forward_as_tuple(key, args...));
+      }
+    };
+    int dest = owner(key);
+    m_comm.async(dest, checker, pthis, key,
+                 std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_exe_if_contains(const key_type &key, Visitor visitor,
+                             const VisitorArgs &...args) {
+    auto checker = [](auto mailbox, auto pset, const key_type &key,
+                      const VisitorArgs &...args) {
+      if (pset->m_local_set.count(key) == 1) {
+        Visitor *vis = nullptr;
+        std::apply(*vis, std::forward_as_tuple(key, args...));
+      }
+    };
+    int dest = owner(key);
+    m_comm.async(dest, checker, pthis, key,
+                 std::forward<const VisitorArgs>(args)...);
+  }
+
   template <typename Function>
   void for_all(Function fn) {
     m_comm.barrier();
