@@ -72,7 +72,7 @@ if (NOT cereal_FOUND)
     # to use this specific commit for now.
     FetchContent_Declare(
         cereal
-        GIT_REPOSITORY https://github.com/USCiLab/cereal
+        GIT_REPOSITORY https://github.com/USCiLab/cereal.git
         GIT_TAG af0700efb25e7dc7af637b9e6f970dbb94813bff
     )
     FetchContent_GetProperties(cereal)

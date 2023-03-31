@@ -519,7 +519,6 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     size_t                        size_before = packed.size();
     const std::tuple<PackArgs...> tuple_args(
         std::forward<const PackArgs>(args)...);
-    ASSERT_DEBUG(sizeof(Lambda) == 1);
 
     auto dispatch_lambda = [](comm *c, cereal::YGMInputArchive *bia, Lambda l) {
       Lambda *pl = nullptr;
@@ -549,7 +548,6 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
   void pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
     const std::tuple<PackArgs...> tuple_args(
         std::forward<const PackArgs>(args)...);
-    ASSERT_DEBUG(sizeof(Lambda) == 1);
 
     auto forward_remote_and_dispatch_lambda = [](comm                    *c,
                                                  cereal::YGMInputArchive *bia,
@@ -678,7 +676,6 @@ class comm::impl : public std::enable_shared_from_this<comm::impl> {
     size_t                        size_before = packed.size();
     const std::tuple<PackArgs...> tuple_args(
         std::forward<const PackArgs>(args)...);
-    ASSERT_DEBUG(sizeof(Lambda) == 1);
 
     auto remote_dispatch_lambda = [](comm *c, cereal::YGMInputArchive *bia) {
       RemoteLogicLambda *rll = nullptr;

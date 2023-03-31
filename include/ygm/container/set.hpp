@@ -78,6 +78,34 @@ class set {
 
   void async_erase(const key_type& key) { m_impl.async_erase(key); }
 
+  template <typename Visitor, typename... VisitorArgs>
+  void async_insert_exe_if_missing(const key_type& key, Visitor visitor,
+                                   const VisitorArgs&... args) {
+    m_impl.async_insert_exe_if_missing(
+        key, visitor, std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_insert_exe_if_contains(const key_type& key, Visitor visitor,
+                                    const VisitorArgs&... args) {
+    m_impl.async_insert_exe_if_contains(
+        key, visitor, std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_exe_if_missing(const key_type& key, Visitor visitor,
+                            const VisitorArgs&... args) {
+    m_impl.async_exe_if_missing(key, visitor,
+                                std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_exe_if_contains(const key_type& key, Visitor visitor,
+                             const VisitorArgs&... args) {
+    m_impl.async_exe_if_contains(key, visitor,
+                                 std::forward<const VisitorArgs>(args)...);
+  }
+
   template <typename Function>
   void for_all(Function fn) {
     m_impl.for_all(fn);
