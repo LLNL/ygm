@@ -8,6 +8,8 @@
 #include <fstream>
 #include <vector>
 #include <ygm/comm.hpp>
+#include <ygm/detail/random.hpp>
+#include <ygm/detail/sample.hpp>
 #include <ygm/detail/std_traits.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
@@ -91,6 +93,19 @@ class bag_impl {
                       "local bag lambdas must be invocable with (value_type &) "
                       "signatures");
       }
+    }
+  }
+
+  template <typename IntType, typename Function, typename RNG>
+  void local_for_random_samples(IntType count, Function fn,
+                                RNG gen = std::mt19937{
+                                    std::random_device{}()}) {
+    m_comm.barrier();
+    ASSERT_RELEASE(count < m_local_bag.size());
+    std::vector<std::size_t> samples =
+        ygm::detail::random_subset(0, m_local_bag.size(), count, gen);
+    for (const std::size_t sample : samples) {
+      fn(m_local_bag[sample]);
     }
   }
 

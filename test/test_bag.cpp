@@ -88,4 +88,29 @@ int main(int argc, char** argv) {
     world.barrier();
     ASSERT_RELEASE(global_count == 6);
   }
+
+  //
+  // Test local_for_random_samples
+  {
+    int size           = world.size() * 8;
+    int local_requests = 4;
+
+    ygm::container::bag<int> bbag(world);
+
+    if (world.rank0()) {
+      for (int i(0); i < size; ++i) {
+        bbag.async_insert(i);
+      }
+    }
+
+    world.barrier();
+
+    static int local_fulfilled(0);
+    bbag.local_for_random_samples(
+        local_requests, [&world](const auto& obj) { ++local_fulfilled; });
+
+    world.barrier();
+
+    ASSERT_RELEASE(local_requests == local_fulfilled);
+  }
 }

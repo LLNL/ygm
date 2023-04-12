@@ -222,7 +222,6 @@ int main(int argc, char **argv) {
       ASSERT_RELEASE(gmap["foo"].empty());
     }
   }
-
   //
   // Test for_all
   {
@@ -240,6 +239,37 @@ int main(int argc, char **argv) {
     ASSERT_RELEASE(smap2.count("dog") == 1);
     ASSERT_RELEASE(smap2.count("apple") == 1);
     ASSERT_RELEASE(smap2.count("red") == 1);
+  }
+
+  //
+  // Test local_for_random_samples
+  {
+    int size           = world.size() * 8;
+    int local_requests = 4;
+
+    ygm::container::map<int, int> imap(world);
+
+    if (world.rank0()) {
+      for (int i(0); i < size; ++i) {
+        imap.async_insert(i, i);
+      }
+    }
+
+    world.barrier();
+
+    std::mt19937 gen{std::random_device{}()};
+    static int   local_fulfilled(0);
+    imap.local_for_random_samples(
+        local_requests,
+        [&world](const auto &key, const auto &value) {
+          ASSERT_RELEASE(key == value);
+          ++local_fulfilled;
+        },
+        gen);
+
+    world.barrier();
+
+    ASSERT_RELEASE(local_requests == local_fulfilled);
   }
 
   return 0;
