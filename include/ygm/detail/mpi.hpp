@@ -81,6 +81,11 @@ inline MPI_Datatype mpi_typeof<uint64_t>(uint64_t) {
 }
 
 template <>
+inline MPI_Datatype mpi_typeof<size_t>(size_t) {
+  return MPI_UINT64_T;
+}
+
+template <>
 inline MPI_Datatype mpi_typeof<float>(float) {
   return MPI_FLOAT;
 }
