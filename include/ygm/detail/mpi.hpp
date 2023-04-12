@@ -80,8 +80,9 @@ inline MPI_Datatype mpi_typeof<uint64_t>(uint64_t) {
   return MPI_UINT64_T;
 }
 
+// This appears to be needed for std::size_t on some platforms
 template <>
-inline MPI_Datatype mpi_typeof<size_t>(size_t) {
+inline MPI_Datatype mpi_typeof<long unsigned int>(long unsigned int) {
   return MPI_UINT64_T;
 }
 
