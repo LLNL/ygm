@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <limits.h>
 #include <mpi.h>
 #include <ygm/detail/assert.hpp>
 #include <ygm/detail/ygm_traits.hpp>
@@ -80,11 +81,13 @@ inline MPI_Datatype mpi_typeof<uint64_t>(uint64_t) {
   return MPI_UINT64_T;
 }
 
+#if UINT_MAX != SIZE_MAX
 // This appears to be needed for std::size_t on some platforms
 template <>
-inline MPI_Datatype mpi_typeof<long unsigned int>(long unsigned int) {
+inline MPI_Datatype mpi_typeof<size_t>(size_t) {
   return MPI_UINT64_T;
 }
+#endif
 
 template <>
 inline MPI_Datatype mpi_typeof<float>(float) {
