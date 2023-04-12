@@ -77,17 +77,14 @@ inline MPI_Datatype mpi_typeof<uint32_t>(uint32_t) {
 }
 
 template <>
-inline MPI_Datatype mpi_typeof<uint64_t>(uint64_t) {
+inline MPI_Datatype mpi_typeof<unsigned long int>(unsigned long int) {
   return MPI_UINT64_T;
 }
 
-#if UINT_MAX != SIZE_MAX
-// This appears to be needed for std::size_t on some platforms
 template <>
-inline MPI_Datatype mpi_typeof<size_t>(size_t) {
+inline MPI_Datatype mpi_typeof<unsigned long long int>(unsigned long long int) {
   return MPI_UINT64_T;
 }
-#endif
 
 template <>
 inline MPI_Datatype mpi_typeof<float>(float) {
