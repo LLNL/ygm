@@ -23,6 +23,13 @@ class bag {
     m_impl.for_all(fn);
   }
 
+  template <typename IntType, typename Function, typename RNG = std::mt19937>
+  void local_for_random_samples(IntType count, Function fn,
+                                RNG gen = std::mt19937{
+                                    std::random_device{}()}) {
+    m_impl.local_for_random_samples(count, fn, gen);
+  }
+
   void clear() { m_impl.clear(); }
 
   size_t size() { return m_impl.size(); }
@@ -38,9 +45,12 @@ class bag {
 
   void serialize(const std::string &fname) { m_impl.serialize(fname); }
   void deserialize(const std::string &fname) { m_impl.deserialize(fname); }
-  std::vector<value_type> gather_to_vector(int dest) { return m_impl.gather_to_vector(dest); }
-  std::vector<value_type> gather_to_vector() { return m_impl.gather_to_vector(); }
-
+  std::vector<value_type> gather_to_vector(int dest) {
+    return m_impl.gather_to_vector(dest);
+  }
+  std::vector<value_type> gather_to_vector() {
+    return m_impl.gather_to_vector();
+  }
 
  private:
   detail::bag_impl<value_type> m_impl;

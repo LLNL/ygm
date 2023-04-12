@@ -11,6 +11,8 @@
 #include <ygm/comm.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
 #include <ygm/detail/interrupt_mask.hpp>
+#include <ygm/detail/random.hpp>
+#include <ygm/detail/sample.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
 
@@ -325,6 +327,34 @@ class map_impl {
                                     value_type &>()) {
       for (std::pair<const key_type, value_type> &kv : m_local_map) {
         fn(kv.first, kv.second);
+      }
+    } else {
+      static_assert(ygm::detail::always_false<>,
+                    "local map lambda signature must be invocable with (const "
+                    "&key_type, value_type&) signature");
+    }
+  }
+
+  template <typename IntType, typename Function, typename RNG = std::mt19937>
+  void local_for_random_samples(IntType count, Function fn,
+                                RNG gen = std::mt19937{
+                                    std::random_device{}()}) {
+    m_comm.barrier();
+    ASSERT_RELEASE(count < m_local_map.size());
+    std::vector<std::size_t> samples =
+        random_subset(0, m_local_map.size(), count, gen);
+    auto itr = std::begin(m_local_map);
+    if constexpr (std::is_invocable<decltype(fn), const key_type,
+                                    value_type &>()) {
+      for (const std::size_t sample : samples) {
+        auto cur_itr = std::next(itr, sample);
+        fn(cur_itr->first, cur_itr->second);
+      }
+    } else if constexpr (std::is_invocable<
+                             decltype(fn),
+                             std::pair<const key_type, value_type &>>()) {
+      for (const std::size_t sample : samples) {
+        fn(*std::next(itr, sample));
       }
     } else {
       static_assert(ygm::detail::always_false<>,

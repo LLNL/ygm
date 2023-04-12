@@ -141,5 +141,30 @@ int main(int argc, char **argv) {
     ASSERT_RELEASE(sset2.count("red") == 1);
   }
 
+  //
+  // Test local_for_random_samples
+  {
+    int size           = world.size() * 8;
+    int local_requests = 4;
+
+    ygm::container::set<int> iset(world);
+
+    if (world.rank0()) {
+      for (int i(0); i < size; ++i) {
+        iset.async_insert(i);
+      }
+    }
+
+    world.barrier();
+
+    static int local_fulfilled(0);
+    iset.local_for_random_samples(
+        local_requests, [&world](const auto &elem) { ++local_fulfilled; });
+
+    world.barrier();
+
+    ASSERT_RELEASE(local_requests == local_fulfilled);
+  }
+
   return 0;
 }
