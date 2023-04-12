@@ -103,7 +103,7 @@ class bag_impl {
     m_comm.barrier();
     ASSERT_RELEASE(count < m_local_bag.size());
     std::vector<std::size_t> samples =
-        random_subset(0, m_local_bag.size(), count, gen);
+        ygm::detail::random_subset(0, m_local_bag.size(), count, gen);
     for (const std::size_t sample : samples) {
       fn(m_local_bag[sample]);
     }

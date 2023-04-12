@@ -342,7 +342,7 @@ class map_impl {
     m_comm.barrier();
     ASSERT_RELEASE(count < m_local_map.size());
     std::vector<std::size_t> samples =
-        random_subset(0, m_local_map.size(), count, gen);
+        ygm::detail::random_subset(0, m_local_map.size(), count, gen);
     auto itr = std::begin(m_local_map);
     if constexpr (std::is_invocable<decltype(fn), const key_type,
                                     value_type &>()) {

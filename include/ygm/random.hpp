@@ -9,8 +9,11 @@
 
 namespace ygm {
 
-/// @brief A simple offset rng alias
-/// @tparam RandomEngine The underlying random engine, e.g. std::mt19937
+/**
+ * @brief A simple offset RNG alias.
+ *
+ * @tparam RandomEngine The underlying random engine, e.g. std::mt19937
+ */
 template <typename RandomEngine = std::mt19937>
 using default_random_engine =
     ygm::detail::random_engine<RandomEngine, ygm::detail::simple_offset>;

@@ -11,21 +11,32 @@
 
 namespace ygm::detail {
 
-/// @brief Applies a simple offset to the specified seed according to rank index
-/// @tparam ResultType The random number (seed) type; defaults to std::mt19937
-/// @param comm The ygm::comm to be used
-/// @param seed The specified seed
-/// @return simply returns seed + rank
+/**
+ * @brief Applies a simple offset to the specified seed according to rank index.
+ *
+ * @tparam ResultType The random number (seed) type.
+ * @param comm The ygm::comm to be used.
+ * @param seed The specified seed
+ * @return ResultType simply returns seed + rank.
+ */
 template <typename ResultType>
 ResultType simple_offset(ygm::comm &comm, ResultType seed) {
   return seed + comm.rank();
 }
 
-/// @brief A wrapper around a per-rank random engine that manipulates each
-///        rank's seed according to a specified strategy
-/// @tparam RandomEngine The underlying random engine, e.g. std::mt19337
-/// @tparam Function A `(ygm::comm, result_type) -> result_type` function that
-///         modifies seeds for each rank
+/// @brief
+/// @tparam RandomEngine
+/// @tparam Function
+
+/**
+ * @brief A wrapper around a per-rank random engine that manipulates each rank's
+ * seed according to a specified strategy
+ *
+ * @tparam RandomEngine The underlying random engine, e.g. std::mt19337.
+ * @tparam (*Function)(
+ * ygm::comm &, typename RandomEngine::result_type) A `(ygm::comm, result_type)
+-> result_type` function that modifies seeds for each rank.
+ */
 template <typename RandomEngine,
           typename RandomEngine::result_type (*Function)(
               ygm::comm &, typename RandomEngine::result_type)>

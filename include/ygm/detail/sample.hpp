@@ -9,14 +9,20 @@
 #include <unordered_set>
 #include <vector>
 
-namespace ygm {
+namespace ygm::detail {
 
-/// @brief sample a set of `count` elements from the range `[lb,ub]` without
-/// replacement. Based upon the algorithm by Robert Floyd.
-/// @param lb the lower bound of the range
-/// @param ub the upper bound of the range
-/// @param count the number of samples to draw
-/// @return returns a vector
+/**
+ * @brief sample a set of `count` elements from the range `[lb,ub]` without
+ * replacement. Based upon the algorithm by Robert Floyd.
+ *
+ * @tparam RNGType The random number generator type to be applied.
+ * @param lb The lower bound of the range.
+ * @param ub The upper bound of the range.
+ * @param count The number of samples to draw.
+ * @param gen The RNG object to be used.
+ * @return std::vector<std::size_t> The `count` elements from the specified
+ * range.
+ */
 template <typename RNGType = std::mt19937>
 std::vector<std::size_t> random_subset(std::size_t lb, std::size_t ub,
                                        std::size_t count,
@@ -42,4 +48,4 @@ std::vector<std::size_t> random_subset(std::size_t lb, std::size_t ub,
   }
   return vec;
 }
-}  // namespace ygm
+}  // namespace ygm::detail

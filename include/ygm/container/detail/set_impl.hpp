@@ -194,7 +194,7 @@ class set_impl {
     m_comm.barrier();
     ASSERT_RELEASE(count < m_local_set.size());
     std::vector<std::size_t> samples =
-        random_subset(0, m_local_set.size(), count, gen);
+        ygm::detail::random_subset(0, m_local_set.size(), count, gen);
     auto itr = std::begin(m_local_set);
     for (const std::size_t sample : samples) {
       fn(*std::next(itr, sample));
