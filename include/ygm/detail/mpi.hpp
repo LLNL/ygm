@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include <limits.h>
 #include <mpi.h>
 #include <ygm/detail/assert.hpp>
 #include <ygm/detail/ygm_traits.hpp>
