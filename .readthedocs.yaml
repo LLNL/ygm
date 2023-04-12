@@ -1,0 +1,10 @@
+version: 2
+
+# Change the location of the requirements file
+python:
+  install:
+    - requirements: docs/rtd/requirements.txt
+
+# Change the location of the configuration file
+sphinx:
+  configuration: docs/rtd/conf.py
