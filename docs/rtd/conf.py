@@ -13,7 +13,7 @@ author = "LLNL YGM team"
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ["breathe"]
+extensions = ["breathe", "sphinx_rtd_theme"]
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
@@ -26,6 +26,7 @@ html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
 
 # Breathe Configuration
+breathe_projects = {"ygm": "https://github.com/LLNL/ygm"}
 breathe_default_project = "ygm"
 
 
@@ -62,4 +63,4 @@ if read_the_docs_build:
     # Breathe Configuration
     # Specify the directory where the doxygen xml files are generated,
     # which is determined by the CMakeLists.txt file in docs/
-    breathe_projects = {"ygm": build_dir + "/xml"}
+    breathe_projects = {"ygm": build_dir + "/docs/xml"}

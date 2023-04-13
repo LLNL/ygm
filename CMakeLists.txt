@@ -20,13 +20,6 @@ endif ()
 # Expects CMAKE_INSTALL_PREFIX to be set to a suitable directory.
 option(YGM_INSTALL "Generate the install target" ${YGM_MAIN_PROJECT})
 
-#
-# Doxygen/Read the Docs (RTD) documentation
-#
-option(YGM_DOXYGEN "Add targets for generating documentation" OFF)
-option(YGM_RTD_ONLY
-       "Run CMake for only generating documentation for Read the Docs" OFF
-)
 # Only do these if this is the main project, and not if it is included through
 # add_subdirectory
 if (YGM_MAIN_PROJECT)
@@ -39,14 +32,21 @@ if (YGM_MAIN_PROJECT)
     # main CMakeLists.
     include(CTest)
 
-    set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
-    if (YGM_DOXYGEN OR YGM_RTD_ONLY)
-        add_subdirectory(docs)
-        if (YGM_RTD_ONLY)
-            return()
-        endif ()
-    endif ()
+endif ()
 
+set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
+#
+# Doxygen/Read the Docs (RTD) documentation
+#
+option(YGM_DOXYGEN "Add targets for generating documentation" OFF)
+option(YGM_RTD_ONLY
+       "Run CMake for only generating documentation for Read the Docs" OFF
+)
+if (YGM_DOXYGEN OR YGM_RTD_ONLY)
+    add_subdirectory(docs)
+    if (YGM_RTD_ONLY)
+        return()
+    endif ()
 endif ()
 
 # Require out-of-source builds
