@@ -62,4 +62,4 @@ if read_the_docs_build:
     # Breathe Configuration
     # Specify the directory where the doxygen xml files are generated,
     # which is determined by the CMakeLists.txt file in docs/
-    breathe_projects = {"ygm": build_dir + "/docs/xml/"}
+    breathe_projects = {"ygm": build_dir + "/xml"}
