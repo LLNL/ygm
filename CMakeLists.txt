@@ -20,6 +20,13 @@ endif ()
 # Expects CMAKE_INSTALL_PREFIX to be set to a suitable directory.
 option(YGM_INSTALL "Generate the install target" ${YGM_MAIN_PROJECT})
 
+#
+# Doxygen/Read the Docs (RTD) documentation
+#
+option(YGM_DOXYGEN "Add targets for generating documentation" OFF)
+option(YGM_RTD_ONLY
+       "Run CMake for only generating documentation for Read the Docs" OFF
+)
 # Only do these if this is the main project, and not if it is included through
 # add_subdirectory
 if (YGM_MAIN_PROJECT)
@@ -32,13 +39,14 @@ if (YGM_MAIN_PROJECT)
     # main CMakeLists.
     include(CTest)
 
-    # Docs only available if this is the main app
-    find_package(Doxygen)
-    if (Doxygen_FOUND)
-        # add_subdirectory(docs)
-    else ()
-        message(STATUS "Doxygen not found, not building docs")
+    set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
+    if (YGM_DOXYGEN OR YGM_RTD_ONLY)
+        add_subdirectory(docs)
+        if (YGM_RTD_ONLY)
+            return()
+        endif ()
     endif ()
+
 endif ()
 
 # Require out-of-source builds
@@ -133,29 +141,32 @@ endif ()
 #
 # Arrow
 #
-#
 find_package(Arrow 8.0 QUIET)
 if (NOT Arrow_FOUND)
-	find_package(Arrow 9.0 QUIET)
-endif()
+    find_package(Arrow 9.0 QUIET)
+endif ()
 if (NOT Arrow_FOUND)
-	find_package(Arrow 10.0 QUIET)
-endif()
+    find_package(Arrow 10.0 QUIET)
+endif ()
 if (Arrow_FOUND)
-   message(STATUS ${PROJECT_NAME} " found Arrow ")
-   message(STATUS "Arrow version: ${ARROW_VERSION}")
-   message(STATUS "Arrow SO version: ${ARROW_FULL_SO_VERSION}")
-   set(ARROW_CMAKE_DIR ${Arrow_DIR})
-   find_package(Parquet PATHS ${ARROW_CMAKE_DIR})
-   if (Parquet_FOUND)
-       message(STATUS ${PROJECT_NAME} " found Parquet ")
-       message(STATUS "Parquet version: ${PARQUET_VERSION}")
-       message(STATUS "Parquet SO version: ${PARQUET_FULL_SO_VERSION}") 
-   else ()
-       message(WARNING ${PROJECT_NAME} " did not find Parquet. Building without Parquet.") 
-   endif () 
+    message(STATUS ${PROJECT_NAME} " found Arrow ")
+    message(STATUS "Arrow version: ${ARROW_VERSION}")
+    message(STATUS "Arrow SO version: ${ARROW_FULL_SO_VERSION}")
+    set(ARROW_CMAKE_DIR ${Arrow_DIR})
+    find_package(Parquet PATHS ${ARROW_CMAKE_DIR})
+    if (Parquet_FOUND)
+        message(STATUS ${PROJECT_NAME} " found Parquet ")
+        message(STATUS "Parquet version: ${PARQUET_VERSION}")
+        message(STATUS "Parquet SO version: ${PARQUET_FULL_SO_VERSION}")
+    else ()
+        message(WARNING ${PROJECT_NAME}
+                        " did not find Parquet. Building without Parquet."
+        )
+    endif ()
 else ()
-   message(WARNING ${PROJECT_NAME} " did not find Arrow >= 8.0. Building without Arrow.") 
+    message(WARNING ${PROJECT_NAME}
+                    " did not find Arrow >= 8.0. Building without Arrow."
+    )
 endif ()
 
 #
@@ -228,8 +239,8 @@ if (JUST_INSTALL_YGM)
 endif ()
 
 if (NOT CMAKE_BUILD_TYPE)
-	set(CMAKE_BUILD_TYPE Release)
-	message(STATUS "CMAKE_BUILD_TYPE is set as Release")
+    set(CMAKE_BUILD_TYPE Release)
+    message(STATUS "CMAKE_BUILD_TYPE is set as Release")
 endif ()
 
 # Testing & examples are only available if this is the main app
