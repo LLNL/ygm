@@ -10,7 +10,8 @@ YGM library documentation
    :maxdepth: 2
    :caption: Contents:
 
-
+   ygm/comm
+   ygm/container
 
 Indices and tables
 ==================
