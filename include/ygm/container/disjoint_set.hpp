@@ -24,7 +24,7 @@ class disjoint_set {
 
   template <typename Function, typename... FunctionArgs>
   void async_union_and_execute(const value_type &a, const value_type &b,
-                               Function fn, const FunctionArgs &... args) {
+                               Function fn, const FunctionArgs &...args) {
     m_impl.async_union_and_execute(a, b, fn,
                                    std::forward<const FunctionArgs>(args)...);
   }
@@ -47,9 +47,9 @@ class disjoint_set {
 
   typename ygm::ygm_ptr<impl_type> get_ygm_ptr() const {
     return m_impl.get_ygm_ptr();
-  }  
- 
-private:
+  }
+
+ private:
   impl_type m_impl;
 };
 }  // namespace ygm::container
