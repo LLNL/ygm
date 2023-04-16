@@ -9,6 +9,7 @@
 #include <ygm/comm.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
+#include <ygm/detail/ygm_traits.hpp>
 
 namespace ygm::container::detail {
 template <typename Item, typename Partitioner>
@@ -261,9 +262,18 @@ class disjoint_set_impl {
 
               // Perform user function after merge
               Function *f = nullptr;
-              ygm::meta::apply_optional(
-                  *f, std::make_tuple(p_dset),
-                  std::forward_as_tuple(orig_a, orig_b, args...));
+              if constexpr (std::is_invocable<decltype(fn), const value_type &,
+                                              const value_type &,
+                                              FunctionArgs &...>()) {
+                ygm::meta::apply_optional(
+                    *f, std::make_tuple(p_dset),
+                    std::forward_as_tuple(orig_a, orig_b, args...));
+              } else {
+                static_assert(
+                    ygm::detail::always_false<>,
+                    "remote disjoint_set lambda signature must be invocable "
+                    "with (const value_type &, const value_type &) signature");
+              }
 
               return;
 
@@ -405,10 +415,32 @@ class disjoint_set_impl {
   void for_all(Function fn) {
     all_compress();
 
-    const auto end = m_local_item_parent_map.end();
-    for (auto iter = m_local_item_parent_map.begin(); iter != end; ++iter) {
-      const auto &[item, rank_parent_pair] = *iter;
-      fn(std::make_pair(item, rank_parent_pair.get_parent()));
+    if constexpr (std::is_invocable<decltype(fn), const value_type &,
+                                    const value_type &>()) {
+      const auto end = m_local_item_parent_map.end();
+      for (auto iter = m_local_item_parent_map.begin(); iter != end; ++iter) {
+        const auto &[item, rank_parent_pair] = *iter;
+        fn(item, rank_parent_pair.get_parent());
+      }
+    } else {
+      static_assert(ygm::detail::always_false<>,
+                    "local disjoint_set lambda signature must be invocable "
+                    "with (const value_type &, const value_type &) signature");
+      /*
+=======
+if constexpr (std::is_invocable<decltype(fn), const value_type &,
+                  const value_type &>()) {
+for (const std::pair<value_type, value_type> &item_rep :
+m_local_item_parent_map) {
+const auto [item, rep] = item_rep;
+fn(item, rep);
+}
+} else {
+static_assert(ygm::detail::always_false<>,
+  "local disjoint_set lambda signature must be invocable "
+  "with (const value_type &, const value_type &) signature");
+>>>>>>> upstream/develop
+*/
     }
   }
 

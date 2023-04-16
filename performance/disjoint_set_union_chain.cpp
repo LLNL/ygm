@@ -95,9 +95,9 @@ int main(int argc, char **argv) {
     {
       size_t min_rep = std::numeric_limits<size_t>::max();
       size_t max_rep = 0;
-      dset.for_all([&min_rep, &max_rep](const auto &kv_pair) {
-        min_rep = std::min(min_rep, kv_pair.second);
-        max_rep = std::max(max_rep, kv_pair.second);
+      dset.for_all([&min_rep, &max_rep](const auto &item, const auto &rep) {
+        min_rep = std::min(min_rep, rep);
+        max_rep = std::max(max_rep, rep);
       });
 
       min_rep = world.all_reduce_min(min_rep);
@@ -127,9 +127,9 @@ int main(int argc, char **argv) {
     {
       size_t min_rep = std::numeric_limits<size_t>::max();
       size_t max_rep = 0;
-      dset.for_all([&min_rep, &max_rep](const auto &kv_pair) {
-        min_rep = std::min(min_rep, kv_pair.second);
-        max_rep = std::max(max_rep, kv_pair.second);
+      dset.for_all([&min_rep, &max_rep](const auto &item, const auto &rep) {
+        min_rep = std::min(min_rep, rep);
+        max_rep = std::max(max_rep, rep);
       });
 
       min_rep = world.all_reduce_min(min_rep);
