@@ -7,11 +7,13 @@
 #include <cereal/archives/json.hpp>
 #include <fstream>
 #include <vector>
-#include <map>
+#include <string>
+#include <cmath>
 #include <utility>
 #include <algorithm>
 #include <random>
 #include <ygm/comm.hpp>
+#include <ygm/collective.hpp>
 #include <ygm/detail/std_traits.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
@@ -61,6 +63,15 @@ class bag_impl {
     value_type back_val = m_local_bag.back();
     m_local_bag.pop_back();
     return back_val;
+  }
+
+  std::vector<value_type> local_pop(int n) {
+    size_t new_size = local_size() - n;
+    auto pop_start = m_local_bag.begin() + new_size;
+    std::vector<value_type> ret;
+    ret.assign(pop_start, m_local_bag.end());
+    m_local_bag.resize(new_size);
+    return ret;
   }
 
   void clear() {
