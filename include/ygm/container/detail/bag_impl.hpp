@@ -7,10 +7,12 @@
 #include <cereal/archives/json.hpp>
 #include <fstream>
 #include <vector>
-#include <map>
+#include <string>
+#include <cmath>
 #include <utility>
 #include <algorithm>
 #include <ygm/comm.hpp>
+#include <ygm/collective.hpp>
 #include <ygm/detail/std_traits.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
@@ -61,6 +63,15 @@ class bag_impl {
     return back_val;
   }
 
+  std::vector<value_type> local_pop(int n) {
+    size_t new_size = local_size() - n;
+    auto pop_start = m_local_bag.begin() + new_size;
+    std::vector<value_type> ret;
+    ret.assign(pop_start, m_local_bag.end());
+    m_local_bag.resize(new_size);
+    return ret;
+  }
+
   void clear() {
     m_comm.barrier();
     m_local_bag.clear();
@@ -79,57 +90,24 @@ class bag_impl {
   void rebalance() {
     m_comm.barrier();
 
-    size_t lsize = local_size();
-    size_t* SA = (size_t*)malloc(sizeof(size_t) * m_comm.size());
-    MPI_Allgather(&lsize, 1, ygm::detail::mpi_typeof(size_t()),
-                  SA, 1, ygm::detail::mpi_typeof(size_t()), 
-                  m_comm.get_mpi_comm());
-    
-    size_t target = size() / m_comm.size() + (m_comm.rank() < size() % m_comm.size());
-    size_t* TA = (size_t*)malloc(sizeof(size_t) * m_comm.size());
-    MPI_Allgather(&target, 1, ygm::detail::mpi_typeof(size_t()),
-                  TA, 1, ygm::detail::mpi_typeof(size_t()),
-                  m_comm.get_mpi_comm());
+    // Find current rank's prefix val and desired target size
+    size_t prefix_val = ygm::prefix_sum(local_size(), m_comm);
+    size_t target_size = std::ceil((size() * 1.0) / m_comm.size());
 
-    std::vector< std::pair<int, size_t> > send_vect;
-
-    /* Concurrently iterate through two iterable variables
-     *   - c: Cur rank with excess items
-     *   - i: Input rank taking items from c
-     */
-    int c = 0;
-    for (int i = 0; i < m_comm.size(); i++) {
-      while (SA[i] < TA[i]) { 
-        while (SA[c] <= TA[c]) {
-          c++; 
-        }
-
-        size_t i_needed = TA[i] - SA[i];
-        size_t c_excess = SA[c] - TA[c];
-        size_t transfer_num = std::min(i_needed, c_excess);
-
-        if (c == m_comm.rank()) {
-          send_vect.push_back(std::make_pair(i, transfer_num));
-        }
-
-        SA[c] -= transfer_num;
-        SA[i] += transfer_num;
-      }
-
-      // There is no point in calculating anything higher than personal rank
-      if (c > m_comm.rank()) {
-        break;
-      }
+    // Init to_send array where index is dest and value is the num to send
+    int to_send[m_comm.size()] = {0};
+    for (int i = 0; i < local_size(); i++) {
+      size_t idx = prefix_val + i;
+      int target_rank = idx / target_size;
+      if (target_rank != m_comm.rank()) 
+        to_send[target_rank]++;
     }
+    m_comm.barrier();
 
-    for (auto it: send_vect) {
-      std::vector<value_type> send_vals(it.second);
-      for (int i = 0; i < it.second; i++) {
-        send_vals[i] = local_pop();
-      }
-      async_insert(send_vals, it.first);
-    }
-
+    // Build and send bag indexes as calculated by to_send
+    for (int r = 0; r < m_comm.size(); r++)
+      if (to_send[r] > 0)
+        async_insert(local_pop(to_send[r]), r);
     m_comm.barrier();
   }
 
