@@ -142,10 +142,12 @@ int main(int argc, char** argv) {
       bbag.async_insert("middle", world.size()/2);
     bbag.rebalance();
 
-    if (world.rank0())
-      ASSERT_RELEASE(bbag.local_size() == 3);
+    size_t target_size = std::ceil((bbag.size() * 1.0) / world.size());
+    size_t remainder = bbag.size() % target_size;
+    if (world.rank() != world.size() - 1)
+      ASSERT_RELEASE(bbag.local_size() == target_size);
     else
-      ASSERT_RELEASE(bbag.local_size() == 2);
+      ASSERT_RELEASE(bbag.local_size() == remainder);
   }
 
   //
