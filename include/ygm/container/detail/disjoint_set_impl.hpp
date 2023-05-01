@@ -113,7 +113,10 @@ class disjoint_set_impl {
           Function *f = nullptr;
           if constexpr (std::is_invocable<decltype(fn), const value_type &,
                                           const value_type &,
-                                          FunctionArgs &...>()) {
+                                          FunctionArgs &...>() ||
+                        std::is_invocable<
+                            decltype(fn), self_ygm_ptr_type, const value_type &,
+                            const value_type &, FunctionArgs &...>()) {
             ygm::meta::apply_optional(
                 *f, std::make_tuple(pdset),
                 std::forward_as_tuple(orig_a, orig_b, args...));
