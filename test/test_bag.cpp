@@ -8,6 +8,7 @@
 #include <string>
 #include <ygm/comm.hpp>
 #include <ygm/container/bag.hpp>
+#include <ygm/random.hpp>
 
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
@@ -36,6 +37,38 @@ int main(int argc, char** argv) {
     auto all_data = bbag.gather_to_vector(0);
     if (world.rank0()) {
       ASSERT_RELEASE(all_data.size() == 3 * (size_t)world.size());
+    }
+  }
+
+  //
+  // Test local_shuffle and global_shuffle
+  {
+    ygm::container::bag<int> bbag(world);
+    int num_of_items = 20;
+    if (world.rank0()) {
+      for (int i = 0; i < num_of_items; i++) {
+        bbag.async_insert(i);
+      }
+    }
+    int seed = 100;
+    ygm::default_random_engine<> rng1 = ygm::default_random_engine<>(world, seed);
+    bbag.local_shuffle(rng1);
+
+    ygm::default_random_engine<> rng2 = ygm::default_random_engine<>(world, seed);
+    bbag.global_shuffle(rng2);
+  
+    bbag.local_shuffle();
+    bbag.global_shuffle();
+
+    ASSERT_RELEASE(bbag.size() == num_of_items);
+
+    auto bag_content = bbag.gather_to_vector(0);
+    if (world.rank0()) {
+      for (int i = 0; i < num_of_items; i++) {
+        if (std::find(bag_content.begin(), bag_content.end(), i) == bag_content.end()) {
+          ASSERT_RELEASE(false);
+        }
+      }
     }
   }
 
