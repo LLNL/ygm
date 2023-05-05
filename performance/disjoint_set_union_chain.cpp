@@ -92,13 +92,19 @@ int main(int argc, char **argv) {
     //             world.all_reduce_max(world.local_rpc_calls()));
 
     // Checking answer
-    auto my_parents_star = dset.all_find(my_unions);
+    {
+      size_t min_rep = std::numeric_limits<size_t>::max();
+      size_t max_rep = 0;
+      dset.for_all([&min_rep, &max_rep](const auto &item, const auto &rep) {
+        min_rep = std::min(min_rep, rep);
+        max_rep = std::max(max_rep, rep);
+      });
 
-    for (const auto &item_parent : my_parents_star) {
-      ASSERT_RELEASE(item_parent.second == 1);
+      min_rep = world.all_reduce_min(min_rep);
+      max_rep = world.all_reduce_max(max_rep);
+
+      ASSERT_RELEASE(min_rep == max_rep);
     }
-
-    // world.reset_rpc_call_counter();
 
     world.barrier();
 
@@ -118,13 +124,20 @@ int main(int argc, char **argv) {
     //             world.all_reduce_max(world.local_rpc_calls()));
 
     // Checking answer
-    auto my_parents = dset.all_find(my_unions);
+    {
+      size_t min_rep = std::numeric_limits<size_t>::max();
+      size_t max_rep = 0;
+      dset.for_all([&min_rep, &max_rep](const auto &item, const auto &rep) {
+        min_rep = std::min(min_rep, rep);
+        max_rep = std::max(max_rep, rep);
+      });
 
-    for (const auto &item_parent : my_parents) {
-      ASSERT_RELEASE(item_parent.second == 1);
+      min_rep = world.all_reduce_min(min_rep);
+      max_rep = world.all_reduce_max(max_rep);
+
+      ASSERT_RELEASE(min_rep == max_rep);
     }
 
-    // world.reset_rpc_call_counter();
     world.barrier();
   }
 

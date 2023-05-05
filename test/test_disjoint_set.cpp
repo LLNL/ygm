@@ -28,6 +28,7 @@ int main(int argc, char** argv) {
     if (world.rank0()) {
       dset.async_union("cat", "dog");
     }
+    world.barrier();
 
     std::vector<std::string> to_find = {"cat", "dog", "car"};
 
