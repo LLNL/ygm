@@ -377,6 +377,8 @@ class disjoint_set_impl {
       }
     };
 
+    m_comm.barrier();
+
     level = max_rank();
     while (level > 0) {
       --level;  // Start at second highest level
