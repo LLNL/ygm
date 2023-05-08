@@ -418,7 +418,10 @@ class disjoint_set_impl {
     all_compress();
 
     if constexpr (std::is_invocable<decltype(fn), const value_type &,
-                                    const value_type &>()) {
+                                    const value_type &>() ||
+                  std::is_invocable<decltype(fn), self_ygm_ptr_type,
+                                    const value_type &, const value_type &,
+                                    FunctionArgs &...>()) {
       const auto end = m_local_item_parent_map.end();
       for (auto iter = m_local_item_parent_map.begin(); iter != end; ++iter) {
         const auto &[item, rank_parent_pair] = *iter;
