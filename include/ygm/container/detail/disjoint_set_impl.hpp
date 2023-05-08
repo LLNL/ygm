@@ -264,6 +264,10 @@ class disjoint_set_impl {
               Function *f = nullptr;
               if constexpr (std::is_invocable<decltype(fn), const value_type &,
                                               const value_type &,
+                                              FunctionArgs &...>() ||
+                            std::is_invocable<decltype(fn), self_ygm_ptr_type,
+                                              const value_type &,
+                                              const value_type &,
                                               FunctionArgs &...>()) {
                 ygm::meta::apply_optional(
                     *f, std::make_tuple(p_dset),
@@ -418,10 +422,7 @@ class disjoint_set_impl {
     all_compress();
 
     if constexpr (std::is_invocable<decltype(fn), const value_type &,
-                                    const value_type &>() ||
-                  std::is_invocable<decltype(fn), self_ygm_ptr_type,
-                                    const value_type &, const value_type &,
-                                    FunctionArgs &...>()) {
+                                    const value_type &>()) {
       const auto end = m_local_item_parent_map.end();
       for (auto iter = m_local_item_parent_map.begin(); iter != end; ++iter) {
         const auto &[item, rank_parent_pair] = *iter;
@@ -431,21 +432,6 @@ class disjoint_set_impl {
       static_assert(ygm::detail::always_false<>,
                     "local disjoint_set lambda signature must be invocable "
                     "with (const value_type &, const value_type &) signature");
-      /*
-=======
-if constexpr (std::is_invocable<decltype(fn), const value_type &,
-                  const value_type &>()) {
-for (const std::pair<value_type, value_type> &item_rep :
-m_local_item_parent_map) {
-const auto [item, rep] = item_rep;
-fn(item, rep);
-}
-} else {
-static_assert(ygm::detail::always_false<>,
-  "local disjoint_set lambda signature must be invocable "
-  "with (const value_type &, const value_type &) signature");
->>>>>>> upstream/develop
-*/
     }
   }
 
