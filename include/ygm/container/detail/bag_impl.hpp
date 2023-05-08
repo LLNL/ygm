@@ -7,10 +7,12 @@
 #include <cereal/archives/json.hpp>
 #include <fstream>
 #include <vector>
+#include <random>
 #include <ygm/comm.hpp>
 #include <ygm/detail/std_traits.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
+#include <ygm/random.hpp>
 
 namespace ygm::container::detail {
 template <typename Item, typename Alloc = std::allocator<Item>>
@@ -50,6 +52,38 @@ class bag_impl {
   void swap(self_type &s) {
     m_comm.barrier();
     m_local_bag.swap(s.m_local_bag);
+  }
+
+  template <typename RandomFunc>
+  void local_shuffle(RandomFunc &r) {
+    m_comm.barrier();
+    std::shuffle(m_local_bag.begin(), m_local_bag.end(), r);
+  }
+
+  void local_shuffle() {
+    ygm::default_random_engine<> r(m_comm, std::random_device()());
+    local_shuffle(r);
+  }
+
+  template <typename RandomFunc>
+  void global_shuffle(RandomFunc &r) {
+    m_comm.barrier();
+    std::vector<value_type> old_local_bag;
+    std::swap(old_local_bag, m_local_bag);
+
+    auto send_item = [](auto bag, const value_type &item) {
+      bag->m_local_bag.push_back(item);
+    }; 
+
+    std::uniform_int_distribution<> distrib(0, m_comm.size()-1);
+    for (value_type i : old_local_bag) {
+        m_comm.async(distrib(r), send_item, pthis, i);
+    }
+  }
+
+  void global_shuffle() {
+    ygm::default_random_engine<> r(m_comm, std::random_device()());
+    global_shuffle(r);
   }
 
   ygm::comm &comm() { return m_comm; }
