@@ -12,6 +12,10 @@
 #include <utility>
 #include <algorithm>
 #include <random>
+#include <string>
+#include <cmath>
+#include <utility>
+#include <algorithm>
 #include <ygm/comm.hpp>
 #include <ygm/collective.hpp>
 #include <ygm/detail/std_traits.hpp>
@@ -38,7 +42,6 @@ class bag_impl {
     int dest = (m_round_robin++ + m_comm.rank()) % m_comm.size();
     m_comm.async(dest, inserter, pthis, item);
   }
-
   void async_insert(const value_type &item, int dest) {
     auto inserter = [](auto mailbox, auto map, const value_type &item) {
       map->m_local_bag.push_back(item);
