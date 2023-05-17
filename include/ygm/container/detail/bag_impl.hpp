@@ -46,7 +46,7 @@ class bag_impl {
     m_comm.async(dest, inserter, pthis, item);
   }
 
-  void async_insert(const std::vector<value_type> item, int dest) {
+  void async_insert(const std::vector<value_type>& item, int dest) {
     auto inserter = [](auto mailbox, auto map, const std::vector<value_type> item) {
       map->m_local_bag.insert(map->m_local_bag.end(), item.begin(), item.end());
     };
@@ -66,6 +66,8 @@ class bag_impl {
   }
 
   std::vector<value_type> local_pop(int n) {
+    ASSERT_RELEASE(n <= local_size());
+
     size_t new_size = local_size() - n;
     auto pop_start = m_local_bag.begin() + new_size;
     std::vector<value_type> ret;
@@ -97,17 +99,19 @@ class bag_impl {
     size_t target_size = std::ceil((size() * 1.0) / m_comm.size());
 
     // Init to_send array where index is dest and value is the num to send
-    int to_send[m_comm.size()] = {0};
-    for (int i = 0; i < local_size(); i++) {
+    //int to_send[m_comm.size()] = {0};
+    std::unordered_map<size_t, size_t> to_send;
+    
+    for (size_t i = 0; i < local_size(); i++) {
       size_t idx = prefix_val + i;
-      int target_rank = idx / target_size;
+      size_t target_rank = idx / target_size;
       if (target_rank != m_comm.rank()) 
         to_send[target_rank]++;
     }
     m_comm.barrier();
 
     // Build and send bag indexes as calculated by to_send
-    for (int r = 0; r < m_comm.size(); r++)
+    for (size_t r = 0; r < m_comm.size(); r++)
       if (to_send[r] > 0)
         async_insert(local_pop(to_send[r]), r);
     m_comm.barrier();
