@@ -6,6 +6,8 @@
 #pragma once
 
 #include <ygm/container/detail/map_impl.hpp>
+#include <ygm/container/detail/container_traits.hpp>
+
 namespace ygm::container {
 
 template <typename Key, typename Value,
@@ -14,11 +16,13 @@ template <typename Key, typename Value,
           class Alloc          = std::allocator<std::pair<const Key, Value>>>
 class map {
  public:
-  using self_type  = map<Key, Value, Partitioner, Compare, Alloc>;
-  using value_type = Value;
-  using key_type   = Key;
+  using self_type           = map<Key, Value, Partitioner, Compare, Alloc>;
+  using value_type          = Value;
+  using key_type            = Key;
+  using ygm_container_type  = ygm::container::detail::map_tag;
   using impl_type =
       detail::map_impl<key_type, value_type, Partitioner, Compare, Alloc>;
+
   map() = delete;
 
   map(ygm::comm& comm) : m_impl(comm) {}

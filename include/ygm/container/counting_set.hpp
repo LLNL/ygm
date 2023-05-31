@@ -8,6 +8,7 @@
 #include <ygm/comm.hpp>
 #include <ygm/container/map.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
+#include <ygm/container/detail/container_traits.hpp>
 
 namespace ygm::container {
 
@@ -16,9 +17,10 @@ template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
           class Alloc      = std::allocator<std::pair<const Key, size_t>>>
 class counting_set {
  public:
-  using self_type  = counting_set<Key, Partitioner, Compare, Alloc>;
-  using key_type   = Key;
-  using value_type = size_t;
+  using self_type           = counting_set<Key, Partitioner, Compare, Alloc>;
+  using key_type            = Key;
+  using ygm_container_type  = ygm::container::detail::counting_set_tag;
+  using value_type          = size_t;
   const size_t count_cache_size = 1024 * 1024;
 
   counting_set(ygm::comm &comm) : m_map(comm, value_type(0)), pthis(this) {

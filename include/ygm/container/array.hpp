@@ -6,16 +6,19 @@
 #pragma once
 
 #include <ygm/container/detail/array_impl.hpp>
+#include <ygm/container/detail/container_traits.hpp>
+
 namespace ygm::container {
 
 template <typename Value, typename Index = size_t>
 class array {
  public:
-  using self_type  = array<Value, Index>;
-  using value_type = Value;
-  using index_type = Index;
-  using key_type   = Index;
-  using impl_type  = detail::array_impl<value_type, index_type>;
+  using self_type           = array<Value, Index>;
+  using value_type          = Value;
+  using index_type          = Index;
+  using key_type            = Index;
+  using ygm_container_type  = ygm::container::detail::array_tag;
+  using impl_type           = detail::array_impl<value_type, index_type>;
 
   array() = delete;
 

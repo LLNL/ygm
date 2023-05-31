@@ -4,15 +4,18 @@
 // SPDX-License-Identifier: MIT
 
 #pragma once
+
 #include <ygm/container/detail/disjoint_set_impl.hpp>
+#include <ygm/container/detail/container_traits.hpp>
 
 namespace ygm::container {
 template <typename Item, typename Partitioner = detail::hash_partitioner<Item>>
 class disjoint_set {
  public:
-  using self_type  = disjoint_set<Item, Partitioner>;
-  using value_type = Item;
-  using impl_type  = detail::disjoint_set_impl<Item, Partitioner>;
+  using self_type           = disjoint_set<Item, Partitioner>;
+  using value_type          = Item;
+  using ygm_container_type  = ygm::container::detail::disjoint_set_tag;
+  using impl_type           = detail::disjoint_set_impl<Item, Partitioner>;
 
   disjoint_set() = delete;
 
