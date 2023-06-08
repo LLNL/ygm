@@ -18,12 +18,15 @@ template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
 class counting_set {
  public:
   using self_type           = counting_set<Key, Partitioner, Compare, Alloc>;
+  using mapped_type         = size_t;
   using key_type            = Key;
+  using ygm_for_all_types   = std::tuple< Key, size_t >;
   using ygm_container_type  = ygm::container::detail::counting_set_tag;
-  using value_type          = size_t;
+  //using value_type          = size_t;
+
   const size_t count_cache_size = 1024 * 1024;
 
-  counting_set(ygm::comm &comm) : m_map(comm, value_type(0)), pthis(this) {
+  counting_set(ygm::comm &comm) : m_map(comm, mapped_type(0)), pthis(this) {
     m_count_cache.resize(count_cache_size, {key_type(), -1});
   }
 
@@ -60,17 +63,17 @@ class counting_set {
   bool is_mine(const key_type &key) const { return m_map.is_mine(key); }
 
   template <typename CompareFunction>
-  std::vector<std::pair<key_type, value_type>> topk(size_t          k,
+  std::vector<std::pair<key_type, mapped_type>> topk(size_t          k,
                                                     CompareFunction cfn) {
     return m_map.topk(k, cfn);
   }
 
   template <typename STLKeyContainer>
-  std::map<key_type, value_type> all_gather(const STLKeyContainer &keys) {
+  std::map<key_type, mapped_type> all_gather(const STLKeyContainer &keys) {
     return m_map.all_gather(keys);
   }
 
-  std::map<key_type, value_type> all_gather(const std::vector<key_type> &keys) {
+  std::map<key_type, mapped_type> all_gather(const std::vector<key_type> &keys) {
     return m_map.all_gather(keys);
   }
 
@@ -142,10 +145,10 @@ class counting_set {
   }
   counting_set() = delete;
 
-  std::vector<std::pair<Key, int32_t>>              m_count_cache;
-  bool                                              m_cache_empty = true;
-  map<Key, value_type, Partitioner, Compare, Alloc> m_map;
-  typename ygm::ygm_ptr<self_type>                  pthis;
+  std::vector<std::pair<Key, int32_t>>                m_count_cache;
+  bool                                                m_cache_empty = true;
+  map<Key, mapped_type, Partitioner, Compare, Alloc>  m_map;
+  typename ygm::ygm_ptr<self_type>                    pthis;
 };
 
 }  // namespace ygm::container
