@@ -14,8 +14,10 @@ template <typename Container, typename ReductionOp>
 class reducing_adapter {
  public:
   using self_type         = reducing_adapter<Container, ReductionOp>;
+  using mapped_type       = typename Container::mapped_type;
   using key_type          = typename Container::key_type;
-  using value_type        = typename Container::value_type;
+  //using value_type        = typename Container::value_type;
+  
   const size_t cache_size = 1024 * 1024;
 
   reducing_adapter(Container &c, ReductionOp reducer)
@@ -26,18 +28,18 @@ class reducing_adapter {
 
   ~reducing_adapter() { m_container.comm().barrier(); }
 
-  void async_reduce(const key_type &key, const value_type &value) {
+  void async_reduce(const key_type &key, const mapped_type &value) {
     cache_reduce(key, value);
   }
 
  private:
   struct cache_entry {
-    key_type   key;
-    value_type value;
-    bool       occupied = false;
+    key_type      key;
+    mapped_type   value;
+    bool          occupied = false;
   };
 
-  void cache_reduce(const key_type &key, const value_type &value) {
+  void cache_reduce(const key_type &key, const mapped_type &value) {
     // Bypass cache if current rank owns key
     if (m_container.comm().rank() == m_container.owner(key)) {
       container_reduction(key, value);
@@ -76,7 +78,7 @@ class reducing_adapter {
     m_container.comm().async(
         next_dest,
         [](auto p_reducing_adapter, const key_type &key,
-           const value_type &value) {
+           const mapped_type &value) {
           p_reducing_adapter->cache_reduce(key, value);
         },
         pthis, m_cache[slot].key, m_cache[slot].value);
@@ -93,7 +95,7 @@ class reducing_adapter {
     m_cache_empty = true;
   }
 
-  void container_reduction(const key_type &key, const value_type &value) {
+  void container_reduction(const key_type &key, const mapped_type &value) {
     if constexpr(ygm::container::detail::check_ygm_container_type<
                     Container, 
                     ygm::container::detail::map_tag>()) {
