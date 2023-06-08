@@ -6,7 +6,7 @@
 #pragma once
 
 #include <ygm/container/detail/disjoint_set_impl.hpp>
-#include <ygm/container/detail/container_traits.hpp>
+#include <ygm/container/container_traits.hpp>
 
 namespace ygm::container {
 template <typename Item, typename Partitioner = detail::hash_partitioner<Item>>

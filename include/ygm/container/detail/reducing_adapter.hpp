@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 #pragma once
-#include <ygm/container/detail/container_traits.hpp>
+#include <ygm/container/container_traits.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
 

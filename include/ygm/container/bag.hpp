@@ -8,7 +8,7 @@
 #include <ygm/container/detail/bag_impl.hpp>
 // #include <ygm/detail/random.hpp>
 #include <ygm/random.hpp>
-#include <ygm/container/detail/container_traits.hpp>
+#include <ygm/container/container_traits.hpp>
 
 namespace ygm::container {
 template <typename Item, typename Alloc = std::allocator<Item>>

@@ -8,7 +8,7 @@
 #include <ygm/comm.hpp>
 #include <ygm/container/map.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
-#include <ygm/container/detail/container_traits.hpp>
+#include <ygm/container/container_traits.hpp>
 
 namespace ygm::container {
 

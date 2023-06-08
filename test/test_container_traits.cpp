@@ -6,7 +6,7 @@
 #undef NDEBUG
 
 #include <ygm/comm.hpp>
-#include <ygm/container/detail/container_traits.hpp>
+#include <ygm/container/container_traits.hpp>
 
 #include <ygm/container/array.hpp>
 #include <ygm/container/bag.hpp>
