@@ -16,11 +16,12 @@ template <typename Item, typename Partitioner>
 class disjoint_set_impl {
  public:
   class rank_parent_t;
-  using self_type         = disjoint_set_impl<Item, Partitioner>;
-  using self_ygm_ptr_type = typename ygm::ygm_ptr<self_type>;
-  using value_type        = Item;
-  using rank_type         = int16_t;
-  using parent_map_type   = std::map<value_type, rank_parent_t>;
+  using self_type           = disjoint_set_impl<Item, Partitioner>;
+  using self_ygm_ptr_type   = typename ygm::ygm_ptr<self_type>;
+  using value_type          = Item;
+  using ygm_for_all_types   = std::tuple< Item, Item >;
+  using rank_type           = int16_t;
+  using parent_map_type     = std::map<value_type, rank_parent_t>;
 
   Partitioner partitioner;
 
