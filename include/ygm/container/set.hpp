@@ -17,6 +17,7 @@ class multiset {
  public:
   using self_type           = multiset<Key, Partitioner, Compare, Alloc>;
   using key_type            = Key;
+  using ygm_for_all_types   = std::tuple< Key >;
   using impl_type           = detail::set_impl<key_type, Partitioner, Compare, Alloc>;
 
   Partitioner partitioner;
