@@ -16,6 +16,7 @@ class bag {
  public:
   using self_type           = bag<Item, Alloc>;
   using value_type          = Item;
+  using ygm_for_all_types   = std::tuple< Item >;
   using ygm_container_type  = ygm::container::detail::bag_tag;
   using impl_type           = detail::bag_impl<Item, Alloc>;
 

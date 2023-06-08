@@ -19,6 +19,7 @@ template <typename Item, typename Alloc = std::allocator<Item>>
 class bag_impl {
  public:
   using value_type = Item;
+  using ygm_for_all_types   = std::tuple< Item >;
   using self_type  = bag_impl<Item, Alloc>;
 
   bag_impl(ygm::comm &comm) : m_comm(comm), pthis(this) { pthis.check(m_comm); }
