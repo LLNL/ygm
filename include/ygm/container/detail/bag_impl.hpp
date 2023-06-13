@@ -115,10 +115,8 @@ class bag_impl {
     m_comm.barrier();
 
     // Build and send bag indexes as calculated by to_send
-    for (size_t r = 0; r < m_comm.size(); r++) {
-      if (to_send.find(r) != to_send.end()) {
-        async_insert(local_pop(to_send[r]), r);
-      }
+    for (auto &kv_pair : to_send) {
+      async_insert(local_pop(kv_pair.second), kv_pair.first);
     }
 
     m_comm.barrier();
