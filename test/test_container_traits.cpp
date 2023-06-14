@@ -29,63 +29,63 @@ int main(int argc, char** argv) {
     int                               i;
 
     {
-        static_assert(ygm::container::detail::is_array(test_array));
-        static_assert(not ygm::container::detail::is_array(test_bag));
-        static_assert(not ygm::container::detail::is_array(test_counting_set));
-        static_assert(not ygm::container::detail::is_array(test_disjoint_set)); 
-        static_assert(not ygm::container::detail::is_array(test_map));
-        static_assert(not ygm::container::detail::is_array(test_set));
-        static_assert(not ygm::container::detail::is_array(i));
+        static_assert(ygm::container::is_array(test_array));
+        static_assert(not ygm::container::is_array(test_bag));
+        static_assert(not ygm::container::is_array(test_counting_set));
+        static_assert(not ygm::container::is_array(test_disjoint_set)); 
+        static_assert(not ygm::container::is_array(test_map));
+        static_assert(not ygm::container::is_array(test_set));
+        static_assert(not ygm::container::is_array(i));
     }
     
     {
-        static_assert(ygm::container::detail::is_bag(test_bag));
-        static_assert(not ygm::container::detail::is_bag(test_array));
-        static_assert(not ygm::container::detail::is_bag(test_counting_set));
-        static_assert(not ygm::container::detail::is_bag(test_disjoint_set)); 
-        static_assert(not ygm::container::detail::is_bag(test_map));
-        static_assert(not ygm::container::detail::is_bag(test_set));
-        static_assert(not ygm::container::detail::is_bag(i));
+        static_assert(ygm::container::is_bag(test_bag));
+        static_assert(not ygm::container::is_bag(test_array));
+        static_assert(not ygm::container::is_bag(test_counting_set));
+        static_assert(not ygm::container::is_bag(test_disjoint_set)); 
+        static_assert(not ygm::container::is_bag(test_map));
+        static_assert(not ygm::container::is_bag(test_set));
+        static_assert(not ygm::container::is_bag(i));
     }
 
     {
-        static_assert(ygm::container::detail::is_counting_set(test_counting_set));
-        static_assert(not ygm::container::detail::is_counting_set(test_array));
-        static_assert(not ygm::container::detail::is_counting_set(test_bag));
-        static_assert(not ygm::container::detail::is_counting_set(test_disjoint_set));
-        static_assert(not ygm::container::detail::is_counting_set(test_map));
-        static_assert(not ygm::container::detail::is_counting_set(test_set));
-        static_assert(not ygm::container::detail::is_counting_set(i));
+        static_assert(ygm::container::is_counting_set(test_counting_set));
+        static_assert(not ygm::container::is_counting_set(test_array));
+        static_assert(not ygm::container::is_counting_set(test_bag));
+        static_assert(not ygm::container::is_counting_set(test_disjoint_set));
+        static_assert(not ygm::container::is_counting_set(test_map));
+        static_assert(not ygm::container::is_counting_set(test_set));
+        static_assert(not ygm::container::is_counting_set(i));
     }
 
     {
-        static_assert(ygm::container::detail::is_disjoint_set(test_disjoint_set));
-        static_assert(not ygm::container::detail::is_disjoint_set(test_array));
-        static_assert(not ygm::container::detail::is_disjoint_set(test_bag));
-        static_assert(not ygm::container::detail::is_disjoint_set(test_counting_set));
-        static_assert(not ygm::container::detail::is_disjoint_set(test_map));
-        static_assert(not ygm::container::detail::is_disjoint_set(test_set));
-        static_assert(not ygm::container::detail::is_disjoint_set(i));
+        static_assert(ygm::container::is_disjoint_set(test_disjoint_set));
+        static_assert(not ygm::container::is_disjoint_set(test_array));
+        static_assert(not ygm::container::is_disjoint_set(test_bag));
+        static_assert(not ygm::container::is_disjoint_set(test_counting_set));
+        static_assert(not ygm::container::is_disjoint_set(test_map));
+        static_assert(not ygm::container::is_disjoint_set(test_set));
+        static_assert(not ygm::container::is_disjoint_set(i));
     }
     
     {
-        static_assert(ygm::container::detail::is_map(test_map));
-        static_assert(not ygm::container::detail::is_map(test_array));
-        static_assert(not ygm::container::detail::is_map(test_bag));
-        static_assert(not ygm::container::detail::is_map(test_counting_set));
-        static_assert(not ygm::container::detail::is_map(test_disjoint_set));
-        static_assert(not ygm::container::detail::is_map(test_set));
-        static_assert(not ygm::container::detail::is_map(i));
+        static_assert(ygm::container::is_map(test_map));
+        static_assert(not ygm::container::is_map(test_array));
+        static_assert(not ygm::container::is_map(test_bag));
+        static_assert(not ygm::container::is_map(test_counting_set));
+        static_assert(not ygm::container::is_map(test_disjoint_set));
+        static_assert(not ygm::container::is_map(test_set));
+        static_assert(not ygm::container::is_map(i));
     }
     
     {
-        static_assert(ygm::container::detail::is_set(test_set));
-        static_assert(not ygm::container::detail::is_set(test_array));
-        static_assert(not ygm::container::detail::is_set(test_bag));
-        static_assert(not ygm::container::detail::is_set(test_counting_set));
-        static_assert(not ygm::container::detail::is_set(test_disjoint_set));
-        static_assert(not ygm::container::detail::is_set(test_map));
-        static_assert(not ygm::container::detail::is_set(i));
+        static_assert(ygm::container::is_set(test_set));
+        static_assert(not ygm::container::is_set(test_array));
+        static_assert(not ygm::container::is_set(test_bag));
+        static_assert(not ygm::container::is_set(test_counting_set));
+        static_assert(not ygm::container::is_set(test_disjoint_set));
+        static_assert(not ygm::container::is_set(test_map));
+        static_assert(not ygm::container::is_set(i));
     }
 
     return 0;
