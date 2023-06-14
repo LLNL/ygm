@@ -8,6 +8,7 @@
 
 
 namespace ygm::container {
+// Identifiable ygm container tags usable for comparison 
 struct array_tag;
 struct bag_tag;
 struct counting_set_tag;
@@ -16,15 +17,21 @@ struct map_tag;
 struct set_tag;
 
 
+// General template used as a base case
 template <class Container, typename = void>
 struct has_ygm_container_type : std::false_type {};
 
+// Specialized template to ensure a tested container has a ygm::container::type
 template <class Container>
 struct has_ygm_container_type<
     Container,
     std::void_t< typename Container::ygm_container_type > 
 > : std::true_type {};
 
+/* Helper function which:
+ * 1) Checks if the input container type is part of YGM
+ * 2) If so, compares the ygm container's tag against desired tag
+ */
 template <class Container, typename Tag>
 constexpr bool check_ygm_container_type() {
     if constexpr(has_ygm_container_type< Container >::value) {
@@ -37,7 +44,7 @@ constexpr bool check_ygm_container_type() {
     }
 } 
 
-
+// Tag checking functions for every YGM container 
 template <class Container>
 constexpr bool is_array(Container &c) {
     return check_ygm_container_type<Container, array_tag>();
@@ -68,4 +75,4 @@ constexpr bool is_set(Container &c) {
     return check_ygm_container_type<Container, set_tag>();
 }
 
-}   // ygm::container::detail
+}   // ygm::container
