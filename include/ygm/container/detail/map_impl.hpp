@@ -13,6 +13,7 @@
 #include <ygm/detail/interrupt_mask.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
+#include <ygm/container/container_traits.hpp>
 
 namespace ygm::container::detail {
 
@@ -27,6 +28,7 @@ class map_impl {
   using mapped_type         = Value;
   using key_type            = Key;
   using ygm_for_all_types   = std::tuple< Key, Value >;
+  using ygm_container_type  = ygm::container::map_tag;
 
   Partitioner partitioner;
 

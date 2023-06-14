@@ -9,10 +9,11 @@
 #include <vector>
 #include <random>
 #include <ygm/comm.hpp>
+#include <ygm/random.hpp>
 #include <ygm/detail/std_traits.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
-#include <ygm/random.hpp>
+#include <ygm/container/container_traits.hpp>
 
 namespace ygm::container::detail {
 template <typename Item, typename Alloc = std::allocator<Item>>
@@ -20,6 +21,7 @@ class bag_impl {
  public:
   using value_type = Item;
   using ygm_for_all_types   = std::tuple< Item >;
+  using ygm_container_type  = ygm::container::bag_tag;
   using self_type  = bag_impl<Item, Alloc>;
 
   bag_impl(ygm::comm &comm) : m_comm(comm), pthis(this) { pthis.check(m_comm); }

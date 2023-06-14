@@ -8,6 +8,7 @@
 #include <ygm/comm.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
+#include <ygm/container/container_traits.hpp>
 
 namespace ygm::container::detail {
 
@@ -19,6 +20,7 @@ class array_impl {
   using mapped_type         = Value;
   using key_type            = Index;
   using ygm_for_all_types   = std::tuple< Index, Value >;
+  using ygm_container_type  = ygm::container::array_tag;
   //using value_type    = Value;
   //using index_type    = Index;
 

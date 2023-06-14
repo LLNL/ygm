@@ -11,6 +11,7 @@
 #include <ygm/container/detail/hash_partitioner.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
+#include <ygm/container/container_traits.hpp>
 
 namespace ygm::container::detail {
 template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
@@ -20,6 +21,7 @@ class set_impl {
  public:
   using self_type = set_impl<Key, Partitioner, Compare, Alloc>;
   using key_type  = Key;
+  using ygm_container_type  = ygm::container::set_tag;
 
   Partitioner partitioner;
 

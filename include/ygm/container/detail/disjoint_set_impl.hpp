@@ -10,6 +10,7 @@
 #include <ygm/container/detail/hash_partitioner.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
+#include <ygm/container/container_traits.hpp>
 
 namespace ygm::container::detail {
 template <typename Item, typename Partitioner>
@@ -20,6 +21,7 @@ class disjoint_set_impl {
   using self_ygm_ptr_type   = typename ygm::ygm_ptr<self_type>;
   using value_type          = Item;
   using ygm_for_all_types   = std::tuple< Item, Item >;
+  using ygm_container_type  = ygm::container::disjoint_set_tag;
   using rank_type           = int16_t;
   using parent_map_type     = std::map<value_type, rank_parent_t>;
 
