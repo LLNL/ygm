@@ -23,7 +23,6 @@ class map {
   using ygm_container_type  = ygm::container::map_tag;
   using impl_type =
       detail::map_impl<key_type, mapped_type, Partitioner, Compare, Alloc>;
-  //using value_type          = Value;
 
   map() = delete;
 

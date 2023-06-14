@@ -21,8 +21,6 @@ class array_impl {
   using key_type            = Index;
   using ygm_for_all_types   = std::tuple< Index, Value >;
   using ygm_container_type  = ygm::container::array_tag;
-  //using value_type    = Value;
-  //using index_type    = Index;
 
   array_impl(ygm::comm &comm, const key_type size)
       : m_global_size(size), m_default_value{}, m_comm(comm), pthis(this) {

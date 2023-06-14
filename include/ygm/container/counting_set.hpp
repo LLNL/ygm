@@ -22,7 +22,6 @@ class counting_set {
   using key_type            = Key;
   using ygm_for_all_types   = std::tuple< Key, size_t >;
   using ygm_container_type  = ygm::container::counting_set_tag;
-  //using value_type          = size_t;
 
   const size_t count_cache_size = 1024 * 1024;
 
