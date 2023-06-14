@@ -6,7 +6,6 @@
 #pragma once
 
 #include <ygm/container/detail/bag_impl.hpp>
-// #include <ygm/detail/random.hpp>
 #include <ygm/random.hpp>
 #include <ygm/container/container_traits.hpp>
 
@@ -17,7 +16,7 @@ class bag {
   using self_type           = bag<Item, Alloc>;
   using value_type          = Item;
   using ygm_for_all_types   = std::tuple< Item >;
-  using ygm_container_type  = ygm::container::detail::bag_tag;
+  using ygm_container_type  = ygm::container::bag_tag;
   using impl_type           = detail::bag_impl<Item, Alloc>;
 
   bag(ygm::comm &comm) : m_impl(comm) {}

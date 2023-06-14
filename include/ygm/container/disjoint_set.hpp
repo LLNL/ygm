@@ -15,7 +15,7 @@ class disjoint_set {
   using self_type           = disjoint_set<Item, Partitioner>;
   using value_type          = Item;
   using ygm_for_all_types   = std::tuple< Item, Item >;
-  using ygm_container_type  = ygm::container::detail::disjoint_set_tag;
+  using ygm_container_type  = ygm::container::disjoint_set_tag;
   using impl_type           = detail::disjoint_set_impl<Item, Partitioner>;
 
   disjoint_set() = delete;

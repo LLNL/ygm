@@ -96,14 +96,14 @@ class reducing_adapter {
   }
 
   void container_reduction(const key_type &key, const mapped_type &value) {
-    if constexpr(ygm::container::detail::check_ygm_container_type<
+    if constexpr(ygm::container::check_ygm_container_type<
                     Container, 
-                    ygm::container::detail::map_tag>()) {
+                    ygm::container::map_tag>()) {
       m_container.async_reduce(key, value, m_reducer);
 
-    } else if constexpr(ygm::container::detail::check_ygm_container_type<
+    } else if constexpr(ygm::container::check_ygm_container_type<
                     Container, 
-                    ygm::container::detail::array_tag>()) {
+                    ygm::container::array_tag>()) {
       m_container.async_binary_op_update_value(key, value, m_reducer);
     } else {
       static_assert(ygm::detail::always_false<>,

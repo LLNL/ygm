@@ -20,7 +20,7 @@ class map {
   using mapped_type         = Value;
   using key_type            = Key;
   using ygm_for_all_types   = std::tuple< Key, Value >;
-  using ygm_container_type  = ygm::container::detail::map_tag;
+  using ygm_container_type  = ygm::container::map_tag;
   using impl_type =
       detail::map_impl<key_type, mapped_type, Partitioner, Compare, Alloc>;
   //using value_type          = Value;

@@ -71,7 +71,8 @@ class set {
  public:
   using self_type           = set<Key, Partitioner, Compare, Alloc>;
   using key_type            = Key;
-  using ygm_container_type  = ygm::container::detail::set_tag;
+  using ygm_container_type  = ygm::container::set_tag;
+  using ygm_for_all_types   = std::tuple< Key >;
   using impl_type           = detail::set_impl<key_type, Partitioner, Compare, Alloc>;
 
   Partitioner partitioner;

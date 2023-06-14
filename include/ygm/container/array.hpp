@@ -17,10 +17,8 @@ class array {
   using mapped_type         = Value;
   using key_type            = Index;
   using ygm_for_all_types   = std::tuple< Index, Value >;
-  using ygm_container_type  = ygm::container::detail::array_tag;
+  using ygm_container_type  = ygm::container::array_tag;
   using impl_type           = detail::array_impl<mapped_type, key_type>;
-  //using value_type          = Value;
-  //using index_type          = Index;
 
   array() = delete;
 

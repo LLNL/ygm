@@ -7,7 +7,7 @@
 #include <type_traits>
 
 
-namespace ygm::container::detail {
+namespace ygm::container {
 struct array_tag;
 struct bag_tag;
 struct counting_set_tag;
