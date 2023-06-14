@@ -12,6 +12,17 @@
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
 
+  
+  // Test basic tagging 
+  {
+    ygm::container::disjoint_set<std::string> dset(world);
+
+    static_assert(std::is_same_v< decltype(dset)::self_type,     decltype(dset) >);
+    static_assert(std::is_same_v< decltype(dset)::value_type,    std::string >);
+    static_assert(std::is_same_v< decltype(dset)::ygm_for_all_types,   
+            std::tuple< decltype(dset)::value_type, decltype(dset)::value_type > >);
+  }
+
   //
   // Test async_union from single rank
   {
