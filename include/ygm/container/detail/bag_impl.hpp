@@ -7,12 +7,22 @@
 #include <cereal/archives/json.hpp>
 #include <fstream>
 #include <vector>
+#include <string>
+#include <cmath>
+#include <utility>
+#include <algorithm>
 #include <random>
+#include <string>
+#include <cmath>
+#include <utility>
+#include <algorithm>
 #include <ygm/comm.hpp>
+#include <ygm/collective.hpp>
 #include <ygm/detail/std_traits.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
 #include <ygm/random.hpp>
+#include <ygm/detail/mpi.hpp>
 
 namespace ygm::container::detail {
 template <typename Item, typename Alloc = std::allocator<Item>>
@@ -32,11 +42,41 @@ class bag_impl {
     int dest = (m_round_robin++ + m_comm.rank()) % m_comm.size();
     m_comm.async(dest, inserter, pthis, item);
   }
+  void async_insert(const value_type &item, int dest) {
+    auto inserter = [](auto mailbox, auto map, const value_type &item) {
+      map->m_local_bag.push_back(item);
+    };
+    m_comm.async(dest, inserter, pthis, item);
+  }
 
+  void async_insert(const std::vector<value_type> &item, int dest) {
+    auto inserter = [](auto mailbox, auto map, const std::vector<value_type> &item) {
+      map->m_local_bag.insert(map->m_local_bag.end(), item.begin(), item.end());
+    };
+    m_comm.async(dest, inserter, pthis, item);
+  }
+  
   template <typename Function>
   void for_all(Function fn) {
     m_comm.barrier();
     local_for_all(fn);
+  }
+
+  value_type local_pop() {
+    value_type back_val = m_local_bag.back();
+    m_local_bag.pop_back();
+    return back_val;
+  }
+
+  std::vector<value_type> local_pop(int n) {
+    ASSERT_RELEASE(n <= local_size());
+
+    size_t new_size = local_size() - n;
+    auto pop_start = m_local_bag.begin() + new_size;
+    std::vector<value_type> ret;
+    ret.assign(pop_start, m_local_bag.end());
+    m_local_bag.resize(new_size);
+    return ret;
   }
 
   void clear() {
@@ -47,6 +87,39 @@ class bag_impl {
   size_t size() {
     m_comm.barrier();
     return m_comm.all_reduce_sum(m_local_bag.size());
+  }
+
+  size_t local_size() {
+    return m_local_bag.size();
+  }
+
+
+  void rebalance() {
+    m_comm.barrier();
+
+    // Find current rank's prefix val and desired target size
+    size_t prefix_val = ygm::prefix_sum(local_size(), m_comm);
+    size_t target_size = std::ceil((size() * 1.0) / m_comm.size());
+
+    // Init to_send array where index is dest and value is the num to send
+    //int to_send[m_comm.size()] = {0};
+    std::unordered_map<size_t, size_t> to_send;
+    
+    for (size_t i = 0; i < local_size(); i++) {
+      size_t idx = prefix_val + i;
+      size_t target_rank = idx / target_size;
+      if (target_rank != m_comm.rank()) {
+        to_send[target_rank]++;
+      }
+    }
+    m_comm.barrier();
+
+    // Build and send bag indexes as calculated by to_send
+    for (auto &kv_pair : to_send) {
+      async_insert(local_pop(kv_pair.second), kv_pair.first);
+    }
+
+    m_comm.barrier();
   }
 
   void swap(self_type &s) {
