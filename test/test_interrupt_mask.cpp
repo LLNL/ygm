@@ -8,7 +8,8 @@
 #include <ygm/detail/interrupt_mask.hpp>
 
 int main(int argc, char** argv) {
-  ygm::comm world(&argc, &argv, 8);
+  ::setenv("YGM_COMM_BUFFER_SIZE_KB", "1", 1);
+  ygm::comm world(&argc, &argv);
 
   int  count{0};
   auto count_ptr = world.make_ygm_ptr(count);

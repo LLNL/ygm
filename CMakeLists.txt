@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.14)
 
 project(
     ygm
-    VERSION 0.4
+    VERSION 0.5
     DESCRIPTION "HPC Communication Library"
     LANGUAGES CXX
 )
@@ -72,7 +72,7 @@ if (NOT cereal_FOUND)
     # to use this specific commit for now.
     FetchContent_Declare(
         cereal
-        GIT_REPOSITORY https://github.com/USCiLab/cereal
+        GIT_REPOSITORY https://github.com/USCiLab/cereal.git
         GIT_TAG af0700efb25e7dc7af637b9e6f970dbb94813bff
     )
     FetchContent_GetProperties(cereal)
@@ -134,7 +134,17 @@ endif ()
 # Arrow
 #
 #
+<<<<<<< HEAD
 find_package(Arrow 8.0)
+=======
+find_package(Arrow 8.0 QUIET)
+if (NOT Arrow_FOUND)
+	find_package(Arrow 9.0 QUIET)
+endif()
+if (NOT Arrow_FOUND)
+	find_package(Arrow 10.0 QUIET)
+endif()
+>>>>>>> upstream/develop
 if (Arrow_FOUND)
    message(STATUS ${PROJECT_NAME} " found Arrow ")
    message(STATUS "Arrow version: ${ARROW_VERSION}")

@@ -10,11 +10,11 @@ namespace ygm::container {
 
 template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
           typename Compare = std::less<Key>,
-          class Alloc = std::allocator<const Key>>
+          class Alloc      = std::allocator<const Key>>
 class multiset {
  public:
   using self_type = multiset<Key, Partitioner, Compare, Alloc>;
-  using key_type = Key;
+  using key_type  = Key;
   using impl_type = detail::set_impl<key_type, Partitioner, Compare, Alloc>;
 
   Partitioner partitioner;
@@ -54,16 +54,18 @@ class multiset {
 
   int owner(const key_type& key) const { return m_impl.owner(key); }
 
+  ygm::comm& comm() { return m_impl.comm(); }
+
  private:
   impl_type m_impl;
 };
 template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
           typename Compare = std::less<Key>,
-          class Alloc = std::allocator<const Key>>
+          class Alloc      = std::allocator<const Key>>
 class set {
  public:
   using self_type = set<Key, Partitioner, Compare, Alloc>;
-  using key_type = Key;
+  using key_type  = Key;
   using impl_type = detail::set_impl<key_type, Partitioner, Compare, Alloc>;
 
   Partitioner partitioner;
@@ -75,6 +77,34 @@ class set {
   void async_insert(const key_type& key) { m_impl.async_insert_unique(key); }
 
   void async_erase(const key_type& key) { m_impl.async_erase(key); }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_insert_exe_if_missing(const key_type& key, Visitor visitor,
+                                   const VisitorArgs&... args) {
+    m_impl.async_insert_exe_if_missing(
+        key, visitor, std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_insert_exe_if_contains(const key_type& key, Visitor visitor,
+                                    const VisitorArgs&... args) {
+    m_impl.async_insert_exe_if_contains(
+        key, visitor, std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_exe_if_missing(const key_type& key, Visitor visitor,
+                            const VisitorArgs&... args) {
+    m_impl.async_exe_if_missing(key, visitor,
+                                std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_exe_if_contains(const key_type& key, Visitor visitor,
+                             const VisitorArgs&... args) {
+    m_impl.async_exe_if_contains(key, visitor,
+                                 std::forward<const VisitorArgs>(args)...);
+  }
 
   template <typename Function>
   void for_all(Function fn) {
@@ -102,6 +132,8 @@ class set {
   }
 
   int owner(const key_type& key) const { return m_impl.owner(key); }
+
+  ygm::comm& comm() { return m_impl.comm(); }
 
  private:
   impl_type m_impl;

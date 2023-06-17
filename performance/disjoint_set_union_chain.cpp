@@ -27,7 +27,8 @@ int main(int argc, char **argv) {
   world.cout0("Performing unions in random order");
 
   size_t num_local_unions =
-      num_unions / (size_t)world.size() + ((size_t)world.rank() < num_unions % (size_t)world.size());
+      num_unions / (size_t)world.size() +
+      ((size_t)world.rank() < num_unions % (size_t)world.size());
   size_t local_offset =
       (num_unions / (size_t)world.size()) * (size_t)world.rank() +
       std::min<size_t>((size_t)world.rank(), num_unions % (size_t)world.size());
@@ -51,7 +52,7 @@ int main(int argc, char **argv) {
 
     std::shuffle(my_unions.begin(), my_unions.end(), g);
 
-    world.reset_rpc_call_counter();
+    // world.reset_rpc_call_counter();
     world.barrier();
 
     ygm::timer union_timer{};
@@ -66,12 +67,12 @@ int main(int argc, char **argv) {
     world.cout0("Union time: ", union_time);
     cumulative_union_time += union_time;
 
-    world.cout0("\tMin RPC calls: ",
-                world.all_reduce_min(world.local_rpc_calls()));
-    world.cout0("\tMax RPC calls: ",
-                world.all_reduce_max(world.local_rpc_calls()));
+    // world.cout0("\tMin RPC calls: ",
+    //             world.all_reduce_min(world.local_rpc_calls()));
+    // world.cout0("\tMax RPC calls: ",
+    //             world.all_reduce_max(world.local_rpc_calls()));
 
-    world.reset_rpc_call_counter();
+    // world.reset_rpc_call_counter();
 
     world.barrier();
 
@@ -85,19 +86,25 @@ int main(int argc, char **argv) {
     world.cout0("Compress time: ", compress_time);
     cumulative_compress_time += compress_time;
 
-    world.cout0("\tMin RPC calls: ",
-                world.all_reduce_min(world.local_rpc_calls()));
-    world.cout0("\tMax RPC calls: ",
-                world.all_reduce_max(world.local_rpc_calls()));
+    // world.cout0("\tMin RPC calls: ",
+    //             world.all_reduce_min(world.local_rpc_calls()));
+    // world.cout0("\tMax RPC calls: ",
+    //             world.all_reduce_max(world.local_rpc_calls()));
 
     // Checking answer
-    auto my_parents_star = dset.all_find(my_unions);
+    {
+      size_t min_rep = std::numeric_limits<size_t>::max();
+      size_t max_rep = 0;
+      dset.for_all([&min_rep, &max_rep](const auto &item, const auto &rep) {
+        min_rep = std::min(min_rep, rep);
+        max_rep = std::max(max_rep, rep);
+      });
 
-    for (const auto &item_parent : my_parents_star) {
-      ASSERT_RELEASE(item_parent.second == 1);
+      min_rep = world.all_reduce_min(min_rep);
+      max_rep = world.all_reduce_max(max_rep);
+
+      ASSERT_RELEASE(min_rep == max_rep);
     }
-
-    world.reset_rpc_call_counter();
 
     world.barrier();
 
@@ -111,19 +118,26 @@ int main(int argc, char **argv) {
     world.cout0("Star compress time: ", star_compress_time);
     cumulative_star_compress_time += star_compress_time;
 
-    world.cout0("\tMin RPC calls: ",
-                world.all_reduce_min(world.local_rpc_calls()));
-    world.cout0("\tMax RPC calls: ",
-                world.all_reduce_max(world.local_rpc_calls()));
+    // world.cout0("\tMin RPC calls: ",
+    //             world.all_reduce_min(world.local_rpc_calls()));
+    // world.cout0("\tMax RPC calls: ",
+    //             world.all_reduce_max(world.local_rpc_calls()));
 
     // Checking answer
-    auto my_parents = dset.all_find(my_unions);
+    {
+      size_t min_rep = std::numeric_limits<size_t>::max();
+      size_t max_rep = 0;
+      dset.for_all([&min_rep, &max_rep](const auto &item, const auto &rep) {
+        min_rep = std::min(min_rep, rep);
+        max_rep = std::max(max_rep, rep);
+      });
 
-    for (const auto &item_parent : my_parents) {
-      ASSERT_RELEASE(item_parent.second == 1);
+      min_rep = world.all_reduce_min(min_rep);
+      max_rep = world.all_reduce_max(max_rep);
+
+      ASSERT_RELEASE(min_rep == max_rep);
     }
 
-    world.reset_rpc_call_counter();
     world.barrier();
   }
 

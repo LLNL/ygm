@@ -12,6 +12,7 @@
 #include <ygm/container/detail/hash_partitioner.hpp>
 #include <ygm/detail/interrupt_mask.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
+#include <ygm/detail/ygm_traits.hpp>
 
 namespace ygm::container::detail {
 
@@ -22,6 +23,7 @@ template <typename Key, typename Value,
 class map_impl {
  public:
   using self_type  = map_impl<Key, Value, Partitioner, Compare, Alloc>;
+  using ptr_type   = typename ygm::ygm_ptr<self_type>;
   using value_type = Value;
   using key_type   = Key;
 
@@ -61,8 +63,8 @@ class map_impl {
   void async_insert_if_missing(const key_type &key, const value_type &value) {
     async_insert_if_missing_else_visit(
         key, value,
-        [](const std::pair<key_type, value_type> &kv,
-           const value_type                      &new_value) {});
+        [](const key_type &k, const value_type &v,
+           const value_type &new_value) {});
   }
 
   void async_insert_multi(const key_type &key, const value_type &value) {
@@ -153,6 +155,24 @@ class map_impl {
 
     m_comm.async(dest, insert_else_visit_wrapper, pthis, key, value,
                  std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename ReductionOp>
+  void async_reduce(const key_type &key, const value_type &value,
+                    ReductionOp reducer) {
+    int  dest           = owner(key);
+    auto reduce_wrapper = [](auto pmap, const key_type &key,
+                             const value_type &value) {
+      auto itr = pmap->m_local_map.find(key);
+      if (itr == pmap->m_local_map.end()) {
+        pmap->m_local_map.insert(std::make_pair(key, value));
+      } else {
+        ReductionOp *reducer = nullptr;
+        itr->second          = (*reducer)(itr->second, value);
+      }
+    };
+
+    m_comm.async(dest, reduce_wrapper, pthis, key, value);
   }
 
   void async_erase(const key_type &key) {
@@ -272,9 +292,20 @@ class map_impl {
     ygm::detail::interrupt_mask mask(m_comm);
 
     auto range = m_local_map.equal_range(key);
-    for (auto itr = range.first; itr != range.second; ++itr) {
-      ygm::meta::apply_optional(fn, std::make_tuple(pthis),
-                                std::forward_as_tuple(*itr, args...));
+    if constexpr (std::is_invocable<decltype(fn), const key_type &,
+                                    value_type &, VisitorArgs &...>() ||
+                  std::is_invocable<decltype(fn), ptr_type, const key_type &,
+                                    value_type &, VisitorArgs &...>()) {
+      for (auto itr = range.first; itr != range.second; ++itr) {
+        ygm::meta::apply_optional(
+            fn, std::make_tuple(pthis),
+            std::forward_as_tuple(itr->first, itr->second, args...));
+      }
+    } else {
+      static_assert(ygm::detail::always_false<>,
+                    "remote map lambda signature must be invocable with (const "
+                    "&key_type, value_type&, ...) or (ptr_type, const "
+                    "&key_type, value_type&, ...) signatures");
     }
   }
 
@@ -290,7 +321,16 @@ class map_impl {
 
   template <typename Function>
   void local_for_all(Function fn) {
-    std::for_each(m_local_map.begin(), m_local_map.end(), fn);
+    if constexpr (std::is_invocable<decltype(fn), const key_type,
+                                    value_type &>()) {
+      for (std::pair<const key_type, value_type> &kv : m_local_map) {
+        fn(kv.first, kv.second);
+      }
+    } else {
+      static_assert(ygm::detail::always_false<>,
+                    "local map lambda signature must be invocable with (const "
+                    "&key_type, value_type&) signature");
+    }
   }
 
   template <typename CompareFunction>
@@ -330,6 +370,6 @@ class map_impl {
   value_type                                          m_default_value;
   std::multimap<key_type, value_type, Compare, Alloc> m_local_map;
   ygm::comm                                           m_comm;
-  typename ygm::ygm_ptr<self_type>                    pthis;
+  ptr_type                                            pthis;
 };
 }  // namespace ygm::container::detail

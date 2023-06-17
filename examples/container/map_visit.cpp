@@ -18,10 +18,9 @@ int main(int argc, char **argv) {
 
   world.barrier();
 
-  auto favorites_lambda = [](auto kv_pair, const int favorite_num) {
-    std::cout << "My favorite animal is a " << kv_pair.first << ". It says '"
-              << kv_pair.second << "!' My favorite number is " << favorite_num
-              << std::endl;
+  auto favorites_lambda = [](auto key, auto &value, const int favorite_num) {
+    std::cout << "My favorite animal is a " << key << ". It says '" << value
+              << "!' My favorite number is " << favorite_num << std::endl;
   };
 
   // Send visitors to map

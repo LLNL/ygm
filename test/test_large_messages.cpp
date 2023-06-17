@@ -4,16 +4,18 @@
 // SPDX-License-Identifier: MIT
 
 #undef NDEBUG
+#include <cstdlib>
 #include <ygm/comm.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 
 int main(int argc, char** argv) {
   // Create comm for very small messages
-  ygm::comm world(&argc, &argv, 8);
+  ::setenv("YGM_COMM_BUFFER_SIZE_KB", "1", 1);
+  ygm::comm world(&argc, &argv);
 
   // Test Rank 0 large message to all ranks
   {
-    size_t large_msg_size = 1024;
+    size_t large_msg_size = 1024 * 1024;
     size_t counter{};
     auto   pcounter = world.make_ygm_ptr(counter);
     if (world.rank() == 0) {

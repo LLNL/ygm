@@ -19,7 +19,8 @@ class interrupt_mask {
 
   ~interrupt_mask() {
     m_comm.pimpl->m_enable_interrupts = true;
-    m_comm.pimpl->process_receive_queue();
+    // m_comm.pimpl->process_receive_queue();  //causes recursion into
+    // process_receive_queue
   }
 
  private:

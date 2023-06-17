@@ -13,13 +13,10 @@ function (add_ygm_example example_name)
     target_link_libraries(${example_exe} PUBLIC ygm::ygm)
 endfunction ()
 
-add_ygm_example(hello_world)
 add_ygm_example(howdy_world)
 add_ygm_example(howdy_world_recursive)
-add_ygm_example(bandwidth_check)
-add_ygm_example(bag_insert_rate)
-add_ygm_example(word_counter)
 add_ygm_example(lambda_optional_arguments)
+<<<<<<< HEAD
 add_ygm_example(map_visit_optional_arguments)
 add_ygm_example(map_set)
 add_ygm_example(map_visit)
@@ -37,3 +34,8 @@ if (Arrow_FOUND AND Parquet_FOUND)
     add_ygm_example(arrow_parquet_stream_reader)
     target_link_libraries(arrow_parquet_stream_reader PUBLIC arrow_shared parquet_shared)
 endif()
+=======
+
+add_subdirectory(container)
+add_subdirectory(io)
+>>>>>>> upstream/develop

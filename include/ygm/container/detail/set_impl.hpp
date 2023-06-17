@@ -10,6 +10,7 @@
 #include <ygm/comm.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
+#include <ygm/detail/ygm_traits.hpp>
 
 namespace ygm::container::detail {
 template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
@@ -51,6 +52,69 @@ class set_impl {
     };
 
     m_comm.async(dest, erase_wrapper, pthis, key);
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_insert_exe_if_missing(const key_type &key, Visitor visitor,
+                                   const VisitorArgs &...args) {
+    auto insert_and_visit = [](auto mailbox, auto pset, const key_type &key,
+                               const VisitorArgs &...args) {
+      if (pset->m_local_set.count(key) == 0) {
+        pset->m_local_set.insert(key);
+        Visitor *vis = nullptr;
+        std::apply(*vis, std::forward_as_tuple(key, args...));
+      }
+    };
+    int dest = owner(key);
+    m_comm.async(dest, insert_and_visit, pthis, key,
+                 std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_insert_exe_if_contains(const key_type &key, Visitor visitor,
+                                    const VisitorArgs &...args) {
+    auto insert_and_visit = [](auto mailbox, auto pset, const key_type &key,
+                               const VisitorArgs &...args) {
+      if (pset->m_local_set.count(key) == 0) {
+        pset->m_local_set.insert(key);
+      } else {
+        Visitor *vis = nullptr;
+        std::apply(*vis, std::forward_as_tuple(key, args...));
+      }
+    };
+    int dest = owner(key);
+    m_comm.async(dest, insert_and_visit, pthis, key,
+                 std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_exe_if_missing(const key_type &key, Visitor visitor,
+                            const VisitorArgs &...args) {
+    auto checker = [](auto mailbox, auto pset, const key_type &key,
+                      const VisitorArgs &...args) {
+      if (pset->m_local_set.count(key) == 0) {
+        Visitor *vis = nullptr;
+        std::apply(*vis, std::forward_as_tuple(key, args...));
+      }
+    };
+    int dest = owner(key);
+    m_comm.async(dest, checker, pthis, key,
+                 std::forward<const VisitorArgs>(args)...);
+  }
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_exe_if_contains(const key_type &key, Visitor visitor,
+                             const VisitorArgs &...args) {
+    auto checker = [](auto mailbox, auto pset, const key_type &key,
+                      const VisitorArgs &...args) {
+      if (pset->m_local_set.count(key) == 1) {
+        Visitor *vis = nullptr;
+        std::apply(*vis, std::forward_as_tuple(key, args...));
+      }
+    };
+    int dest = owner(key);
+    m_comm.async(dest, checker, pthis, key,
+                 std::forward<const VisitorArgs>(args)...);
   }
 
   template <typename Function>
@@ -108,10 +172,17 @@ class set_impl {
     }
   }
 
-  // protected:
+  ygm::comm &comm() { return m_comm; }
+
   template <typename Function>
   void local_for_all(Function fn) {
-    std::for_each(m_local_set.begin(), m_local_set.end(), fn);
+    if constexpr (std::is_invocable<decltype(fn), const key_type &>()) {
+      std::for_each(m_local_set.begin(), m_local_set.end(), fn);
+    } else {
+      static_assert(ygm::detail::always_false<>,
+                    "local set lambda signature must be invocable with (const "
+                    "key_type &) signature");
+    }
   }
 
   int owner(const key_type &key) const {

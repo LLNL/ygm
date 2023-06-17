@@ -5,6 +5,8 @@
 
 #pragma once
 #include <ygm/container/detail/bag_impl.hpp>
+// #include <ygm/detail/random.hpp>
+#include <ygm/random.hpp>
 
 namespace ygm::container {
 template <typename Item, typename Alloc = std::allocator<Item>>
@@ -17,6 +19,7 @@ class bag {
   bag(ygm::comm &comm) : m_impl(comm) {}
 
   void async_insert(const value_type &item) { m_impl.async_insert(item); }
+  void async_insert(const value_type &item, int dest) { m_impl.async_insert(item, dest); }
 
   template <typename Function>
   void for_all(Function fn) {
@@ -26,8 +29,19 @@ class bag {
   void clear() { m_impl.clear(); }
 
   size_t size() { return m_impl.size(); }
+  size_t local_size() { return m_impl.local_size(); }
+
+  void rebalance() { m_impl.rebalance(); }
 
   void swap(self_type &s) { m_impl.swap(s.m_impl); }
+
+  template <typename RandomFunc>
+  void local_shuffle(RandomFunc &r) { m_impl.local_shuffle(r); }
+  void local_shuffle() { m_impl.local_shuffle(); }
+
+  template <typename RandomFunc>
+  void global_shuffle(RandomFunc &r) { m_impl.global_shuffle(r); }
+  void global_shuffle() { m_impl.global_shuffle(); }
 
   template <typename Function>
   void local_for_all(Function fn) {
@@ -40,7 +54,6 @@ class bag {
   void deserialize(const std::string &fname) { m_impl.deserialize(fname); }
   std::vector<value_type> gather_to_vector(int dest) { return m_impl.gather_to_vector(dest); }
   std::vector<value_type> gather_to_vector() { return m_impl.gather_to_vector(); }
-
 
  private:
   detail::bag_impl<value_type> m_impl;
