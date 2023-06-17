@@ -134,17 +134,13 @@ endif ()
 # Arrow
 #
 #
-<<<<<<< HEAD
-find_package(Arrow 8.0)
-=======
 find_package(Arrow 8.0 QUIET)
 if (NOT Arrow_FOUND)
 	find_package(Arrow 9.0 QUIET)
 endif()
 if (NOT Arrow_FOUND)
-	find_package(Arrow 10.0 QUIET)
+	find_package(Arrow 12.0 QUIET)
 endif()
->>>>>>> upstream/develop
 if (Arrow_FOUND)
    message(STATUS ${PROJECT_NAME} " found Arrow ")
    message(STATUS "Arrow version: ${ARROW_VERSION}")
