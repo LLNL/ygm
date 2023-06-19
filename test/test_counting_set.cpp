@@ -19,6 +19,7 @@ int main(int argc, char **argv) {
     static_assert(std::is_same_v< decltype(cset)::self_type,     decltype(cset) >);
     static_assert(std::is_same_v< decltype(cset)::mapped_type,   size_t >);
     static_assert(std::is_same_v< decltype(cset)::key_type,      std::string >);
+    static_assert(std::is_same_v< decltype(cset)::size_type,     size_t >);
     static_assert(std::is_same_v< decltype(cset)::ygm_for_all_types,   
             std::tuple< decltype(cset)::key_type, size_t > >);
   }

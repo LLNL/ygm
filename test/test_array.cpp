@@ -19,6 +19,7 @@ int main(int argc, char **argv) {
     static_assert(std::is_same_v< decltype(arr)::self_type,     decltype(arr) >);
     static_assert(std::is_same_v< decltype(arr)::mapped_type,   decltype(size) >);
     static_assert(std::is_same_v< decltype(arr)::key_type,      size_t >);
+    static_assert(std::is_same_v< decltype(arr)::size_type,     decltype(arr)::key_type >);
     static_assert(std::is_same_v< decltype(arr)::ygm_for_all_types,   
             std::tuple< decltype(arr)::key_type, decltype(arr)::mapped_type > >);
   }
