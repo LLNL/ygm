@@ -20,6 +20,7 @@ class disjoint_set_impl {
   using self_type           = disjoint_set_impl<Item, Partitioner>;
   using self_ygm_ptr_type   = typename ygm::ygm_ptr<self_type>;
   using value_type          = Item;
+  using size_type           = size_t;
   using ygm_for_all_types   = std::tuple< Item, Item >;
   using ygm_container_type  = ygm::container::disjoint_set_tag;
   using rank_type           = int16_t;
@@ -478,7 +479,7 @@ class disjoint_set_impl {
       }
     };
 
-    for (size_t i = 0; i < items.size(); ++i) {
+    for (size_type i = 0; i < items.size(); ++i) {
       int dest = owner(items[i]);
       m_comm.async(dest, find_rep_functor(), pthis, p_to_return, items[i],
                    m_comm.rank(), items[i]);
@@ -488,12 +489,12 @@ class disjoint_set_impl {
     return to_return;
   }
 
-  size_t size() {
+  size_type size() {
     m_comm.barrier();
     return m_comm.all_reduce_sum(m_local_item_parent_map.size());
   }
 
-  size_t num_sets() {
+  size_type num_sets() {
     m_comm.barrier();
     size_t num_local_sets{0};
     for (const auto &item_parent_pair : m_local_item_parent_map) {

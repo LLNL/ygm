@@ -19,6 +19,7 @@ class map {
   using self_type           = map<Key, Value, Partitioner, Compare, Alloc>;
   using mapped_type         = Value;
   using key_type            = Key;
+  using size_type           = size_t;
   using ygm_for_all_types   = std::tuple< Key, Value >;
   using ygm_container_type  = ygm::container::map_tag;
   using impl_type =
@@ -89,7 +90,7 @@ class map {
 
   void clear() { m_impl.clear(); }
 
-  size_t size() { return m_impl.size(); }
+  size_type size() { return m_impl.size(); }
 
   size_t count(const key_type& key) { return m_impl.count(key); }
 
@@ -143,9 +144,10 @@ template <typename Key, typename Value,
           class Alloc          = std::allocator<std::pair<const Key, Value>>>
 class multimap {
  public:
-  using self_type  = multimap<Key, Value, Partitioner, Compare, Alloc>;
-  using mapped_type = Value;
-  using key_type   = Key;
+  using self_type     = multimap<Key, Value, Partitioner, Compare, Alloc>;
+  using mapped_type   = Value;
+  using key_type      = Key;
+  using size_type     = size_t;
   using impl_type =
       detail::map_impl<key_type, mapped_type, Partitioner, Compare, Alloc>;
   multimap() = delete;
@@ -194,7 +196,7 @@ class multimap {
 
   void clear() { m_impl.clear(); }
 
-  size_t size() { return m_impl.size(); }
+  size_type size() { return m_impl.size(); }
 
   size_t count(const key_type& key) { return m_impl.count(key); }
 

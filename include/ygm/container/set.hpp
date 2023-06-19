@@ -17,6 +17,7 @@ class multiset {
  public:
   using self_type           = multiset<Key, Partitioner, Compare, Alloc>;
   using key_type            = Key;
+  using size_type           = size_t;
   using ygm_for_all_types   = std::tuple< Key >;
   using impl_type           = detail::set_impl<key_type, Partitioner, Compare, Alloc>;
 
@@ -37,7 +38,7 @@ class multiset {
 
   void clear() { m_impl.clear(); }
 
-  size_t size() { return m_impl.size(); }
+  size_type size() { return m_impl.size(); }
 
   size_t count(const key_type& key) { return m_impl.count(key); }
 
@@ -71,6 +72,7 @@ class set {
  public:
   using self_type           = set<Key, Partitioner, Compare, Alloc>;
   using key_type            = Key;
+  using size_type           = size_t;
   using ygm_container_type  = ygm::container::set_tag;
   using ygm_for_all_types   = std::tuple< Key >;
   using impl_type           = detail::set_impl<key_type, Partitioner, Compare, Alloc>;
@@ -120,7 +122,7 @@ class set {
 
   void clear() { m_impl.clear(); }
 
-  size_t size() { return m_impl.size(); }
+  size_type size() { return m_impl.size(); }
 
   size_t count(const key_type& key) { return m_impl.count(key); }
 

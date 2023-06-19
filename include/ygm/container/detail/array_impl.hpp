@@ -19,17 +19,18 @@ class array_impl {
   using ptr_type            = typename ygm::ygm_ptr<self_type>;
   using mapped_type         = Value;
   using key_type            = Index;
+  using size_type           = Index;
   using ygm_for_all_types   = std::tuple< Index, Value >;
   using ygm_container_type  = ygm::container::array_tag;
 
-  array_impl(ygm::comm &comm, const key_type size)
+  array_impl(ygm::comm &comm, const size_type size)
       : m_global_size(size), m_default_value{}, m_comm(comm), pthis(this) {
     pthis.check(m_comm);
 
     resize(size);
   }
 
-  array_impl(ygm::comm &comm, const key_type size, const mapped_type &dv)
+  array_impl(ygm::comm &comm, const size_type size, const mapped_type &dv)
       : m_default_value(dv), m_comm(comm), pthis(this) {
     pthis.check(m_comm);
 
@@ -45,7 +46,7 @@ class array_impl {
 
   ~array_impl() { m_comm.barrier(); }
 
-  void resize(const key_type size, const mapped_type &fill_value) {
+  void resize(const size_type size, const mapped_type &fill_value) {
     m_comm.barrier();
 
     m_global_size = size;
@@ -55,7 +56,7 @@ class array_impl {
       m_local_vec.resize(m_block_size, fill_value);
     } else {
       // Last rank may get less data
-      key_type block_size = m_global_size % m_block_size;
+      size_type block_size = m_global_size % m_block_size;
       if (block_size == 0) {
         block_size = m_block_size;
       }
@@ -65,7 +66,7 @@ class array_impl {
     m_comm.barrier();
   }
 
-  void resize(const key_type size) { resize(size, m_default_value); }
+  void resize(const size_type size) { resize(size, m_default_value); }
 
   void async_set(const key_type index, const mapped_type &value) {
     ASSERT_RELEASE(index < m_global_size);
@@ -158,7 +159,7 @@ class array_impl {
     }
   }
 
-  key_type size() { return m_global_size; }
+  size_type size() { return m_global_size; }
 
   typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }
 
@@ -183,11 +184,11 @@ class array_impl {
  protected:
   array_impl() = delete;
 
-  key_type                          m_global_size;
-  key_type                          m_block_size;
-  mapped_type                       m_default_value;
-  std::vector<mapped_type>          m_local_vec;
-  ygm::comm                         &m_comm;
-  typename ygm::ygm_ptr<self_type>  pthis;
+  size_type                          m_global_size;
+  size_type                          m_block_size;
+  mapped_type                        m_default_value;
+  std::vector<mapped_type>           m_local_vec;
+  ygm::comm                          &m_comm;
+  typename ygm::ygm_ptr<self_type>   pthis;
 };
 }  // namespace ygm::container::detail

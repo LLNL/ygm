@@ -14,6 +14,7 @@ class disjoint_set {
  public:
   using self_type           = disjoint_set<Item, Partitioner>;
   using value_type          = Item;
+  using size_type           = size_t;
   using ygm_for_all_types   = std::tuple< Item, Item >;
   using ygm_container_type  = ygm::container::disjoint_set_tag;
   using impl_type           = detail::disjoint_set_impl<Item, Partitioner>;
@@ -45,9 +46,9 @@ class disjoint_set {
     return m_impl.all_find(items);
   }
 
-  size_t size() { return m_impl.size(); }
+  size_type size() { return m_impl.size(); }
 
-  size_t num_sets() { return m_impl.num_sets(); }
+  size_type num_sets() { return m_impl.num_sets(); }
 
   typename ygm::ygm_ptr<impl_type> get_ygm_ptr() const {
     return m_impl.get_ygm_ptr();

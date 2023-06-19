@@ -16,15 +16,16 @@ class array {
   using self_type           = array<Value, Index>;
   using mapped_type         = Value;
   using key_type            = Index;
+  using size_type           = Index;
   using ygm_for_all_types   = std::tuple< Index, Value >;
   using ygm_container_type  = ygm::container::array_tag;
   using impl_type           = detail::array_impl<mapped_type, key_type>;
 
   array() = delete;
 
-  array(ygm::comm& comm, const key_type size) : m_impl(comm, size) {}
+  array(ygm::comm& comm, const size_type size) : m_impl(comm, size) {}
 
-  array(ygm::comm& comm, const key_type size, const mapped_type& default_value)
+  array(ygm::comm& comm, const size_type size, const mapped_type& default_value)
       : m_impl(comm, size, default_value) {}
 
   array(const self_type& rhs) : m_impl(rhs.m_impl) {}
@@ -103,7 +104,7 @@ class array {
     m_impl.for_all(fn);
   }
 
-  key_type size() { return m_impl.size(); }
+  size_type size() { return m_impl.size(); }
 
   typename ygm::ygm_ptr<impl_type> get_ygm_ptr() const {
     return m_impl.get_ygm_ptr();

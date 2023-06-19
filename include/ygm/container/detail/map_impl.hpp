@@ -27,6 +27,7 @@ class map_impl {
   using ptr_type            = typename ygm::ygm_ptr<self_type>;
   using mapped_type         = Value;
   using key_type            = Key;
+  using size_type           = size_t;
   using ygm_for_all_types   = std::tuple< Key, Value >;
   using ygm_container_type  = ygm::container::map_tag;
 
@@ -200,7 +201,7 @@ class map_impl {
     m_local_map.clear();
   }
 
-  size_t size() {
+  size_type size() {
     m_comm.barrier();
     return m_comm.all_reduce_sum(m_local_map.size());
   }
@@ -316,7 +317,7 @@ class map_impl {
 
   void local_clear() { m_local_map.clear(); }
 
-  size_t local_size() const { return m_local_map.size(); }
+  size_type local_size() const { return m_local_map.size(); }
 
   size_t local_const(const key_type &k) const { return m_local_map.count(k); }
 

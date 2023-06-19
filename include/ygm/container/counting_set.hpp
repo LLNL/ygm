@@ -20,10 +20,11 @@ class counting_set {
   using self_type           = counting_set<Key, Partitioner, Compare, Alloc>;
   using mapped_type         = size_t;
   using key_type            = Key;
+  using size_type           = size_t;
   using ygm_for_all_types   = std::tuple< Key, size_t >;
   using ygm_container_type  = ygm::container::counting_set_tag;
 
-  const size_t count_cache_size = 1024 * 1024;
+  const size_type count_cache_size = 1024 * 1024;
 
   counting_set(ygm::comm &comm) : m_map(comm, mapped_type(0)), pthis(this) {
     m_count_cache.resize(count_cache_size, {key_type(), -1});
@@ -40,20 +41,20 @@ class counting_set {
 
   void clear() { m_map.clear(); }
 
-  size_t size() { return m_map.size(); }
+  size_type size() { return m_map.size(); }
 
-  size_t count(const key_type &key) {
+  mapped_type count(const key_type &key) {
     m_map.comm().barrier();
     auto   vals = m_map.local_get(key);
-    size_t local_count{0};
+    mapped_type local_count{0};
     for (auto v : vals) {
       local_count += v;
     }
     return m_map.comm().all_reduce_sum(local_count);
   }
 
-  size_t count_all() {
-    size_t local_count{0};
+  mapped_type count_all() {
+    mapped_type local_count{0};
     for_all(
         [&local_count](const auto &key, auto &value) { local_count += value; });
     return m_map.comm().all_reduce_sum(local_count);
