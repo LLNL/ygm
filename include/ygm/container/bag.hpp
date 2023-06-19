@@ -22,6 +22,7 @@ class bag {
   bag(ygm::comm &comm) : m_impl(comm) {}
 
   void async_insert(const value_type &item) { m_impl.async_insert(item); }
+  void async_insert(const value_type &item, int dest) { m_impl.async_insert(item, dest); }
 
   template <typename Function>
   void for_all(Function fn) {
@@ -31,6 +32,9 @@ class bag {
   void clear() { m_impl.clear(); }
 
   size_t size() { return m_impl.size(); }
+  size_t local_size() { return m_impl.local_size(); }
+
+  void rebalance() { m_impl.rebalance(); }
 
   void swap(self_type &s) { m_impl.swap(s.m_impl); }
 
