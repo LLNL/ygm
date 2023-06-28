@@ -5,25 +5,24 @@
 
 #undef NDEBUG
 
-#include <initializer_list>
 #include <string>
 #include <vector>
 #include <ygm/comm.hpp>
 #include <ygm/container/tagged_bag.hpp>
 
-using ygm::container::tag_type;
-using ygm::container::tagged_bag;
+using string_bag = ygm::container::tagged_bag<std::string>;
+using tag_type   = ygm::container::tagged_bag<std::string>::tag_type;
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
 
   //
   // Test Rank 0 async_insert
   {
-    tagged_bag<std::string> tagbag(world);
-    tag_type                r0t1{};
-    tag_type                r0t2{};
-    tag_type                r0t3{};
-    std::vector<tag_type>   r0tags{};
+    string_bag            tagbag(world);
+    tag_type              r0t1{};
+    tag_type              r0t2{};
+    tag_type              r0t3{};
+    std::vector<tag_type> r0tags{};
     if (world.rank0()) {
       r0t1   = tagbag.async_insert("dog");
       r0t2   = tagbag.async_insert("apple");
@@ -55,10 +54,10 @@ int main(int argc, char** argv) {
   //
   // Test all ranks async_insert
   {
-    ygm::container::tagged_bag<std::string> bbag(world);
-    bbag.async_insert("dog");
-    bbag.async_insert("apple");
-    bbag.async_insert("red");
-    ASSERT_RELEASE(bbag.size() == 3 * (size_t)world.size());
+    string_bag sbag(world);
+    sbag.async_insert("dog");
+    sbag.async_insert("apple");
+    sbag.async_insert("red");
+    ASSERT_RELEASE(sbag.size() == 3 * (size_t)world.size());
   }
 }

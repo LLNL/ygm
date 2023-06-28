@@ -12,10 +12,10 @@
 
 namespace ygm::container {
 
-using tag_type = size_t;
 template <typename Item, typename Alloc = std::allocator<Item>>
 class tagged_bag {
  public:
+  using tag_type   = size_t;
   using value_type = Item;
   using self_type  = tagged_bag<Item, Alloc>;
 
