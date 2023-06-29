@@ -11,25 +11,24 @@
 #include <cmath>
 #include <utility>
 #include <algorithm>
-#include <random>
-#include <string>
-#include <cmath>
-#include <utility>
-#include <algorithm>
 #include <ygm/comm.hpp>
 #include <ygm/collective.hpp>
+#include <ygm/random.hpp>
 #include <ygm/detail/std_traits.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
-#include <ygm/random.hpp>
+#include <ygm/container/container_traits.hpp>
 #include <ygm/detail/mpi.hpp>
 
 namespace ygm::container::detail {
 template <typename Item, typename Alloc = std::allocator<Item>>
 class bag_impl {
  public:
-  using value_type = Item;
-  using self_type  = bag_impl<Item, Alloc>;
+  using value_type          = Item;
+  using size_type           = size_t;
+  using ygm_for_all_types   = std::tuple< Item >;
+  using ygm_container_type  = ygm::container::bag_tag;
+  using self_type           = bag_impl<Item, Alloc>;
 
   bag_impl(ygm::comm &comm) : m_comm(comm), pthis(this) { pthis.check(m_comm); }
 
@@ -84,12 +83,12 @@ class bag_impl {
     m_local_bag.clear();
   }
 
-  size_t size() {
+  size_type size() {
     m_comm.barrier();
     return m_comm.all_reduce_sum(m_local_bag.size());
   }
 
-  size_t local_size() {
+  size_type local_size() {
     return m_local_bag.size();
   }
 

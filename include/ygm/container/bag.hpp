@@ -4,17 +4,21 @@
 // SPDX-License-Identifier: MIT
 
 #pragma once
+
 #include <ygm/container/detail/bag_impl.hpp>
-// #include <ygm/detail/random.hpp>
 #include <ygm/random.hpp>
+#include <ygm/container/container_traits.hpp>
 
 namespace ygm::container {
 template <typename Item, typename Alloc = std::allocator<Item>>
 class bag {
  public:
-  using self_type  = bag<Item, Alloc>;
-  using value_type = Item;
-  using impl_type  = detail::bag_impl<Item, Alloc>;
+  using self_type           = bag<Item, Alloc>;
+  using value_type          = Item;
+  using size_type           = size_t;
+  using ygm_for_all_types   = std::tuple< Item >;
+  using ygm_container_type  = ygm::container::bag_tag;
+  using impl_type           = detail::bag_impl<Item, Alloc>;
 
   bag(ygm::comm &comm) : m_impl(comm) {}
 
@@ -28,8 +32,8 @@ class bag {
 
   void clear() { m_impl.clear(); }
 
-  size_t size() { return m_impl.size(); }
-  size_t local_size() { return m_impl.local_size(); }
+  size_type size() { return m_impl.size(); }
+  size_type local_size() { return m_impl.local_size(); }
 
   void rebalance() { m_impl.rebalance(); }
 

@@ -6,7 +6,6 @@
 #pragma once
 
 #include <type_traits>
-#include <ygm/container/array.hpp>
 #include <ygm/container/detail/reducing_adapter.hpp>
 #include <ygm/container/map.hpp>
 #include <ygm/detail/ygm_traits.hpp>
