@@ -12,6 +12,18 @@
 
 int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
+  
+
+  // Test basic tagging 
+  {
+    ygm::container::set<std::string> sset(world);
+
+    static_assert(std::is_same_v< decltype(sset)::self_type,     decltype(sset) >);
+    static_assert(std::is_same_v< decltype(sset)::key_type,      std::string >);
+    static_assert(std::is_same_v< decltype(sset)::size_type,     size_t >);
+    static_assert(std::is_same_v< decltype(sset)::ygm_for_all_types,   
+            std::tuple< decltype(sset)::key_type > >);
+  }
 
   //
   // Test Rank 0 async_insert

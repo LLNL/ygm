@@ -11,6 +11,7 @@
 #include <ygm/container/detail/hash_partitioner.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
+#include <ygm/container/container_traits.hpp>
 
 namespace ygm::container::detail {
 template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
@@ -18,8 +19,10 @@ template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
           class Alloc      = std::allocator<const Key>>
 class set_impl {
  public:
-  using self_type = set_impl<Key, Partitioner, Compare, Alloc>;
-  using key_type  = Key;
+  using self_type           = set_impl<Key, Partitioner, Compare, Alloc>;
+  using key_type            = Key;
+  using size_type           = size_t;
+  using ygm_container_type  = ygm::container::set_tag;
 
   Partitioner partitioner;
 
@@ -128,7 +131,7 @@ class set_impl {
     m_local_set.clear();
   }
 
-  size_t size() {
+  size_type size() {
     m_comm.barrier();
     return m_comm.all_reduce_sum(m_local_set.size());
   }

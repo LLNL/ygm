@@ -7,6 +7,7 @@
 
 #include <ygm/comm.hpp>
 #include <ygm/container/reduce_by_key.hpp>
+#include <ygm/container/bag.hpp>
 
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
