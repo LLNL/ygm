@@ -193,7 +193,7 @@ inline void comm::async_bcast(AsyncFunction fn, const SendArgs &...args) {
       "is_standard_layout.");
   check_if_production_halt_required();
 
-  pack_lambda_broadcast(std::forward<const SendArgs>(args)...);
+  pack_lambda_broadcast(fn, std::forward<const SendArgs>(args)...);
 
   //
   // Check if send buffer capacity has been exceeded
@@ -211,7 +211,7 @@ inline void comm::async_mcast(const std::vector<int> &dests, AsyncFunction fn,
       "comm::async_mcast() AsyncFunction must be is_trivially_copyable & "
       "is_standard_layout.");
   for (auto dest : dests) {
-    async(dest, std::forward<const SendArgs>(args)...);
+    async(dest, fn, std::forward<const SendArgs>(args)...);
   }
 }
 
