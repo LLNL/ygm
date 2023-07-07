@@ -236,4 +236,3 @@ class comm {
 }  // end namespace ygm
 
 #include <ygm/detail/comm.ipp>
-//#include <ygm/detail/comm_impl.hpp>

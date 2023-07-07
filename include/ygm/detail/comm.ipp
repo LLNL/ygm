@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: MIT
 
 #pragma once
-//#include <ygm/detail/comm_impl.hpp>
 #include <ygm/detail/meta/functional.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
 
