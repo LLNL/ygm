@@ -195,6 +195,8 @@ class comm {
 
   comm() = delete;
 
+  comm(const comm &c) = delete;
+
   // Private member variables
  private:
   std::shared_ptr<detail::mpi_init_finalize> pimpl_if;

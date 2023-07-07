@@ -9,11 +9,11 @@
 #include <fstream>
 #include <map>
 #include <ygm/comm.hpp>
+#include <ygm/container/container_traits.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
 #include <ygm/detail/interrupt_mask.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
-#include <ygm/container/container_traits.hpp>
 
 namespace ygm::container::detail {
 
@@ -23,13 +23,13 @@ template <typename Key, typename Value,
           class Alloc          = std::allocator<std::pair<const Key, Value>>>
 class map_impl {
  public:
-  using self_type           = map_impl<Key, Value, Partitioner, Compare, Alloc>;
-  using ptr_type            = typename ygm::ygm_ptr<self_type>;
-  using mapped_type         = Value;
-  using key_type            = Key;
-  using size_type           = size_t;
-  using ygm_for_all_types   = std::tuple< Key, Value >;
-  using ygm_container_type  = ygm::container::map_tag;
+  using self_type          = map_impl<Key, Value, Partitioner, Compare, Alloc>;
+  using ptr_type           = typename ygm::ygm_ptr<self_type>;
+  using mapped_type        = Value;
+  using key_type           = Key;
+  using size_type          = size_t;
+  using ygm_for_all_types  = std::tuple<Key, Value>;
+  using ygm_container_type = ygm::container::map_tag;
 
   Partitioner partitioner;
 
@@ -140,9 +140,9 @@ class map_impl {
   }
 
   template <typename Visitor, typename... VisitorArgs>
-  void async_insert_if_missing_else_visit(const key_type   &key,
+  void async_insert_if_missing_else_visit(const key_type    &key,
                                           const mapped_type &value,
-                                          Visitor           visitor,
+                                          Visitor            visitor,
                                           const VisitorArgs &...args) {
     int  dest                      = owner(key);
     auto insert_else_visit_wrapper = [](auto pmap, const key_type &key,
@@ -339,7 +339,7 @@ class map_impl {
 
   template <typename CompareFunction>
   std::vector<std::pair<key_type, mapped_type>> topk(size_t          k,
-                                                    CompareFunction cfn) {
+                                                     CompareFunction cfn) {
     using vec_type = std::vector<std::pair<key_type, mapped_type>>;
 
     m_comm.barrier();
@@ -373,7 +373,7 @@ class map_impl {
 
   mapped_type                                          m_default_value;
   std::multimap<key_type, mapped_type, Compare, Alloc> m_local_map;
-  ygm::comm                                            m_comm;
+  ygm::comm                                           &m_comm;
   ptr_type                                             pthis;
 };
 }  // namespace ygm::container::detail

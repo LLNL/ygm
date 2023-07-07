@@ -8,10 +8,10 @@
 #include <fstream>
 #include <set>
 #include <ygm/comm.hpp>
+#include <ygm/container/container_traits.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
-#include <ygm/container/container_traits.hpp>
 
 namespace ygm::container::detail {
 template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
@@ -19,10 +19,10 @@ template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
           class Alloc      = std::allocator<const Key>>
 class set_impl {
  public:
-  using self_type           = set_impl<Key, Partitioner, Compare, Alloc>;
-  using key_type            = Key;
-  using size_type           = size_t;
-  using ygm_container_type  = ygm::container::set_tag;
+  using self_type          = set_impl<Key, Partitioner, Compare, Alloc>;
+  using key_type           = Key;
+  using size_type          = size_t;
+  using ygm_container_type = ygm::container::set_tag;
 
   Partitioner partitioner;
 
@@ -195,7 +195,7 @@ class set_impl {
   set_impl() = delete;
 
   std::multiset<key_type, Compare, Alloc> m_local_set;
-  ygm::comm                               m_comm;
+  ygm::comm                              &m_comm;
   typename ygm::ygm_ptr<self_type>        pthis;
 };
 }  // namespace ygm::container::detail

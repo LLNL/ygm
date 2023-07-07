@@ -4,31 +4,31 @@
 // SPDX-License-Identifier: MIT
 
 #pragma once
-#include <cereal/archives/json.hpp>
-#include <fstream>
-#include <vector>
-#include <string>
-#include <cmath>
-#include <utility>
 #include <algorithm>
-#include <ygm/comm.hpp>
+#include <cereal/archives/json.hpp>
+#include <cmath>
+#include <fstream>
+#include <string>
+#include <utility>
+#include <vector>
 #include <ygm/collective.hpp>
-#include <ygm/random.hpp>
+#include <ygm/comm.hpp>
+#include <ygm/container/container_traits.hpp>
+#include <ygm/detail/mpi.hpp>
 #include <ygm/detail/std_traits.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
-#include <ygm/container/container_traits.hpp>
-#include <ygm/detail/mpi.hpp>
+#include <ygm/random.hpp>
 
 namespace ygm::container::detail {
 template <typename Item, typename Alloc = std::allocator<Item>>
 class bag_impl {
  public:
-  using value_type          = Item;
-  using size_type           = size_t;
-  using ygm_for_all_types   = std::tuple< Item >;
-  using ygm_container_type  = ygm::container::bag_tag;
-  using self_type           = bag_impl<Item, Alloc>;
+  using value_type         = Item;
+  using size_type          = size_t;
+  using ygm_for_all_types  = std::tuple<Item>;
+  using ygm_container_type = ygm::container::bag_tag;
+  using self_type          = bag_impl<Item, Alloc>;
 
   bag_impl(ygm::comm &comm) : m_comm(comm), pthis(this) { pthis.check(m_comm); }
 
@@ -49,12 +49,13 @@ class bag_impl {
   }
 
   void async_insert(const std::vector<value_type> &item, int dest) {
-    auto inserter = [](auto mailbox, auto map, const std::vector<value_type> &item) {
+    auto inserter = [](auto mailbox, auto map,
+                       const std::vector<value_type> &item) {
       map->m_local_bag.insert(map->m_local_bag.end(), item.begin(), item.end());
     };
     m_comm.async(dest, inserter, pthis, item);
   }
-  
+
   template <typename Function>
   void for_all(Function fn) {
     m_comm.barrier();
@@ -70,8 +71,8 @@ class bag_impl {
   std::vector<value_type> local_pop(int n) {
     ASSERT_RELEASE(n <= local_size());
 
-    size_t new_size = local_size() - n;
-    auto pop_start = m_local_bag.begin() + new_size;
+    size_t                  new_size  = local_size() - n;
+    auto                    pop_start = m_local_bag.begin() + new_size;
     std::vector<value_type> ret;
     ret.assign(pop_start, m_local_bag.end());
     m_local_bag.resize(new_size);
@@ -88,24 +89,21 @@ class bag_impl {
     return m_comm.all_reduce_sum(m_local_bag.size());
   }
 
-  size_type local_size() {
-    return m_local_bag.size();
-  }
-
+  size_type local_size() { return m_local_bag.size(); }
 
   void rebalance() {
     m_comm.barrier();
 
     // Find current rank's prefix val and desired target size
-    size_t prefix_val = ygm::prefix_sum(local_size(), m_comm);
+    size_t prefix_val  = ygm::prefix_sum(local_size(), m_comm);
     size_t target_size = std::ceil((size() * 1.0) / m_comm.size());
 
     // Init to_send array where index is dest and value is the num to send
-    //int to_send[m_comm.size()] = {0};
+    // int to_send[m_comm.size()] = {0};
     std::unordered_map<size_t, size_t> to_send;
-    
+
     for (size_t i = 0; i < local_size(); i++) {
-      size_t idx = prefix_val + i;
+      size_t idx         = prefix_val + i;
       size_t target_rank = idx / target_size;
       if (target_rank != m_comm.rank()) {
         to_send[target_rank]++;
@@ -145,11 +143,11 @@ class bag_impl {
 
     auto send_item = [](auto bag, const value_type &item) {
       bag->m_local_bag.push_back(item);
-    }; 
+    };
 
-    std::uniform_int_distribution<> distrib(0, m_comm.size()-1);
+    std::uniform_int_distribution<> distrib(0, m_comm.size() - 1);
     for (value_type i : old_local_bag) {
-        m_comm.async(distrib(r), send_item, pthis, i);
+      m_comm.async(distrib(r), send_item, pthis, i);
     }
   }
 
@@ -247,7 +245,7 @@ class bag_impl {
 
  protected:
   size_t                           m_round_robin = 0;
-  ygm::comm                        m_comm;
+  ygm::comm                       &m_comm;
   std::vector<value_type>          m_local_bag;
   typename ygm::ygm_ptr<self_type> pthis;
 };
