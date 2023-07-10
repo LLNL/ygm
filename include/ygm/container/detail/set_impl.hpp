@@ -27,6 +27,10 @@ class set_impl {
   Partitioner partitioner;
 
   set_impl(ygm::comm &comm) : m_comm(comm), pthis(this) { pthis.check(m_comm); }
+  set_impl(set_impl &&s) noexcept
+      : m_comm(s.m_comm), pthis(this), m_local_set(std::move(s.m_local_set)) {
+    pthis.check(m_comm);
+  }
 
   ~set_impl() { m_comm.barrier(); }
 

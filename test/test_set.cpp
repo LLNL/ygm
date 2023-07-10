@@ -12,17 +12,16 @@
 
 int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
-  
 
-  // Test basic tagging 
+  // Test basic tagging
   {
     ygm::container::set<std::string> sset(world);
 
-    static_assert(std::is_same_v< decltype(sset)::self_type,     decltype(sset) >);
-    static_assert(std::is_same_v< decltype(sset)::key_type,      std::string >);
-    static_assert(std::is_same_v< decltype(sset)::size_type,     size_t >);
-    static_assert(std::is_same_v< decltype(sset)::ygm_for_all_types,   
-            std::tuple< decltype(sset)::key_type > >);
+    static_assert(std::is_same_v<decltype(sset)::self_type, decltype(sset)>);
+    static_assert(std::is_same_v<decltype(sset)::key_type, std::string>);
+    static_assert(std::is_same_v<decltype(sset)::size_type, size_t>);
+    static_assert(std::is_same_v<decltype(sset)::ygm_for_all_types,
+                                 std::tuple<decltype(sset)::key_type>>);
   }
 
   //
@@ -151,6 +150,28 @@ int main(int argc, char **argv) {
     ASSERT_RELEASE(sset2.count("dog") == 1);
     ASSERT_RELEASE(sset2.count("apple") == 1);
     ASSERT_RELEASE(sset2.count("red") == 1);
+  }
+
+  //
+  // Test vector of sets
+  {
+    int                                   num_sets = 4;
+    std::vector<ygm::container::set<int>> vec_sets;
+
+    for (int i = 0; i < num_sets; ++i) {
+      vec_sets.emplace_back(world);
+    }
+
+    for (int set_index = 0; set_index < num_sets; ++set_index) {
+      int item = world.rank() + set_index;
+      vec_sets[set_index].async_insert(item);
+      vec_sets[set_index].async_insert(item + 1);
+    }
+
+    world.barrier();
+    for (int set_index = 0; set_index < num_sets; ++set_index) {
+      ASSERT_RELEASE(vec_sets[set_index].size() == world.size() + 1);
+    }
   }
 
   return 0;
