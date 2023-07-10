@@ -170,8 +170,7 @@ int main(int argc, char **argv) {
 
     world.barrier();
     for (int set_index = 0; set_index < num_sets; ++set_index) {
-      // ASSERT_RELEASE(vec_sets[set_index].size() == world.size() + 1);
-      ASSERT_RELEASE(vec_sets[set_index].size() == 0);
+      ASSERT_RELEASE(vec_sets[set_index].size() == world.size() + 1);
     }
   }
 
