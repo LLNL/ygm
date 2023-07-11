@@ -11,17 +11,19 @@
 
 int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
-  
-  // Test basic tagging 
+
+  // Test basic tagging
   {
     ygm::container::map<std::string, int> smap(world);
 
-    static_assert(std::is_same_v< decltype(smap)::self_type,     decltype(smap) >);
-    static_assert(std::is_same_v< decltype(smap)::mapped_type,   int >);
-    static_assert(std::is_same_v< decltype(smap)::key_type,      std::string >);
-    static_assert(std::is_same_v< decltype(smap)::size_type,     size_t >);
-    static_assert(std::is_same_v< decltype(smap)::ygm_for_all_types,   
-            std::tuple< decltype(smap)::key_type, decltype(smap)::mapped_type > >);
+    static_assert(std::is_same_v<decltype(smap)::self_type, decltype(smap)>);
+    static_assert(std::is_same_v<decltype(smap)::mapped_type, int>);
+    static_assert(std::is_same_v<decltype(smap)::key_type, std::string>);
+    static_assert(std::is_same_v<decltype(smap)::size_type, size_t>);
+    static_assert(
+        std::is_same_v<
+            decltype(smap)::ygm_for_all_types,
+            std::tuple<decltype(smap)::key_type, decltype(smap)::mapped_type>>);
   }
 
   //

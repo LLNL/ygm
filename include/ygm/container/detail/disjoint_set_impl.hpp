@@ -7,24 +7,24 @@
 #include <unordered_map>
 #include <vector>
 #include <ygm/comm.hpp>
+#include <ygm/container/container_traits.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
-#include <ygm/container/container_traits.hpp>
 
 namespace ygm::container::detail {
 template <typename Item, typename Partitioner>
 class disjoint_set_impl {
  public:
   class rank_parent_t;
-  using self_type           = disjoint_set_impl<Item, Partitioner>;
-  using self_ygm_ptr_type   = typename ygm::ygm_ptr<self_type>;
-  using value_type          = Item;
-  using size_type           = size_t;
-  using ygm_for_all_types   = std::tuple< Item, Item >;
-  using ygm_container_type  = ygm::container::disjoint_set_tag;
-  using rank_type           = int16_t;
-  using parent_map_type     = std::map<value_type, rank_parent_t>;
+  using self_type          = disjoint_set_impl<Item, Partitioner>;
+  using self_ygm_ptr_type  = typename ygm::ygm_ptr<self_type>;
+  using value_type         = Item;
+  using size_type          = size_t;
+  using ygm_for_all_types  = std::tuple<Item, Item>;
+  using ygm_container_type = ygm::container::disjoint_set_tag;
+  using rank_type          = int16_t;
+  using parent_map_type    = std::map<value_type, rank_parent_t>;
 
   Partitioner partitioner;
 
@@ -561,7 +561,7 @@ class disjoint_set_impl {
  protected:
   disjoint_set_impl() = delete;
 
-  ygm::comm         m_comm;
+  ygm::comm        &m_comm;
   self_ygm_ptr_type pthis;
   parent_map_type   m_local_item_parent_map;
 };

@@ -28,7 +28,7 @@ template <typename Key, typename Value, typename Container,
           typename ReductionFunction>
 ygm::container::map<Key, Value> reduce_by_key_map(Container&        container,
                                                   ReductionFunction reducer,
-                                                  comm              cm) {
+                                                  comm&             cm) {
   cm.barrier();
   ygm::container::map<Key, Value> to_return(cm);
 

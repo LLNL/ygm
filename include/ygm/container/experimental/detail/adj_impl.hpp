@@ -97,9 +97,9 @@ class adj_impl {
 
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_if_exists(const key_type &row, const key_type &col,
-                             Visitor visitor, const VisitorArgs &... args) {
+                             Visitor visitor, const VisitorArgs &...args) {
     auto visit_wrapper = [](auto pcomm, auto padj, const key_type &row,
-                            const key_type &col, const VisitorArgs &... args) {
+                            const key_type &col, const VisitorArgs &...args) {
       Visitor *vis;
       padj->local_visit(row, col, *vis, args...);
     };
@@ -111,10 +111,10 @@ class adj_impl {
 
   template <typename Function, typename... VisitorArgs>
   void local_visit(const key_type &row, const key_type &col, Function &fn,
-                   const VisitorArgs &... args) {
+                   const VisitorArgs &...args) {
     /* Fetch the row map, key: col id, value: val. */
     inner_map_type &inner_map = m_map[row];
-    value_type &    value     = inner_map[col];
+    value_type     &value     = inner_map[col];
 
     /* Assuming this changes the value at row, col. */
     ygm::meta::apply_optional(fn, std::make_tuple(pthis),
@@ -123,10 +123,10 @@ class adj_impl {
 
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_const(const key_type &key, Visitor visitor,
-                         const VisitorArgs &... args) {
+                         const VisitorArgs &...args) {
     int  dest          = owner(key);
     auto visit_wrapper = [](auto pcomm, auto padj, const key_type &key,
-                            const VisitorArgs &... args) {
+                            const VisitorArgs &...args) {
       Visitor *vis;
       padj->inner_local_for_all(key, *vis, args...);
     };
@@ -137,7 +137,7 @@ class adj_impl {
 
   template <typename Function, typename... VisitorArgs>
   void inner_local_for_all(const key_type &key, Function fn,
-                           const VisitorArgs &... args) {
+                           const VisitorArgs &...args) {
     auto &inner_map = m_map[key];
     for (auto itr = inner_map.begin(); itr != inner_map.end(); ++itr) {
       key_type   outer_key = key;
@@ -148,14 +148,14 @@ class adj_impl {
   }
 
   template <typename Visitor, typename... VisitorArgs>
-  void async_insert_if_missing_else_visit(const key_type &  row,
-                                          const key_type &  col,
+  void async_insert_if_missing_else_visit(const key_type   &row,
+                                          const key_type   &col,
                                           const value_type &value,
                                           Visitor           visitor,
-                                          const VisitorArgs &... args) {
+                                          const VisitorArgs &...args) {
     auto visit_wrapper = [](auto pcomm, auto padj, const key_type &row,
                             const key_type &col, const value_type &value,
-                            const VisitorArgs &... args) {
+                            const VisitorArgs &...args) {
       Visitor *vis;
       padj->local_insert_if_missing_else_visit(row, col, value, *vis, args...);
     };
@@ -167,10 +167,10 @@ class adj_impl {
 
   /* Do we really need a value here? */
   template <typename Function, typename... VisitorArgs>
-  void local_insert_if_missing_else_visit(const key_type &  row,
-                                          const key_type &  col,
+  void local_insert_if_missing_else_visit(const key_type   &row,
+                                          const key_type   &col,
                                           const value_type &value, Function &fn,
-                                          const VisitorArgs &... args) {
+                                          const VisitorArgs &...args) {
     inner_map_type &inner_map = m_map[row];
     if (inner_map.find(col) == inner_map.end()) {
       inner_map.insert(std::make_pair(col, value));
@@ -184,7 +184,7 @@ class adj_impl {
 
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_mutate(const key_type &outer_key, Visitor visitor,
-                          const VisitorArgs &... args) {
+                          const VisitorArgs &...args) {
     auto &inner_map = m_map.find(outer_key)->second;
     for (auto i_itr = inner_map.begin(); i_itr != inner_map.end(); ++i_itr) {
       auto inner_key = i_itr->first;
@@ -203,7 +203,7 @@ class adj_impl {
  protected:
   value_type                                  m_default_value;
   std::map<key_type, inner_map_type, Compare> m_map;
-  ygm::comm                                   m_comm;
+  ygm::comm                                  &m_comm;
   typename ygm::ygm_ptr<self_type>            pthis;
 };
 }  // namespace ygm::container::experimental::detail

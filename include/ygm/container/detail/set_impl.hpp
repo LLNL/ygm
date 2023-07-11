@@ -199,7 +199,7 @@ class set_impl {
   set_impl() = delete;
 
   std::multiset<key_type, Compare, Alloc> m_local_set;
-  ygm::comm                               m_comm;
+  ygm::comm                              &m_comm;
   typename ygm::ygm_ptr<self_type>        pthis;
 };
 }  // namespace ygm::container::detail
