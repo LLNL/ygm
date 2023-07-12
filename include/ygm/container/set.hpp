@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include <ygm/container/detail/set_impl.hpp>
 #include <ygm/container/container_traits.hpp>
+#include <ygm/container/detail/set_impl.hpp>
 
 namespace ygm::container {
 
@@ -15,11 +15,11 @@ template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
           class Alloc      = std::allocator<const Key>>
 class multiset {
  public:
-  using self_type           = multiset<Key, Partitioner, Compare, Alloc>;
-  using key_type            = Key;
-  using size_type           = size_t;
-  using ygm_for_all_types   = std::tuple< Key >;
-  using impl_type           = detail::set_impl<key_type, Partitioner, Compare, Alloc>;
+  using self_type         = multiset<Key, Partitioner, Compare, Alloc>;
+  using key_type          = Key;
+  using size_type         = size_t;
+  using ygm_for_all_types = std::tuple<Key>;
+  using impl_type = detail::set_impl<key_type, Partitioner, Compare, Alloc>;
 
   Partitioner partitioner;
 
@@ -36,9 +36,16 @@ class multiset {
     m_impl.for_all(fn);
   }
 
+  template <typename Function>
+  void consume_all(Function fn) {
+    m_impl.consume_all(fn);
+  }
+
   void clear() { m_impl.clear(); }
 
   size_type size() { return m_impl.size(); }
+
+  bool empty() { return m_impl.size() == 0; }
 
   size_t count(const key_type& key) { return m_impl.count(key); }
 
@@ -64,18 +71,17 @@ class multiset {
   impl_type m_impl;
 };
 
-
 template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
           typename Compare = std::less<Key>,
           class Alloc      = std::allocator<const Key>>
 class set {
  public:
-  using self_type           = set<Key, Partitioner, Compare, Alloc>;
-  using key_type            = Key;
-  using size_type           = size_t;
-  using ygm_container_type  = ygm::container::set_tag;
-  using ygm_for_all_types   = std::tuple< Key >;
-  using impl_type           = detail::set_impl<key_type, Partitioner, Compare, Alloc>;
+  using self_type          = set<Key, Partitioner, Compare, Alloc>;
+  using key_type           = Key;
+  using size_type          = size_t;
+  using ygm_container_type = ygm::container::set_tag;
+  using ygm_for_all_types  = std::tuple<Key>;
+  using impl_type = detail::set_impl<key_type, Partitioner, Compare, Alloc>;
 
   Partitioner partitioner;
 
@@ -120,9 +126,16 @@ class set {
     m_impl.for_all(fn);
   }
 
+  template <typename Function>
+  void consume_all(Function fn) {
+    m_impl.consume_all(fn);
+  }
+
   void clear() { m_impl.clear(); }
 
   size_type size() { return m_impl.size(); }
+
+  bool empty() { return m_impl.size() == 0; }
 
   size_t count(const key_type& key) { return m_impl.count(key); }
 
