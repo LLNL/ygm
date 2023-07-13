@@ -43,7 +43,7 @@ inline comm::comm(MPI_Comm mcomm)
   comm_setup(mcomm);
 }
 
-void comm::comm_setup(MPI_Comm c) {
+inline void comm::comm_setup(MPI_Comm c) {
   ASSERT_MPI(MPI_Comm_dup(c, &m_comm_async));
   ASSERT_MPI(MPI_Comm_dup(c, &m_comm_barrier));
   ASSERT_MPI(MPI_Comm_dup(c, &m_comm_other));
@@ -326,7 +326,8 @@ inline T comm::all_reduce(const T &in, MergeFunction merge) const {
 }
 
 template <typename T>
-void comm::mpi_send(const T &data, int dest, int tag, MPI_Comm comm) const {
+inline void comm::mpi_send(const T &data, int dest, int tag,
+                           MPI_Comm comm) const {
   std::vector<std::byte>   packed;
   cereal::YGMOutputArchive oarchive(packed);
   oarchive(data);
@@ -338,7 +339,7 @@ void comm::mpi_send(const T &data, int dest, int tag, MPI_Comm comm) const {
 }
 
 template <typename T>
-T comm::mpi_recv(int source, int tag, MPI_Comm comm) const {
+inline T comm::mpi_recv(int source, int tag, MPI_Comm comm) const {
   std::vector<std::byte> packed;
   size_t                 packed_size{0};
   ASSERT_MPI(MPI_Recv(&packed_size, 1, detail::mpi_typeof(packed_size), source,
@@ -354,7 +355,7 @@ T comm::mpi_recv(int source, int tag, MPI_Comm comm) const {
 }
 
 template <typename T>
-T comm::mpi_bcast(const T &to_bcast, int root, MPI_Comm comm) const {
+inline T comm::mpi_bcast(const T &to_bcast, int root, MPI_Comm comm) const {
   std::vector<std::byte>   packed;
   cereal::YGMOutputArchive oarchive(packed);
   if (rank() == root) {
@@ -375,7 +376,7 @@ T comm::mpi_bcast(const T &to_bcast, int root, MPI_Comm comm) const {
   return to_return;
 }
 
-std::ostream &comm::cout0() const {
+inline std::ostream &comm::cout0() const {
   static std::ostringstream dummy;
   dummy.clear();
   if (rank() == 0) {
@@ -384,7 +385,7 @@ std::ostream &comm::cout0() const {
   return dummy;
 }
 
-std::ostream &comm::cerr0() const {
+inline std::ostream &comm::cerr0() const {
   static std::ostringstream dummy;
   dummy.clear();
   if (rank() == 0) {
@@ -393,56 +394,56 @@ std::ostream &comm::cerr0() const {
   return dummy;
 }
 
-std::ostream &comm::cout() const {
+inline std::ostream &comm::cout() const {
   std::cout << rank() << ": ";
   return std::cout;
 }
 
-std::ostream &comm::cerr() const {
+inline std::ostream &comm::cerr() const {
   std::cerr << rank() << ": ";
   return std::cerr;
 }
 
 template <typename... Args>
-void comm::cout(Args &&...args) const {
+inline void comm::cout(Args &&...args) const {
   std::cout << outstr(args...) << std::endl;
 }
 
 template <typename... Args>
-void comm::cerr(Args &&...args) const {
+inline void comm::cerr(Args &&...args) const {
   std::cerr << outstr(args...) << std::endl;
 }
 
 template <typename... Args>
-void comm::cout0(Args &&...args) const {
+inline void comm::cout0(Args &&...args) const {
   if (rank0()) {
     std::cout << outstr0(args...) << std::endl;
   }
 }
 
 template <typename... Args>
-void comm::cerr0(Args &&...args) const {
+inline void comm::cerr0(Args &&...args) const {
   if (rank0()) {
     std::cerr << outstr0(args...) << std::endl;
   }
 }
 
 template <typename... Args>
-std::string comm::outstr0(Args &&...args) const {
+inline std::string comm::outstr0(Args &&...args) const {
   std::stringstream ss;
   (ss << ... << args);
   return ss.str();
 }
 
 template <typename... Args>
-std::string comm::outstr(Args &&...args) const {
+inline std::string comm::outstr(Args &&...args) const {
   std::stringstream ss;
   (ss << rank() << ": " << ... << args);
   return ss.str();
 }
 
-size_t comm::pack_header(std::vector<std::byte> &packed, const int dest,
-                         size_t size) {
+inline size_t comm::pack_header(std::vector<std::byte> &packed, const int dest,
+                                size_t size) {
   size_t size_before = packed.size();
 
   header_t h;
@@ -458,7 +459,7 @@ size_t comm::pack_header(std::vector<std::byte> &packed, const int dest,
   return packed.size() - size_before;
 }
 
-std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
+inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
   uint64_t local_counts[2]  = {m_recv_count, m_send_count};
   uint64_t global_counts[2] = {0, 0};
 
@@ -506,7 +507,7 @@ std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
  *
  * @param dest
  */
-void comm::flush_send_buffer(int dest) {
+inline void comm::flush_send_buffer(int dest) {
   static size_t counter = 0;
   if (m_vec_send_buffers[dest].size() > 0) {
     mpi_isend_request request;
@@ -536,7 +537,7 @@ void comm::flush_send_buffer(int dest) {
   }
 }
 
-void comm::check_if_production_halt_required() {
+inline void comm::check_if_production_halt_required() {
   while (m_enable_interrupts && !m_in_process_receive_queue &&
          m_pending_isend_bytes > config.buffer_size) {
     process_receive_queue();
@@ -544,10 +545,36 @@ void comm::check_if_production_halt_required() {
 }
 
 /**
+ * @brief Flushes one buffer and checks for incoming.
+ *
+ */
+inline void comm::progress() {
+  process_receive_queue();
+  if (not m_send_dest_queue.empty()) {
+    int dest = m_send_dest_queue.front();
+    m_send_dest_queue.pop_front();
+    flush_send_buffer(dest);
+  }
+}
+
+/**
+ * @brief Waits until provided condition function returns true.
+ *
+ * @tparam Function
+ * @param fn Wait condition function, must match []() -> bool
+ */
+template <typename Function>
+inline void comm::wait_until(Function fn) {
+  while (not fn()) {
+    progress();
+  }
+}
+
+/**
  * @brief Flushes all local state and buffers.
  * Notifies any registered barrier watchers.
  */
-void comm::flush_all_local_and_process_incoming() {
+inline void comm::flush_all_local_and_process_incoming() {
   // Keep flushing until all local work is complete
   bool did_something = true;
   while (did_something) {
@@ -583,7 +610,7 @@ void comm::flush_all_local_and_process_incoming() {
  * @brief Flush send buffers until queued sends are smaller than buffer
  * capacity
  */
-void comm::flush_to_capacity() {
+inline void comm::flush_to_capacity() {
   while (m_send_buffer_bytes > config.buffer_size) {
     ASSERT_DEBUG(!m_send_dest_queue.empty());
     int dest = m_send_dest_queue.front();
@@ -592,7 +619,7 @@ void comm::flush_to_capacity() {
   }
 }
 
-void comm::post_new_irecv(std::shared_ptr<std::byte[]> &recv_buffer) {
+inline void comm::post_new_irecv(std::shared_ptr<std::byte[]> &recv_buffer) {
   mpi_irecv_request recv_req;
   recv_req.buffer = recv_buffer;
 
@@ -604,8 +631,8 @@ void comm::post_new_irecv(std::shared_ptr<std::byte[]> &recv_buffer) {
 }
 
 template <typename Lambda, typename... PackArgs>
-size_t comm::pack_lambda(std::vector<std::byte> &packed, Lambda l,
-                         const PackArgs &...args) {
+inline size_t comm::pack_lambda(std::vector<std::byte> &packed, Lambda l,
+                                const PackArgs &...args) {
   size_t                        size_before = packed.size();
   const std::tuple<PackArgs...> tuple_args(
       std::forward<const PackArgs>(args)...);
@@ -635,7 +662,7 @@ size_t comm::pack_lambda(std::vector<std::byte> &packed, Lambda l,
 }
 
 template <typename Lambda, typename... PackArgs>
-void comm::pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
+inline void comm::pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
   const std::tuple<PackArgs...> tuple_args(
       std::forward<const PackArgs>(args)...);
 
@@ -758,9 +785,9 @@ void comm::pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
 }
 
 template <typename Lambda, typename RemoteLogicLambda, typename... PackArgs>
-size_t comm::pack_lambda_generic(std::vector<std::byte> &packed, Lambda l,
-                                 RemoteLogicLambda rll,
-                                 const PackArgs &...args) {
+inline size_t comm::pack_lambda_generic(std::vector<std::byte> &packed,
+                                        Lambda l, RemoteLogicLambda rll,
+                                        const PackArgs &...args) {
   size_t                        size_before = packed.size();
   const std::tuple<PackArgs...> tuple_args(
       std::forward<const PackArgs>(args)...);
@@ -800,8 +827,8 @@ size_t comm::pack_lambda_generic(std::vector<std::byte> &packed, Lambda l,
  * destination. Does not modify packed message to add headers for routing.
  *
  */
-void comm::queue_message_bytes(const std::vector<std::byte> &packed,
-                               const int                     dest) {
+inline void comm::queue_message_bytes(const std::vector<std::byte> &packed,
+                                      const int                     dest) {
   m_send_count++;
 
   //
@@ -828,8 +855,8 @@ void comm::queue_message_bytes(const std::vector<std::byte> &packed,
   m_send_buffer_bytes += packed.size();
 }
 
-void comm::handle_next_receive(MPI_Status                   status,
-                               std::shared_ptr<std::byte[]> buffer) {
+inline void comm::handle_next_receive(MPI_Status                   status,
+                                      std::shared_ptr<std::byte[]> buffer) {
   int count{0};
   ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &count));
   stats.irecv(status.MPI_SOURCE, count);
@@ -881,7 +908,7 @@ void comm::handle_next_receive(MPI_Status                   status,
  *
  * @return True if receive queue was non-empty, else false
  */
-bool comm::process_receive_queue() {
+inline bool comm::process_receive_queue() {
   ASSERT_RELEASE(!m_in_process_receive_queue);
   m_in_process_receive_queue = true;
   bool received_to_return    = false;
@@ -934,6 +961,15 @@ bool comm::process_receive_queue() {
     }
   }
 
+  received_to_return != process_incoming();
+
+  m_in_process_receive_queue = false;
+  return received_to_return;
+}
+
+inline bool comm::process_incoming() {
+  bool received_to_return = false;
+
   while (true) {
     int        flag(0);
     MPI_Status status;
@@ -948,9 +984,6 @@ bool comm::process_receive_queue() {
       break;  // not ready yet
     }
   }
-
-  m_in_process_receive_queue = false;
   return received_to_return;
 }
-
 };  // namespace ygm

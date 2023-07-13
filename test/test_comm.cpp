@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
         } else {
           return b;
         }
-        });
+      });
       ASSERT_RELEASE(red == 0);
       auto red2 = world.all_reduce(id, [](size_t a, size_t b) {
         if (a > b) {
@@ -121,6 +121,17 @@ int main(int argc, char** argv) {
         }
       });
       ASSERT_RELEASE(red2 == (size_t)world.size() - 1);
+    }
+
+    //
+    // Test wait_until
+    {
+      static bool done = false;
+      world.cf_barrier();
+      world.async_bcast([]() { done = true; });
+      world.wait_until([]() { return done; });
+      world.barrier();
+      ASSERT_RELEASE(done);
     }
   }
 
