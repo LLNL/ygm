@@ -88,6 +88,8 @@ class comm {
 
   void progress();
 
+  bool process_incoming();
+
   template <typename Function>
   void wait_until(Function fn);
 

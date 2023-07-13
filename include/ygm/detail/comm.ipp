@@ -961,6 +961,15 @@ inline bool comm::process_receive_queue() {
     }
   }
 
+  received_to_return != process_incoming();
+
+  m_in_process_receive_queue = false;
+  return received_to_return;
+}
+
+inline bool comm::process_incoming() {
+  bool received_to_return = false;
+
   while (true) {
     int        flag(0);
     MPI_Status status;
@@ -975,9 +984,6 @@ inline bool comm::process_receive_queue() {
       break;  // not ready yet
     }
   }
-
-  m_in_process_receive_queue = false;
   return received_to_return;
 }
-
 };  // namespace ygm
