@@ -86,6 +86,11 @@ class comm {
    */
   void barrier();
 
+  void progress();
+
+  template <typename Function>
+  void wait_until(Function fn);
+
   template <typename T>
   ygm_ptr<T> make_ygm_ptr(T &t);
 
