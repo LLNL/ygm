@@ -10,7 +10,7 @@
 
 #include <ygm/comm.hpp>
 #include <ygm/container/set.hpp>
-#include <ygm/for_all.hpp>
+#include <ygm/for_all_adapter.hpp>
 
 int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
@@ -182,7 +182,7 @@ int main(int argc, char **argv) {
     sset1.async_insert("apple");
     sset1.async_insert("red");
 
-    ygm::consume_all_iterative cai(sset1);
+    ygm::consume_all_iterative_adapter cai(sset1);
     cai.consume_all([&sset2](const auto &key) { sset2.async_insert(key); });
 
     ASSERT_RELEASE(sset1.empty());

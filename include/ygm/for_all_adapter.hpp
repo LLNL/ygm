@@ -8,14 +8,14 @@
 namespace ygm {
 
 /**
- * @brief Consuming for_all adaptor.
+ * @brief Consuming for_all adapter.
  *
  * @tparam Container
  */
 template <typename Container>
-class for_all_consume {
+class for_all_consume_adapter {
  public:
-  for_all_consume(Container& c) : m_rc(c) {}
+  for_all_consume_adapter(Container& c) : m_rc(c) {}
 
   template <typename Function>
   void for_all(Function fn) {
@@ -27,15 +27,15 @@ class for_all_consume {
 };
 
 /**
- * @brief Adaptor that iteratively calls consume_all until container is globally
+ * @brief Adapter that iteratively calls consume_all until container is globally
  * empty.
  *
  * @tparam Container
  */
 template <typename Container>
-class consume_all_iterative {
+class consume_all_iterative_adapter {
  public:
-  consume_all_iterative(Container& c) : m_rc(c) {}
+  consume_all_iterative_adapter(Container& c) : m_rc(c) {}
 
   template <typename Function>
   void consume_all(Function fn) {
