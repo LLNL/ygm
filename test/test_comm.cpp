@@ -129,7 +129,7 @@ int main(int argc, char** argv) {
       static bool done = false;
       world.cf_barrier();
       world.async_bcast([]() { done = true; });
-      world.wait_until([]() { return done; });
+      world.local_wait_until([]() { return done; });
       world.barrier();
       ASSERT_RELEASE(done);
     }
