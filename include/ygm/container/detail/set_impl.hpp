@@ -130,6 +130,12 @@ class set_impl {
     local_for_all(fn);
   }
 
+  template <typename Function>
+  void consume_all(Function fn) {
+    m_comm.barrier();
+    local_consume_all(fn);
+  }
+
   void clear() {
     m_comm.barrier();
     m_local_set.clear();
@@ -185,6 +191,21 @@ class set_impl {
   void local_for_all(Function fn) {
     if constexpr (std::is_invocable<decltype(fn), const key_type &>()) {
       std::for_each(m_local_set.begin(), m_local_set.end(), fn);
+    } else {
+      static_assert(ygm::detail::always_false<>,
+                    "local set lambda signature must be invocable with (const "
+                    "key_type &) signature");
+    }
+  }
+
+  template <typename Function>
+  void local_consume_all(Function fn) {
+    if constexpr (std::is_invocable<decltype(fn), const key_type &>()) {
+      while (!m_local_set.empty()) {
+        auto tmp = *(m_local_set.begin());
+        m_local_set.erase(m_local_set.begin());
+        fn(tmp);
+      }
     } else {
       static_assert(ygm::detail::always_false<>,
                     "local set lambda signature must be invocable with (const "
