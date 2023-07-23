@@ -219,7 +219,7 @@ class arrow_parquet_parser {
     return m_comm.rank() == item_ID % m_comm.size() ? true : false;
   }
 
-  ygm::comm                        m_comm;
+  ygm::comm&                       m_comm;
   typename ygm::ygm_ptr<self_type> pthis;
   std::vector<stdfs::path>         m_paths;
   file_schema_container            m_schema;

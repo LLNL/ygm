@@ -72,7 +72,7 @@ if (NOT cereal_FOUND)
     # to use this specific commit for now.
     FetchContent_Declare(
         cereal
-        GIT_REPOSITORY https://github.com/USCiLab/cereal
+        GIT_REPOSITORY https://github.com/USCiLab/cereal.git
         GIT_TAG af0700efb25e7dc7af637b9e6f970dbb94813bff
     )
     FetchContent_GetProperties(cereal)
@@ -139,7 +139,7 @@ if (NOT Arrow_FOUND)
 	find_package(Arrow 9.0 QUIET)
 endif()
 if (NOT Arrow_FOUND)
-	find_package(Arrow 10.0 QUIET)
+	find_package(Arrow 12.0 QUIET)
 endif()
 if (Arrow_FOUND)
    message(STATUS ${PROJECT_NAME} " found Arrow ")

@@ -247,7 +247,7 @@ class line_parser {
     }
     return good;
   }
-  ygm::comm             m_comm;
+  ygm::comm&            m_comm;
   std::vector<fs::path> m_paths;
   bool                  m_node_local_filesystem;
 };

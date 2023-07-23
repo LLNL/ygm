@@ -12,6 +12,18 @@
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
 
+  
+  // Test basic tagging 
+  {
+    ygm::container::disjoint_set<std::string> dset(world);
+
+    static_assert(std::is_same_v< decltype(dset)::self_type,     decltype(dset) >);
+    static_assert(std::is_same_v< decltype(dset)::value_type,    std::string >);
+    static_assert(std::is_same_v< decltype(dset)::size_type,     size_t >);
+    static_assert(std::is_same_v< decltype(dset)::ygm_for_all_types,   
+            std::tuple< decltype(dset)::value_type, decltype(dset)::value_type > >);
+  }
+
   //
   // Test async_union from single rank
   {
@@ -28,6 +40,7 @@ int main(int argc, char** argv) {
     if (world.rank0()) {
       dset.async_union("cat", "dog");
     }
+    world.barrier();
 
     std::vector<std::string> to_find = {"cat", "dog", "car"};
 
@@ -162,8 +175,8 @@ int main(int argc, char** argv) {
       dset.async_union(i, i);
     }
 
-    dset.for_all([&counter](const auto& item_rep_pair) {
-      ASSERT_RELEASE(item_rep_pair.first == item_rep_pair.second);
+    dset.for_all([&counter](const auto& item, const auto& rep) {
+      ASSERT_RELEASE(item == rep);
       ++counter;
     });
 
@@ -182,8 +195,8 @@ int main(int argc, char** argv) {
                                  [](const int u, const int v) { counter++; });
     dset.async_union_and_execute(1, 2,
                                  [](const int u, const int v) { counter++; });
-    dset.async_union_and_execute(3, 4,
-                                 [](const int u, const int v) { counter++; });
+    dset.async_union_and_execute(
+        3, 4, [](const int u, const int v, const auto thing) { counter++; }, 0);
 
     world.barrier();
 

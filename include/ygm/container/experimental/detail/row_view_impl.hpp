@@ -59,30 +59,30 @@ class row_view_impl {
   }
 
   template <typename... VisitorArgs>
-  void print_all(std::ostream &os, VisitorArgs const &... args) {
+  void print_all(std::ostream &os, VisitorArgs const &...args) {
     ((os << args), ...);
   }
 
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_if_exists(const key_type &row, const key_type &col,
-                             Visitor visitor, const VisitorArgs &... args) {
+                             Visitor visitor, const VisitorArgs &...args) {
     m_row_view.async_visit_if_exists(row, col, visitor,
                                      std::forward<const VisitorArgs>(args)...);
   }
 
   template <typename Visitor, typename... VisitorArgs>
-  void async_insert_if_missing_else_visit(const key_type &  row,
-                                          const key_type &  col,
+  void async_insert_if_missing_else_visit(const key_type   &row,
+                                          const key_type   &col,
                                           const value_type &value,
                                           Visitor           visitor,
-                                          const VisitorArgs &... args) {
+                                          const VisitorArgs &...args) {
     m_row_view.async_insert_if_missing_else_visit(
         row, col, value, visitor, std::forward<const VisitorArgs>(args)...);
   }
 
   template <typename Visitor, typename... VisitorArgs>
   void async_visit_row_const(const key_type &row, Visitor visitor,
-                             const VisitorArgs &... args) {
+                             const VisitorArgs &...args) {
     m_row_view.async_visit_const(row, visitor,
                                  std::forward<const VisitorArgs>(args)...);
   }
@@ -99,7 +99,7 @@ class row_view_impl {
   value_type m_default_value;
 
   adj_impl                         m_row_view;
-  ygm::comm                        m_comm;
+  ygm::comm                       &m_comm;
   typename ygm::ygm_ptr<self_type> pthis;
 };
 }  // namespace ygm::container::experimental::detail
