@@ -444,9 +444,10 @@ inline std::string comm::outstr(Args &&...args) const {
 
 inline size_t comm::pack_header(std::vector<std::byte> &packed, const int dest,
                                 size_t size) {
-  size_t size_before = packed.size();
+  static size_t size_before;
+  size_before = packed.size();
 
-  header_t h;
+  static header_t h;
   h.dest         = dest;
   h.message_size = size;
 
@@ -863,26 +864,29 @@ inline void comm::handle_next_receive(MPI_Status                   status,
   cereal::YGMInputArchive iarchive(buffer.get(), count);
   while (!iarchive.empty()) {
     if (config.routing != detail::routing_type::NONE) {
-      header_t h;
+      static header_t h;
       iarchive.loadBinary(&h, sizeof(header_t));
       if (h.dest == m_layout.rank() || (h.dest == -1 && h.message_size == 0)) {
-        uint16_t lid;
+        static uint16_t lid;
         iarchive.loadBinary(&lid, sizeof(lid));
         m_lambda_map.execute(lid, this, &iarchive);
         m_recv_count++;
         stats.rpc_execute();
       } else {
-        int next_dest = m_router.next_hop(h.dest);
+        static int next_dest;
+        next_dest = m_router.next_hop(h.dest);
 
         if (m_vec_send_buffers[next_dest].empty()) {
           m_send_dest_queue.push_back(next_dest);
         }
 
-        size_t header_bytes =
+        static size_t header_bytes;
+        header_bytes =
             pack_header(m_vec_send_buffers[next_dest], h.dest, h.message_size);
         m_send_buffer_bytes += header_bytes;
 
-        size_t precopy_size = m_vec_send_buffers[next_dest].size();
+        static size_t precopy_size;
+        precopy_size = m_vec_send_buffers[next_dest].size();
         m_vec_send_buffers[next_dest].resize(precopy_size + h.message_size);
         iarchive.loadBinary(&m_vec_send_buffers[next_dest][precopy_size],
                             h.message_size);
