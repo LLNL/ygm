@@ -49,7 +49,6 @@ class ndjson_parser {
    */
   template <typename Function>
   void for_all(Function fn) {
-    using namespace ygm::io::detail;
     m_lp.for_all([fn](const std::string &line) {
       fn(boost::json::parse(line).as_object());
     });
