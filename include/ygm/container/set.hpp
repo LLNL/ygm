@@ -144,7 +144,7 @@ class set {
   void serialize(const std::string& fname) { m_impl.serialize(fname); }
   void deserialize(const std::string& fname) { m_impl.deserialize(fname); }
 
-  typename ygm::ygm_ptr<self_type> get_ygm_ptr() const {
+  typename ygm::ygm_ptr<impl_type> get_ygm_ptr() const {
     return m_impl.get_ygm_ptr();
   }
 
