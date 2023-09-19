@@ -7,6 +7,19 @@
 
 #include <mpi.h>
 
+#include <ygm/detail/constexpr_key_map.hpp>
+#include <ygm/utility.hpp>
+
+#define ADD_COUNTER(stats_object, name, summand) \
+  GET_VALUE(std::string, stats_object.m_counters, name) += (summand)
+
+#define START_TIMER(stats_object, name) \
+  GET_VALUE(std::string, stats_object.m_timers, name).first.reset()
+
+#define STOP_TIMER(stats_object, name)                                    \
+  auto& timer_time = GET_VALUE(std::string, stats_object.m_timers, name); \
+  timer_time.second += timer_time.first.elapsed()
+
 namespace ygm {
 namespace detail {
 class comm_stats {
@@ -124,6 +137,10 @@ class comm_stats {
   size_t m_waitsome_iallreduce_count = 0;
 
   double m_time_start = 0.0;
+
+ public:
+  constexpr_key_map<std::string, std::pair<ygm::timer, double>> m_timers;
+  constexpr_key_map<std::string, size_t>                        m_counters;
 };
 }  // namespace detail
 }  // namespace ygm
