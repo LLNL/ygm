@@ -38,13 +38,10 @@ jobs:
       - name: Install Apache Arrow
         run: |
           cd ~
-          wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/pool/$(lsb_release --codename --short)/main/a/apache-arrow/apache-arrow_13.0.0.orig.tar.gz
-          tar -xzvf apache-arrow_13.0.0.orig.tar.gz
-          cd apache-arrow-13.0.0/cpp
-          mkdir build && cd build
-          cmake .. -DARROW_PARQUET=ON -DARROW_WITH_ZSTD=ON
-          make -j
-          sudo make install
+          wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+          sudo apt install ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+          sudo apt update
+          sudo apt install libarrow-dev libparquet-dev
       - name: Install mpich
         if: matrix.mpi-type == 'mpich'
         run: sudo apt-get install mpich
