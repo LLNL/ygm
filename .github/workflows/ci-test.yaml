@@ -43,7 +43,7 @@ jobs:
           cd apache-arrow-13.0.0/cpp
           mkdir build && cd build
           cmake .. -DARROW_PARQUET=ON -DARROW_WITH_ZSTD=ON
-          make
+          make -j
           sudo make install
       - name: Install mpich
         if: matrix.mpi-type == 'mpich'
@@ -62,7 +62,7 @@ jobs:
           mkdir build
           cd build
           cmake ../ -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_CXX_COMPILER=g++-${{ matrix.gcc-version }} -DBOOST_ROOT=~/boost_1_77_0
-          make
+          make -j
       - name: Make test (mpich)
         if: matrix.mpi-type == 'mpich'
         run: |
