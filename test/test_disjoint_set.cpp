@@ -12,16 +12,16 @@
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
 
-  
-  // Test basic tagging 
+  // Test basic tagging
   {
     ygm::container::disjoint_set<std::string> dset(world);
 
-    static_assert(std::is_same_v< decltype(dset)::self_type,     decltype(dset) >);
-    static_assert(std::is_same_v< decltype(dset)::value_type,    std::string >);
-    static_assert(std::is_same_v< decltype(dset)::size_type,     size_t >);
-    static_assert(std::is_same_v< decltype(dset)::ygm_for_all_types,   
-            std::tuple< decltype(dset)::value_type, decltype(dset)::value_type > >);
+    static_assert(std::is_same_v<decltype(dset)::self_type, decltype(dset)>);
+    static_assert(std::is_same_v<decltype(dset)::value_type, std::string>);
+    static_assert(std::is_same_v<decltype(dset)::size_type, size_t>);
+    static_assert(std::is_same_v<decltype(dset)::ygm_for_all_types,
+                                 std::tuple<decltype(dset)::value_type,
+                                            decltype(dset)::value_type> >);
   }
 
   //
@@ -69,6 +69,30 @@ int main(int argc, char** argv) {
     auto reps = dset.all_find(to_find);
     ASSERT_RELEASE(reps["cat"] == reps["dog"]);
     ASSERT_RELEASE(reps["cat"] != reps["car"]);
+  }
+
+  //
+  // Test clear
+  {
+    ygm::container::disjoint_set<std::string> dset(world);
+
+    if (world.rank0()) {
+      dset.async_union("cat", "cat");
+      dset.async_union("dog", "dog");
+      dset.async_union("car", "car");
+    }
+
+    world.barrier();
+
+    dset.async_union("cat", "dog");
+
+    ASSERT_RELEASE(dset.size() == 3);
+    ASSERT_RELEASE(dset.num_sets() == 2);
+
+    dset.clear();
+
+    ASSERT_RELEASE(dset.size() == 0);
+    ASSERT_RELEASE(dset.num_sets() == 0);
   }
 
   //

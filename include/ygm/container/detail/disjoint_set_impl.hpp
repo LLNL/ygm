@@ -489,6 +489,11 @@ class disjoint_set_impl {
     return to_return;
   }
 
+  void clear() {
+    m_comm.barrier();
+    m_local_item_parent_map.clear();
+  }
+
   size_type size() {
     m_comm.barrier();
     return m_comm.all_reduce_sum(m_local_item_parent_map.size());
