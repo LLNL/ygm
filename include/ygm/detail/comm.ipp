@@ -545,11 +545,13 @@ inline void comm::check_if_production_halt_required() {
 }
 
 /**
- * @brief Flushes one buffer and checks for incoming.
- *
+ * @brief Checks for incoming unless called from recieve queue and flushes
+ * one buffer.
  */
 inline void comm::local_progress() {
-  process_receive_queue();
+  if (not m_in_process_receive_queue) {
+    process_receive_queue();
+  }
   if (not m_send_dest_queue.empty()) {
     int dest = m_send_dest_queue.front();
     m_send_dest_queue.pop_front();
