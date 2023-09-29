@@ -545,7 +545,7 @@ inline void comm::check_if_production_halt_required() {
 }
 
 /**
- * @brief Checks for incoming unless called from recieve queue and flushes
+ * @brief Checks for incoming unless called from receive queue and flushes
  * one buffer.
  */
 inline void comm::local_progress() {

@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
 
   // Test recursion with local_progress() in 'around the world' format
   {
-    size_t trips = 2;
+    size_t trips = 100;
 
     size_t desired_hops = world.size() * trips + 1;
 
