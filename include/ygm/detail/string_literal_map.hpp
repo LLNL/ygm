@@ -3,34 +3,35 @@
 //
 // SPDX-License-Identifier: MIT
 
-#include <ygm/detail/constexpr_enumerator.hpp>
-
-#define GET_VALUE(type, map_name, key) \
-  map_name[map_name.m_enumerator.ADD_ENUMERATOR_ITEM(type, key)]
+#include <ygm/detail/string_enumerator.hpp>
 
 namespace ygm {
 namespace detail {
 
-// Flat-ish map for constexpr keys which are enumerated at static initialization
-// time with ygm::detail::constexpr_enumerator. Because the constexpr_enumerator
-// is unique for each type, each constexpr_key_map with the same key type will
-// have an entry for every enumerated object of that type, necessitating the bit
-// vector to determine which entries are valid in each constexpr_key_map.
-template <typename Key, typename Value>
-class constexpr_key_map {
+// Flat-ish map with string-literal keys which are enumerated at static initialization
+// time with ygm::detail::string_enumerator. Because the string_enumerator
+// enumerates keys for all maps, each string_literal_map will
+// have an entry for every enumerated string, necessitating the bit
+// vector to determine which entries are valid in each string_literal_map.
+template <typename Value>
+class string_literal_map {
  public:
-  using key_type    = Key;
   using mapped_type = Value;
 
   // class iterator;
 
-  constexpr_key_map() {
+  string_literal_map() {
     m_values.resize(m_enumerator.get_num_items());
     m_key_mask.resize(m_enumerator.get_num_items());
   }
 
-  mapped_type &operator[](int index) {
-    m_key_mask[index] = true;
+  template <StringLiteral S>
+  mapped_type &get_value() {
+    m_key_mask[m_enumerator.get_string_index<S>()] = true;
+    return m_values[m_enumerator.get_string_index<S>()];
+  }
+
+  mapped_type &get_value_from_index(const size_t index) {
     return m_values[index];
   }
 
@@ -46,6 +47,9 @@ class constexpr_key_map {
     return to_return;
   }
 
+  template <StringLiteral S>
+  bool is_filled() { return m_key_mask[m_enumerator.get_string_index<S>()]; }
+
   bool is_filled(size_t index) { return m_key_mask[index]; }
 
   // iterator begin() const;
@@ -56,7 +60,7 @@ class constexpr_key_map {
   std::vector<bool>        m_key_mask;
 
  public:
-  constexpr_enumerator<key_type> m_enumerator;
+  string_enumerator m_enumerator;
 };
 
 /*

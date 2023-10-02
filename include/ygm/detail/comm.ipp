@@ -111,7 +111,7 @@ inline void comm::stats_print(const std::string &name, std::ostream &os) {
   for (int i = 0; i < stats.m_counters.capacity(); ++i) {
     if (stats.m_counters.is_filled(i)) {
       const auto &name    = stats.m_counters.m_enumerator.m_vec[i];
-      const auto &counter = stats.m_counters[i];
+      const auto &counter = stats.m_counters.get_value_from_index(i);
 
       if (rank0()) {
         os << name << ": " << counter << std::endl;
@@ -122,7 +122,7 @@ inline void comm::stats_print(const std::string &name, std::ostream &os) {
   for (int i = 0; i < stats.m_timers.capacity(); ++i) {
     if (stats.m_timers.is_filled(i)) {
       const auto &name = stats.m_timers.m_enumerator.m_vec[i];
-      const auto &time = stats.m_timers[i].second;
+      const auto &time = stats.m_timers.get_value_from_index(i).second;
 
       if (rank0()) {
         os << name << ": " << time << std::endl;
@@ -159,7 +159,8 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
                 "comm::async() AsyncFunction must be is_trivially_copyable & "
                 "is_standard_layout.");
   ASSERT_RELEASE(dest < m_layout.size());
-  ADD_COUNTER(stats, "async_count", 1);
+  //ADD_COUNTER(stats, "async_count", 1);
+  stats.increment_counter<"async_count">();
   stats.async(dest);
 
   check_if_production_halt_required();
@@ -492,7 +493,8 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
   MPI_Request req = MPI_REQUEST_NULL;
   ASSERT_MPI(MPI_Iallreduce(local_counts, global_counts, 2, MPI_UINT64_T,
                             MPI_SUM, m_comm_barrier, &req));
-  ADD_COUNTER(stats, "MPI_Iallreduce_count", 1);
+  //ADD_COUNTER(stats, "MPI_Iallreduce_count", 1);
+  stats.increment_counter<"MPI_Iallreduce_count">();
   stats.iallreduce();
   bool iallreduce_complete(false);
   while (!iallreduce_complete) {
@@ -505,11 +507,13 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
     MPI_Status twin_status[2];
 
     {
-      START_TIMER(stats, "waitsome_iallreduce");
+      stats.start_timer<"waitsome_iallreduce">();
+      //START_TIMER(stats, "waitsome_iallreduce");
       auto timer = stats.waitsome_iallreduce();
       ASSERT_MPI(
           MPI_Waitsome(2, twin_req, &outcount, twin_indices, twin_status));
-      STOP_TIMER(stats, "waitsome_iallreduce");
+      stats.stop_timer<"waitsome_iallreduce">();
+      //STOP_TIMER(stats, "waitsome_iallreduce");
     }
 
     for (int i = 0; i < outcount; ++i) {
@@ -553,8 +557,10 @@ inline void comm::flush_send_buffer(int dest) {
                            MPI_BYTE, dest, 0, m_comm_async,
                            &(request.request)));
     }
-    ADD_COUNTER(stats, "MPI_Isend count", 1);
-    ADD_COUNTER(stats, "MPI_Isend bytes", request.buffer->size());
+    //ADD_COUNTER(stats, "MPI_Isend count", 1);
+    //ADD_COUNTER(stats, "MPI_Isend bytes", request.buffer->size());
+    stats.increment_counter<"MPI_Isend count">();
+    stats.increment_counter<"MPI_Isend bytes">(request.buffer->size());
     stats.isend(dest, request.buffer->size());
     m_pending_isend_bytes += request.buffer->size();
     m_send_buffer_bytes -= request.buffer->size();
@@ -889,8 +895,10 @@ inline void comm::handle_next_receive(MPI_Status                   status,
                                       std::shared_ptr<std::byte[]> buffer) {
   int count{0};
   ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &count));
-  ADD_COUNTER(stats, "MPI_Irecv count", 1);
-  ADD_COUNTER(stats, "MPI_Irecv bytes", count);
+  //ADD_COUNTER(stats, "MPI_Irecv count", 1);
+  //ADD_COUNTER(stats, "MPI_Irecv bytes", count);
+  stats.increment_counter<"MPI_Irecv count">();
+  stats.increment_counter<"MPI_Irecv bytes">(count);
   stats.irecv(status.MPI_SOURCE, count);
   cereal::YGMInputArchive iarchive(buffer.get(), count);
   while (!iarchive.empty()) {
@@ -902,7 +910,8 @@ inline void comm::handle_next_receive(MPI_Status                   status,
         iarchive.loadBinary(&lid, sizeof(lid));
         m_lambda_map.execute(lid, this, &iarchive);
         m_recv_count++;
-        ADD_COUNTER(stats, "RPC Executions", 1);
+        //ADD_COUNTER(stats, "RPC Executions", 1);
+        stats.increment_counter<"RPC Executions">();
         stats.rpc_execute();
       } else {
         int next_dest = m_router.next_hop(h.dest);
@@ -929,7 +938,8 @@ inline void comm::handle_next_receive(MPI_Status                   status,
       iarchive.loadBinary(&lid, sizeof(lid));
       m_lambda_map.execute(lid, this, &iarchive);
       m_recv_count++;
-      ADD_COUNTER(stats, "RPC Executions", 1);
+      //ADD_COUNTER(stats, "RPC Executions", 1);
+      stats.increment_counter<"RPC Executions">();
       stats.rpc_execute();
     }
   }
@@ -963,11 +973,13 @@ inline bool comm::process_receive_queue() {
     int        twin_indices[2];
     MPI_Status twin_status[2];
     {
-      START_TIMER(stats, "waitsome_isend_irecv");
+      //START_TIMER(stats, "waitsome_isend_irecv");
+      stats.start_timer<"waitsome_isend_irecv">();
       auto timer = stats.waitsome_isend_irecv();
       ASSERT_MPI(
           MPI_Waitsome(2, twin_req, &outcount, twin_indices, twin_status));
-      STOP_TIMER(stats, "waitsome_isend_irecv");
+      //STOP_TIMER(stats, "waitsome_isend_irecv");
+      stats.stop_timer<"waitsome_isend_irecv">();
     }
     for (int i = 0; i < outcount; ++i) {
       if (twin_indices[i] == 0) {  // completed a iSend
@@ -987,7 +999,8 @@ inline bool comm::process_receive_queue() {
       int flag(0);
       ASSERT_MPI(
           MPI_Test(&(m_send_queue.front().request), &flag, MPI_STATUS_IGNORE));
-      ADD_COUNTER(stats, "Isend test count", 1);
+      //ADD_COUNTER(stats, "Isend test count", 1);
+      stats.increment_counter<"Isend test count">();
       stats.isend_test();
       if (flag) {
         m_pending_isend_bytes -= m_send_queue.front().buffer->size();
@@ -1011,7 +1024,8 @@ inline bool comm::local_process_incoming() {
     int        flag(0);
     MPI_Status status;
     ASSERT_MPI(MPI_Test(&(m_recv_queue.front().request), &flag, &status));
-    ADD_COUNTER(stats, "Irecv test count", 1);
+    //ADD_COUNTER(stats, "Irecv test count", 1);
+    stats.increment_counter<"Irecv test count">();
     stats.irecv_test();
     if (flag) {
       received_to_return           = true;
