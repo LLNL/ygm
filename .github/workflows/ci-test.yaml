@@ -59,7 +59,7 @@ jobs:
           mkdir build
           cd build
           cmake ../ -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_CXX_COMPILER=g++-${{ matrix.gcc-version }} -DBOOST_ROOT=~/boost_1_77_0 -DYGM_REQUIRE_ARROW=ON
-          make -j
+          make
       - name: Make test (mpich)
         if: matrix.mpi-type == 'mpich'
         run: |
