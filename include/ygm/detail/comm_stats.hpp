@@ -7,18 +7,8 @@
 
 #include <mpi.h>
 
-#include <ygm/detail/constexpr_key_map.hpp>
+#include <ygm/detail/string_literal_map.hpp>
 #include <ygm/utility.hpp>
-
-#define ADD_COUNTER(stats_object, name, summand) \
-  GET_VALUE(std::string, stats_object.m_counters, name) += (summand)
-
-#define START_TIMER(stats_object, name) \
-  GET_VALUE(std::string, stats_object.m_timers, name).first.reset()
-
-#define STOP_TIMER(stats_object, name)                                    \
-  auto& timer_time = GET_VALUE(std::string, stats_object.m_timers, name); \
-  timer_time.second += timer_time.first.elapsed()
 
 namespace ygm {
 namespace detail {
@@ -116,6 +106,22 @@ class comm_stats {
 
   double get_elapsed_time() const { return MPI_Wtime() - m_time_start; }
 
+  template <StringLiteral S>
+    void start_timer() {
+      m_timers.get_value<S>().first.reset();
+    }
+
+  template <StringLiteral S>
+    void stop_timer() {
+      auto &[timer, time] = m_timers.get_value<S>();
+      time += timer.elapsed();
+    }
+
+  template <StringLiteral S>
+  void increment_counter(size_t summand=1) {
+    m_counters.get_value<S>() += summand;
+  }
+
  private:
   size_t m_async_count = 0;
   size_t m_rpc_count   = 0;
@@ -139,8 +145,8 @@ class comm_stats {
   double m_time_start = 0.0;
 
  public:
-  constexpr_key_map<std::string, std::pair<ygm::timer, double>> m_timers;
-  constexpr_key_map<std::string, size_t>                        m_counters;
+  string_literal_map<std::pair<ygm::timer, double>> m_timers;
+  string_literal_map<size_t>                        m_counters;
 };
 }  // namespace detail
 }  // namespace ygm
