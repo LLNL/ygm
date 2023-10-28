@@ -3,6 +3,11 @@
 //
 // SPDX-License-Identifier: MIT
 
+// Usage:
+// cd /ygm/build/dir
+// mpirun -np 2 ./arrow_parquet_stream_reader_json \
+//  [(option) /path/to/parquet/file/or/dir]
+
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -23,13 +28,17 @@ int main(int argc, char** argv) {
       << "Arrow Parquet file parser example (reads data as JSON objects)"
       << std::endl;
 
-  // assuming the build directory is inside the YGM root directory
-  const std::string dir_name = "../test/data/parquet_files2/";
+  std::string dir_name = "../test/data/parquet_files_no_fixed_len_binary/";
+  if (argc == 2) {
+    dir_name = argv[1];
+  }
 
   ygm::io::arrow_parquet_parser parquetp(world, {dir_name});
 
-  const auto& schema = parquetp.schema();
+  world.cout0() << "Schema:\n" << parquetp.schema_to_string() << std::endl;
 
+  world.cout0() << "Read data as JSON:" << std::endl;
+  const auto& schema = parquetp.schema();
   parquetp.for_all([&schema, &world](auto& stream_reader, const auto&) {
     // obj's type is boost::json::object
     const auto obj =
