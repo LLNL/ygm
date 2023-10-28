@@ -11,6 +11,8 @@ namespace detail {
 template <typename Value>
 class string_literal_map {
  public:
+  using index_type  = string_enumerator::index_type;
+  using key_type    = std::string;
   using mapped_type = Value;
 
   string_literal_map() {
@@ -24,14 +26,18 @@ class string_literal_map {
     return m_values[m_enumerator.get_string_index<S>()];
   }
 
-  mapped_type &get_value_from_index(const size_t index) {
+  const key_type &get_key_from_index(const index_type index) {
+    return m_enumerator.get_string(index);
+  }
+
+  mapped_type &get_value_from_index(const index_type index) {
     return m_values[index];
   }
 
-  size_t capacity() { return m_values.size(); }
+  index_type capacity() { return m_values.size(); }
 
-  size_t size() {
-    size_t to_return{0};
+  index_type size() {
+    index_type to_return{0};
     for (const auto &b : m_key_mask) {
       if (b) {
         ++to_return;
@@ -45,7 +51,7 @@ class string_literal_map {
     return m_key_mask[m_enumerator.get_string_index<S>()];
   }
 
-  bool is_filled(size_t index) { return m_key_mask[index]; }
+  bool is_filled(index_type index) { return m_key_mask[index]; }
 
  private:
   std::vector<mapped_type> m_values;

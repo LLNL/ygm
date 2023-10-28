@@ -110,7 +110,7 @@ inline void comm::stats_print(const std::string &name, std::ostream &os) {
 
   for (int i = 0; i < stats.m_counters.capacity(); ++i) {
     if (stats.m_counters.is_filled(i)) {
-      const auto &name    = stats.m_counters.m_enumerator.m_vec[i];
+      const auto &name    = stats.m_counters.get_key_from_index(i);
       const auto &counter = stats.m_counters.get_value_from_index(i);
 
       if (rank0()) {
@@ -121,7 +121,7 @@ inline void comm::stats_print(const std::string &name, std::ostream &os) {
 
   for (int i = 0; i < stats.m_timers.capacity(); ++i) {
     if (stats.m_timers.is_filled(i)) {
-      const auto &name = stats.m_timers.m_enumerator.m_vec[i];
+      const auto &name = stats.m_timers.get_key_from_index(i);
       const auto &time = stats.m_timers.get_value_from_index(i).second;
 
       if (rank0()) {
