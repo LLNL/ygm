@@ -545,11 +545,13 @@ inline void comm::check_if_production_halt_required() {
 }
 
 /**
- * @brief Flushes one buffer and checks for incoming.
- *
+ * @brief Checks for incoming unless called from receive queue and flushes
+ * one buffer.
  */
-inline void comm::progress() {
-  process_receive_queue();
+inline void comm::local_progress() {
+  if (not m_in_process_receive_queue) {
+    process_receive_queue();
+  }
   if (not m_send_dest_queue.empty()) {
     int dest = m_send_dest_queue.front();
     m_send_dest_queue.pop_front();
@@ -564,9 +566,9 @@ inline void comm::progress() {
  * @param fn Wait condition function, must match []() -> bool
  */
 template <typename Function>
-inline void comm::wait_until(Function fn) {
+inline void comm::local_wait_until(Function fn) {
   while (not fn()) {
-    progress();
+    local_progress();
   }
 }
 
@@ -961,13 +963,13 @@ inline bool comm::process_receive_queue() {
     }
   }
 
-  received_to_return != process_incoming();
+  received_to_return != local_process_incoming();
 
   m_in_process_receive_queue = false;
   return received_to_return;
 }
 
-inline bool comm::process_incoming() {
+inline bool comm::local_process_incoming() {
   bool received_to_return = false;
 
   while (true) {

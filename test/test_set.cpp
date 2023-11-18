@@ -41,6 +41,24 @@ int main(int argc, char **argv) {
     ASSERT_RELEASE(sset.size() == 3);
   }
 
+    //
+  // Test Rank 0 async_insert with ygm set pointer
+  {
+    ygm::container::set<std::string> sset(world);
+    auto sset_ptr = sset.get_ygm_ptr();
+    if (world.rank() == 0) {
+      sset_ptr->async_insert_unique("dog");
+      sset_ptr->async_insert_unique("apple");
+      sset_ptr->async_insert_unique("red");
+    }
+    ASSERT_RELEASE(sset.count("dog") == 1);
+    ASSERT_RELEASE(sset.count("apple") == 1);
+    ASSERT_RELEASE(sset.count("red") == 1);
+    ASSERT_RELEASE(sset.size() == 3);
+  }
+
+  
+
   //
   // Test all ranks async_insert
   {

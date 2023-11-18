@@ -59,6 +59,7 @@ add_ygm_test(test_container_traits)
 add_ygm_test(test_collective)
 add_ygm_test(test_traits)
 add_ygm_test(test_recursion_large_messages)
+add_ygm_test(test_recursion_progress)
 
 if (Boost_FOUND)
     add_ygm_seq_test(test_cereal_boost_json)
@@ -73,8 +74,9 @@ endif ()
 
 if (Arrow_FOUND AND Parquet_FOUND)
     add_ygm_test(test_arrow_parquet_stream_reader)
-    target_link_libraries(MPI_test_arrow_parquet_stream_reader PUBLIC arrow_shared parquet_shared)
-endif()	
+    target_link_libraries(MPI_test_arrow_parquet_stream_reader PUBLIC
+        Arrow::arrow_shared Parquet::parquet_shared)
+endif()
 
 #
 # Copy the testing data directory
