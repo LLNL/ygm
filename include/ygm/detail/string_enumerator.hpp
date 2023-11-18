@@ -63,7 +63,7 @@ class string_enumerator {
     return priv_get_string_index<S>();
   }
 
-  index_type get_num_items() { return m_counter; }
+  index_type get_num_items() const { return m_counter; }
 
   static index_type next_counter() { return m_counter++; }
 
