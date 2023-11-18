@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #include <ygm/detail/distributed_string_enumeration.hpp>
 #include <ygm/detail/distributed_string_literal_map.hpp>
 #include <ygm/detail/string_enumerator.hpp>
@@ -35,7 +37,7 @@ class stats_tracker {
   template <ygm::detail::StringLiteral S>
   double get_time_max() {
     auto max_lambda = [this](const auto time) {
-      return max(time, this->m_comm);
+      return ygm::max(time, this->m_comm);
     };
     return get_time<S>(max_lambda);
   }
@@ -43,7 +45,7 @@ class stats_tracker {
   template <ygm::detail::StringLiteral S>
   double get_time_min() {
     auto min_lambda = [this](const auto time) {
-      return min(time, this->m_comm);
+      return ygm::min(time, this->m_comm);
     };
     return get_time<S>(min_lambda);
   }
@@ -51,7 +53,7 @@ class stats_tracker {
   template <ygm::detail::StringLiteral S>
   double get_time_sum() {
     auto sum_lambda = [this](const auto time) {
-      return sum(time, this->m_comm);
+      return ygm::sum(time, this->m_comm);
     };
     return get_time<S>(sum_lambda);
   }
@@ -79,7 +81,7 @@ class stats_tracker {
   template <ygm::detail::StringLiteral S>
   size_t get_counter_max() {
     auto max_lambda = [this](const auto count) {
-      return max(count, this->m_comm);
+      return ygm::max(count, this->m_comm);
     };
     return get_counter<S>(max_lambda);
   }
@@ -87,7 +89,7 @@ class stats_tracker {
   template <ygm::detail::StringLiteral S>
   size_t get_counter_min() {
     auto min_lambda = [this](const auto count) {
-      return min(count, this->m_comm);
+      return ygm::min(count, this->m_comm);
     };
     return get_counter<S>(min_lambda);
   }
@@ -95,7 +97,7 @@ class stats_tracker {
   template <ygm::detail::StringLiteral S>
   size_t get_counter_sum() {
     auto sum_lambda = [this](const auto count) {
-      return sum(count, this->m_comm);
+      return ygm::sum(count, this->m_comm);
     };
     return get_counter<S>(sum_lambda);
   }
