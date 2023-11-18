@@ -26,5 +26,9 @@ int main(int argc, char** argv) {
     world.async(1, howdy(), world.rank(), std::string("Can you hear me now?"));
   }
 
+  world.barrier();
+
+  world.stats_print();
+
   return 0;
 }
