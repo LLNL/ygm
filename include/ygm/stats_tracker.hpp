@@ -31,7 +31,8 @@ class stats_tracker {
 
   template <ygm::detail::StringLiteral S>
   double get_time_local() {
-    return get_time<S>(std::identity());
+    auto identity_lambda = [](const auto time) { return time; };
+    return get_time<S>(identity_lambda);
   }
 
   template <ygm::detail::StringLiteral S>
@@ -75,7 +76,8 @@ class stats_tracker {
 
   template <ygm::detail::StringLiteral S>
   size_t get_counter_local() {
-    return get_counter<S>(std::identity());
+    auto identity_lambda = [](const auto time) { return time; };
+    return get_counter<S>(identity_lambda);
   }
 
   template <ygm::detail::StringLiteral S>
