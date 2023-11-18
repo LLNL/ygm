@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 #pragma once
+#include <ygm/detail/comm_stats.hpp>
 #include <ygm/detail/meta/functional.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
 
@@ -108,6 +109,7 @@ inline void comm::stats_print(const std::string &name, std::ostream &os) {
     os << sstr.str() << std::endl;
   }
 
+  /*
   for (int i = 0; i < stats.m_counters.capacity(); ++i) {
     if (stats.m_counters.is_filled(i)) {
       const auto &name    = stats.m_counters.get_key_from_index(i);
@@ -129,6 +131,7 @@ inline void comm::stats_print(const std::string &name, std::ostream &os) {
       }
     }
   }
+  */
 }
 
 inline comm::~comm() {

@@ -3,10 +3,18 @@
 //
 // SPDX-License-Identifier: MIT
 
+#pragma once
+
 #include <ygm/detail/string_enumerator.hpp>
 
 namespace ygm {
 namespace detail {
+
+template <typename Value>
+class string_literal_map;
+
+template <typename Value>
+void string_literal_map_match_keys(string_literal_map<Value> &, ygm::comm &);
 
 template <typename Value>
 class string_literal_map {
@@ -31,6 +39,7 @@ class string_literal_map {
   }
 
   mapped_type &get_value_from_index(const index_type index) {
+    m_key_mask[index] = true;
     return m_values[index];
   }
 
@@ -53,11 +62,13 @@ class string_literal_map {
 
   bool is_filled(index_type index) { return m_key_mask[index]; }
 
+  friend void string_literal_map_match_keys<Value>(
+      string_literal_map<Value> &str_map, ygm::comm &comm);
+
  private:
   std::vector<mapped_type> m_values;
   std::vector<bool>        m_key_mask;
 
- public:
   string_enumerator m_enumerator;
 };
 }  // namespace detail
