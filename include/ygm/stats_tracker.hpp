@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <iomanip>
 
 #include <ygm/detail/distributed_string_enumeration.hpp>
 #include <ygm/detail/distributed_string_literal_map.hpp>
@@ -109,9 +110,81 @@ class stats_tracker {
     return get_counter_sum<S>() / ((double)m_comm.size());
   }
 
-  void print() {
+  void print(const std::string &name = "", std::ostream &os = std::cout) {
+    // This will all be much easier with std::format in C++23...
+    std::stringstream sstr;
+    constexpr int     number_field_width = 16;
+    constexpr int     name_width         = 16;
+    constexpr int     total_row_length   = 4 * number_field_width + name_width;
+
+    if (name.size() > 0) {
+      int filler_length =
+          std::max<int>(total_row_length - 7 - (name.size() + 1), 0);
+      sstr << std::string(filler_length / 2, '=') << " " << name << " STATS "
+           << std::string(filler_length / 2 + (filler_length % 2), '=') << "\n";
+    } else {
+      int filler_length = std::max<int>(total_row_length - 7, 0);
+      sstr << std::string(filler_length / 2, '=') << " STATS "
+           << std::string(filler_length / 2 + (filler_length % 2), '=') << "\n";
+    }
+
+    sstr << std::string(name_width, ' ');
+    sstr << std::string(number_field_width - 5, ' ') << "(min)";
+    sstr << std::string(number_field_width - 5, ' ') << "(max)";
+    sstr << std::string(number_field_width - 5, ' ') << "(sum)";
+    sstr << std::string(number_field_width - 9, ' ') << "(average)";
+    sstr << "\n";
+
+    // Print timers
     ygm::detail::string_literal_map_match_keys(m_counters, m_comm);
+    for (auto &&timer : m_timers) {
+      const auto &name          = timer.first;
+      int         filler_length = name_width - name.size();
+      sstr << std::string(filler_length, ' ') << name;
+
+      const auto min = ygm::min(timer.second.second, m_comm);
+      sstr << std::setw(number_field_width) << min;
+
+      const auto max = ygm::max(timer.second.second, m_comm);
+      sstr << std::setw(number_field_width) << max;
+
+      const auto sum = ygm::sum(timer.second.second, m_comm);
+      sstr << std::setw(number_field_width) << sum;
+
+      const auto avg = ygm::sum(timer.second.second, m_comm) / m_comm.size();
+      sstr << std::setw(number_field_width) << avg;
+
+      sstr << "\n";
+    }
+
+    // Print counters
     ygm::detail::string_literal_map_match_keys(m_timers, m_comm);
+    for (auto &&counter : m_counters) {
+      const auto &name          = counter.first;
+      int         filler_length = name_width - name.size();
+      sstr << std::string(filler_length, ' ') << name;
+
+      const auto min = ygm::min(counter.second, m_comm);
+      sstr << std::setw(number_field_width) << min;
+
+      const auto max = ygm::max(counter.second, m_comm);
+      sstr << std::setw(number_field_width) << max;
+
+      const auto sum = ygm::sum(counter.second, m_comm);
+      sstr << std::setw(number_field_width) << sum;
+
+      const auto avg =
+          ((double)ygm::sum(counter.second, m_comm)) / m_comm.size();
+      sstr << std::setw(number_field_width) << avg;
+
+      sstr << "\n";
+    }
+
+    sstr << std::string(total_row_length, '=');
+
+    if (m_comm.rank0()) {
+      os << sstr.str() << std::endl;
+    }
   }
 
  private:

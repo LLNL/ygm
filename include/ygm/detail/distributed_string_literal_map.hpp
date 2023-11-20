@@ -27,7 +27,7 @@ void string_literal_map_match_keys(string_literal_map<T> &str_map,
       local_mask.push_back(false);
     }
   }
-  ASSERT_MPI(MPI_Allreduce(local_mask.data(), MPI_IN_PLACE, local_mask.size(),
+  ASSERT_MPI(MPI_Allreduce(MPI_IN_PLACE, local_mask.data(), local_mask.size(),
                            detail::mpi_typeof(local_mask[0]), MPI_LOR,
                            comm.get_mpi_comm()));
 

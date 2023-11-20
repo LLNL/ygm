@@ -23,10 +23,53 @@ class string_literal_map {
   using key_type    = std::string;
   using mapped_type = Value;
 
+  class iterator {
+   public:
+    iterator(string_literal_map &map, const size_t index)
+        : m_map(map), m_index(index) {
+      if (m_map.m_key_mask[m_index] == false) {
+        this->operator++(1);
+      }
+    }
+
+    bool operator==(const iterator &x) {
+      return (m_index == x.m_index) && (&m_map == &x.m_map);
+    }
+
+    bool operator!=(const iterator &x) { return !(this->operator==(x)); }
+
+    iterator operator++() { return this->operator++(1); }
+
+    iterator operator++(int n) {
+      // Increment m_index only on filled entries
+      while (n > 0 && m_index < m_map.capacity()) {
+        ++m_index;
+        if (m_map.is_filled(m_index)) {
+          --n;
+        }
+      }
+      return *this;
+    }
+
+    std::pair<const key_type &, mapped_type &> operator*() {
+      ASSERT_RELEASE(m_map.m_key_mask[m_index] == true);
+      return std::pair<const key_type &, mapped_type &>(
+          m_map.m_enumerator.get_string_by_index(m_index),
+          m_map.m_values[m_index]);
+    }
+
+   private:
+    string_literal_map &m_map;
+    size_t              m_index;
+  };
+
   string_literal_map() {
     m_values.resize(m_enumerator.get_num_items());
     m_key_mask.resize(m_enumerator.get_num_items());
   }
+
+  iterator begin() { return iterator(*this, 0); }
+  iterator end() { return iterator(*this, capacity()); }
 
   template <StringLiteral S>
   mapped_type &get_value() {

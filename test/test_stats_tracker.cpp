@@ -47,6 +47,8 @@ int main(int argc, char **argv) {
         ((world.size() - 1) * world.size() * world.size() / 2 -
          (world.size() - 1) * world.size() * (2 * world.size() - 1) / 6) /
             ((double)world.size()));
+
+    // tracker.print("Counters");
   }
 
   // Test timer starting and stopping
@@ -86,6 +88,8 @@ int main(int argc, char **argv) {
                    tracker.get_time_max<"outer_timer">());
     ASSERT_RELEASE(tracker.get_time_max<"outer_timer">() * world.size() <=
                    tracker.get_time_sum<"outer_timer">());
+
+    // tracker.print();
   }
   return 0;
 }
