@@ -114,7 +114,7 @@ class stats_tracker {
     // This will all be much easier with std::format in C++23...
     std::stringstream sstr;
     constexpr int     number_field_width = 16;
-    constexpr int     name_width         = 16;
+    constexpr int     name_width         = 24;
     constexpr int     total_row_length   = 4 * number_field_width + name_width;
 
     if (name.size() > 0) {
@@ -140,7 +140,9 @@ class stats_tracker {
     for (auto &&timer : m_timers) {
       const auto &name          = timer.first;
       int         filler_length = name_width - name.size();
-      sstr << std::string(filler_length, ' ') << name;
+      sstr << std::string(filler_length, ' ')
+           << std::setw(name_width - filler_length)
+           << name.substr(0, name_width - filler_length);
 
       const auto min = ygm::min(timer.second.second, m_comm);
       sstr << std::setw(number_field_width) << min;
@@ -162,7 +164,9 @@ class stats_tracker {
     for (auto &&counter : m_counters) {
       const auto &name          = counter.first;
       int         filler_length = name_width - name.size();
-      sstr << std::string(filler_length, ' ') << name;
+      sstr << std::string(filler_length, ' ')
+           << std::setw(name_width - filler_length)
+           << name.substr(0, name_width - filler_length);
 
       const auto min = ygm::min(counter.second, m_comm);
       sstr << std::setw(number_field_width) << min;

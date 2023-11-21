@@ -17,6 +17,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < world.rank(); ++i) {
       tracker.increment_counter<"Rank">();
     }
+
     ASSERT_RELEASE(tracker.get_counter_local<"Rank">() == world.rank());
     ASSERT_RELEASE(tracker.get_counter_max<"Rank">() == world.size() - 1);
     ASSERT_RELEASE(tracker.get_counter_min<"Rank">() == 0);
@@ -32,6 +33,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < world.rank() + 1; ++i) {
       tracker.increment_counter<"Rank">(i);
     }
+
     ASSERT_RELEASE(tracker.get_counter_local<"Rank">() ==
                    world.rank() * (world.rank() + 1) / 2);
     ASSERT_RELEASE(tracker.get_counter_max<"Rank">() ==
@@ -48,7 +50,7 @@ int main(int argc, char **argv) {
          (world.size() - 1) * world.size() * (2 * world.size() - 1) / 6) /
             ((double)world.size()));
 
-    // tracker.print("Counters");
+    tracker.print("Counters");
   }
 
   // Test timer starting and stopping
@@ -89,7 +91,10 @@ int main(int argc, char **argv) {
     ASSERT_RELEASE(tracker.get_time_max<"outer_timer">() * world.size() <=
                    tracker.get_time_sum<"outer_timer">());
 
-    // tracker.print();
+    tracker.print();
   }
+
+  world.stats_print();
+
   return 0;
 }

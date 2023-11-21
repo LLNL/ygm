@@ -79,7 +79,7 @@ class string_enumerator {
     static inline bool             is_set = false;
   };
 
-  static std::string get_string_by_index(const size_t index) {
+  static const std::string &get_string_by_index(const size_t index) {
     return m_vec[index];
   }
 
