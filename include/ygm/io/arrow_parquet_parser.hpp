@@ -113,6 +113,17 @@ class arrow_parquet_parser {
     return num_rows;
   }
 
+  static std::unique_ptr<parquet::ParquetFileReader> open_file(
+      const stdfs::path& input_filename) {
+    // Open the Parquet file
+    std::shared_ptr<arrow::io::ReadableFile> input_file;
+    PARQUET_ASSIGN_OR_THROW(input_file,
+                            arrow::io::ReadableFile::Open(input_filename));
+
+    // Create a ParquetFileReader object
+    return parquet::ParquetFileReader::Open(input_file);
+  }
+
   /**
    * @brief Check readability of paths and iterates through directories
    *
@@ -192,7 +203,7 @@ class arrow_parquet_parser {
     std::shared_ptr<arrow::io::ReadableFile> input_file;
     try {
       PARQUET_ASSIGN_OR_THROW(input_file, arrow::io::ReadableFile::Open(p));
-    } catch(...) {
+    } catch (...) {
       return false;
     }
     return true;
@@ -227,17 +238,6 @@ class arrow_parquet_parser {
     }
   }
 
-  std::unique_ptr<parquet::ParquetFileReader> open_file(
-      const stdfs::path& input_filename) {
-    // Open the Parquet file
-    std::shared_ptr<arrow::io::ReadableFile> input_file;
-    PARQUET_ASSIGN_OR_THROW(input_file,
-                            arrow::io::ReadableFile::Open(input_filename));
-
-    // Create a ParquetFileReader object
-    return parquet::ParquetFileReader::Open(input_file);
-  }
-
   void read_file_schema() {
     auto reader = open_file(m_paths[0]);
 
@@ -254,6 +254,11 @@ class arrow_parquet_parser {
     m_schema_string = file_schema->ToString();
   }
 
+  /// @brief Reads a parquet file and calls a function for each row.
+  /// @param input_filename Path to a parquet file.
+  /// @param fn A function that takes a parquet_stream_reader and the #of
+  /// @param offset #of rows to skip. This option works with >= Arrow v14.
+  /// @param num_rows_to_read #of rows to read. If negative, read all rows.
   template <typename Function>
   size_t read_parquet_stream(const stdfs::path& input_filename, Function fn,
                              const size_t  offset           = 0,
@@ -264,7 +269,7 @@ class arrow_parquet_parser {
     if (offset > 0) {
       // SkipRows() has a bug in < v14
       assert(ARROW_VERSION_MAJOR >= 14);
-      stream.SkipRows(offset);
+      stream.SkipRows(ssize_t(offset));
     }
 
     size_t cnt_read_rows = 0;
@@ -279,7 +284,7 @@ class arrow_parquet_parser {
 
   /// @brief Assigns the range each rank reads.
   /// This function tries to assign the equal number of rows to every rank.
-  /// Thus, some files may be read by more than one rank.
+  /// Some files may be assigned to more than one rank.
   void assign_read_range() {
     // Count the number of lines in each file
     // Can do in parallel, but use a single rank for now for simplicity.
@@ -323,7 +328,9 @@ class arrow_parquet_parser {
         }
         num_assigned_rows += range.num_rows;
 
-        // std::cout << rank_no << " " << range.begin_file_no << " " << range.begin_row_offset << " " << range.num_rows << std::endl; //DB
+        // std::cout << rank_no << " " << range.begin_file_no
+        // << " " << range.begin_row_offset
+        // << " " << range.num_rows << std::endl; // Debug
 
         // Send the read range to the rank
         m_comm.async(
