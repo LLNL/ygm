@@ -72,7 +72,7 @@ if (NOT cereal_FOUND)
     # to use this specific commit for now.
     FetchContent_Declare(
         cereal
-        GIT_REPOSITORY https://github.com/USCiLab/cereal
+        GIT_REPOSITORY https://github.com/USCiLab/cereal.git
         GIT_TAG af0700efb25e7dc7af637b9e6f970dbb94813bff
     )
     FetchContent_GetProperties(cereal)
@@ -141,6 +141,18 @@ endif()
 if (NOT Arrow_FOUND)
 	find_package(Arrow 10.0 QUIET)
 endif()
+if (NOT Arrow_FOUND)
+	find_package(Arrow 11.0 QUIET)
+endif()
+if (NOT Arrow_FOUND)
+	find_package(Arrow 12.0 QUIET)
+endif()
+if (NOT Arrow_FOUND)
+	find_package(Arrow 13.0 QUIET)
+endif()
+if (NOT Arrow_FOUND)
+	find_package(Arrow 14.0 QUIET)
+endif()
 if (Arrow_FOUND)
    message(STATUS ${PROJECT_NAME} " found Arrow ")
    message(STATUS "Arrow version: ${ARROW_VERSION}")
@@ -156,6 +168,9 @@ if (Arrow_FOUND)
    endif () 
 else ()
    message(WARNING ${PROJECT_NAME} " did not find Arrow >= 8.0. Building without Arrow.") 
+   if (YGM_REQUIRE_ARROW)
+	   message(FATAL_ERROR "YGM configured to require Arrow, but Arrow could not be found")
+   endif ()
 endif ()
 
 #

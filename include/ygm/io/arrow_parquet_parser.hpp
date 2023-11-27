@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2023 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -8,6 +8,7 @@
 #include <cassert>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <regex>
 #include <string>
 #include <vector>
@@ -29,14 +30,31 @@ namespace stdfs = std::filesystem;
 
 namespace ygm::io {
 
-// template <typename T>
-// using parquet_optional = parquet::StreamReader::optional<T>;
+struct parquet_data_type {
+  parquet::Type::type type;
 
-using file_schema_container = std::vector<std::tuple<std::string, std::string>>;
+  bool equal(const parquet::Type::type other_type) const {
+    return other_type == type;
+  }
 
+  friend std::ostream& operator<<(std::ostream&, const parquet_data_type&);
+};
+
+std::ostream& operator<<(std::ostream& os, const parquet_data_type& t) {
+  os << parquet::TypeToString(t.type);
+  return os;
+}
+
+// Parquet file parser
+// Only supports the plain encoding.
+// Do not support nested or hierarchical columns.
 class arrow_parquet_parser {
  public:
   using self_type = arrow_parquet_parser;
+  // 0: a column type, 1: column name
+  using file_schema_container =
+      std::vector<std::tuple<parquet_data_type, std::string>>;
+  using parquet_stream_reader = parquet::StreamReader;
 
   arrow_parquet_parser(ygm::comm& _comm) : m_comm(_comm), pthis(this) {
     pthis.check(m_comm);
@@ -54,6 +72,7 @@ class arrow_parquet_parser {
 
   ~arrow_parquet_parser() { m_comm.barrier(); }
 
+  // Returns a list of column schema information
   const file_schema_container& schema() { return m_schema; }
 
   const std::string& schema_to_string() { return m_schema_string; }
@@ -158,60 +177,44 @@ class arrow_parquet_parser {
 
   template <typename Function>
   void read_file(const stdfs::path& file_path, Function fn) {
-    parquet_stream_reader(file_path.string(), fn);
+    read_parquet_stream(file_path.string(), fn);
   }
 
   void read_file_schema() {
-    parquet_stream_reader(
+    read_parquet_stream(
         m_paths[0], [](auto& stream_reader, const auto& field_count) {}, true);
   }
 
-  void check_file_schema(const parquet::SchemaDescriptor* file_schema) {
-    // check the number of fields
-    auto   file_schema_group_node = file_schema->group_node();
-    size_t field_count            = file_schema_group_node->field_count();
-    assert(field_count == m_schema.size());
-  }
-
   template <typename Function>
-  void parquet_stream_reader(std::string&& input_filename, Function fn,
-                             bool read_schema_only = false) {
+  void read_parquet_stream(std::string&& input_filename, Function fn,
+                           bool read_schema_only = false) {
+    // Open the Parquet file
     std::shared_ptr<arrow::io::ReadableFile> input_file;
     PARQUET_ASSIGN_OR_THROW(input_file,
                             arrow::io::ReadableFile::Open(input_filename));
+
+    // Create a ParquetFileReader object
     std::unique_ptr<parquet::ParquetFileReader> parquet_file_reader =
-        parquet::ParquetFileReader::OpenFile(input_filename);
-    parquet::StreamReader stream_reader{
-        parquet::ParquetFileReader::Open(input_file)};
+        parquet::ParquetFileReader::Open(input_file);
 
-    std::shared_ptr<parquet::FileMetaData> file_metadata =
-        parquet_file_reader->metadata();
-    auto file_schema = file_metadata->schema();  // SchemaDescriptor
-
-    size_t field_count = 0;
+    // Get the file schema
+    parquet::SchemaDescriptor const* const file_schema =
+        parquet_file_reader->metadata()->schema();
 
     if (read_schema_only) {
-      auto   file_schema_group_node = file_schema->group_node();
-      size_t field_count            = file_schema_group_node->field_count();
-      for (int i = 0; i < file_schema_group_node->field_count(); ++i) {
-        auto node_ptr = file_schema_group_node->field(i);
+      const size_t field_count = file_schema->num_columns();
+      for (size_t i = 0; i < field_count; ++i) {
+        parquet::ColumnDescriptor const* const column = file_schema->Column(i);
         m_schema.emplace_back(std::forward_as_tuple(
-            node_ptr->logical_type()->ToString(), node_ptr->name()));
+            parquet_data_type{column->physical_type()}, column->name()));
       }  // for
-    } else {
-      check_file_schema(file_schema);
-      field_count = m_schema.size();
-    }
-
-    if (read_schema_only) {
       m_schema_string = file_schema->ToString();
       return;
     }
 
-    // auto& file_key_value_metadata = file_metadata->key_value_metadata();
-
+    parquet_stream_reader stream_reader{std::move(parquet_file_reader)};
     for (size_t i = 0; !stream_reader.eof(); ++i) {
-      fn(stream_reader, field_count);
+      fn(stream_reader, m_schema.size());
     }  // for
   }
 
@@ -219,7 +222,7 @@ class arrow_parquet_parser {
     return m_comm.rank() == item_ID % m_comm.size() ? true : false;
   }
 
-  ygm::comm                        m_comm;
+  ygm::comm&                       m_comm;
   typename ygm::ygm_ptr<self_type> pthis;
   std::vector<stdfs::path>         m_paths;
   file_schema_container            m_schema;

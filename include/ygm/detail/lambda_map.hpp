@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <limits>
 #include <vector>
 #include <ygm/detail/mpi.hpp>
 

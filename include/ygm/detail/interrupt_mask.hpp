@@ -14,12 +14,12 @@ namespace detail {
 class interrupt_mask {
  public:
   interrupt_mask(ygm::comm &c) : m_comm(c) {
-    m_comm.pimpl->m_enable_interrupts = false;
+    m_comm.m_enable_interrupts = false;
   }
 
   ~interrupt_mask() {
-    m_comm.pimpl->m_enable_interrupts = true;
-    // m_comm.pimpl->process_receive_queue();  //causes recursion into
+    m_comm.m_enable_interrupts = true;
+    // m_comm.process_receive_queue();  //causes recursion into
     // process_receive_queue
   }
 
