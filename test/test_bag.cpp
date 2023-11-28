@@ -13,16 +13,15 @@
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
 
-  
-  // Test basic tagging 
+  // Test basic tagging
   {
     ygm::container::bag<std::string> bbag(world);
 
-    static_assert(std::is_same_v< decltype(bbag)::self_type,     decltype(bbag) >);
-    static_assert(std::is_same_v< decltype(bbag)::value_type,    std::string >);
-    static_assert(std::is_same_v< decltype(bbag)::size_type,     size_t >);
-    static_assert(std::is_same_v< decltype(bbag)::ygm_for_all_types, 
-            std::tuple< decltype(bbag)::value_type > >);
+    static_assert(std::is_same_v<decltype(bbag)::self_type, decltype(bbag)>);
+    static_assert(std::is_same_v<decltype(bbag)::value_type, std::string>);
+    static_assert(std::is_same_v<decltype(bbag)::size_type, size_t>);
+    static_assert(std::is_same_v<decltype(bbag)::ygm_for_all_types,
+                                 std::tuple<decltype(bbag)::value_type>>);
   }
 
   //
@@ -56,19 +55,21 @@ int main(int argc, char** argv) {
   // Test local_shuffle and global_shuffle
   {
     ygm::container::bag<int> bbag(world);
-    int num_of_items = 20;
+    int                      num_of_items = 20;
     if (world.rank0()) {
       for (int i = 0; i < num_of_items; i++) {
         bbag.async_insert(i);
       }
     }
-    int seed = 100;
-    ygm::default_random_engine<> rng1 = ygm::default_random_engine<>(world, seed);
+    int                          seed = 100;
+    ygm::default_random_engine<> rng1 =
+        ygm::default_random_engine<>(world, seed);
     bbag.local_shuffle(rng1);
 
-    ygm::default_random_engine<> rng2 = ygm::default_random_engine<>(world, seed);
+    ygm::default_random_engine<> rng2 =
+        ygm::default_random_engine<>(world, seed);
     bbag.global_shuffle(rng2);
-  
+
     bbag.local_shuffle();
     bbag.global_shuffle();
 
@@ -77,7 +78,8 @@ int main(int argc, char** argv) {
     auto bag_content = bbag.gather_to_vector(0);
     if (world.rank0()) {
       for (int i = 0; i < num_of_items; i++) {
-        if (std::find(bag_content.begin(), bag_content.end(), i) == bag_content.end()) {
+        if (std::find(bag_content.begin(), bag_content.end(), i) ==
+            bag_content.end()) {
           ASSERT_RELEASE(false);
         }
       }
@@ -139,7 +141,7 @@ int main(int argc, char** argv) {
   {
     ygm::container::bag<std::string> bbag(world);
     bbag.async_insert("begin", 0);
-    bbag.async_insert("end", world.size()-1);
+    bbag.async_insert("end", world.size() - 1);
     bbag.rebalance();
     ASSERT_RELEASE(bbag.local_size() == 2);
   }
@@ -148,18 +150,22 @@ int main(int argc, char** argv) {
   // Test rebalance with non-standard rebalance sizes
   {
     ygm::container::bag<std::string> bbag(world);
-    bbag.async_insert("middle", world.size()/2);
-    bbag.async_insert("end", world.size()-1);
-    if (world.rank0())
-      bbag.async_insert("middle", world.size()/2);
+    bbag.async_insert("middle", world.size() / 2);
+    bbag.async_insert("end", world.size() - 1);
+    if (world.rank0()) bbag.async_insert("middle", world.size() / 2);
     bbag.rebalance();
 
-    size_t target_size = std::ceil((bbag.size() * 1.0) / world.size());
-    size_t remainder = bbag.size() % target_size;
-    if (world.rank() != world.size() - 1)
-      ASSERT_RELEASE(bbag.local_size() == target_size);
-    else
-      ASSERT_RELEASE(bbag.local_size() == remainder);
+    size_t target_size      = std::ceil((bbag.size() * 1.0) / world.size());
+    size_t remainder        = bbag.size() % world.size();
+    size_t small_block_size = bbag.size() / world.size();
+    size_t large_block_size =
+        bbag.size() / world.size() + (bbag.size() % world.size() > 0);
+
+    if (world.rank() < remainder) {
+      ASSERT_RELEASE(bbag.local_size() == large_block_size);
+    } else {
+      ASSERT_RELEASE(bbag.local_size() == small_block_size);
+    }
   }
 
   //
@@ -168,18 +174,19 @@ int main(int argc, char** argv) {
     ygm::container::bag<int> bbag(world);
     if (world.rank0()) {
       for (int i = 0; i < 100; i++) {
-        bbag.async_insert(i, (i*3) % world.size());
+        bbag.async_insert(i, (i * 3) % world.size());
       }
       for (int i = 100; i < 200; i++) {
-        bbag.async_insert(i, (i*5) % world.size());
+        bbag.async_insert(i, (i * 5) % world.size());
       }
     }
     bbag.rebalance();
-    
-    auto v = bbag.gather_to_vector();
+
+    auto          v = bbag.gather_to_vector();
     std::set<int> value_set(v.begin(), v.end());
     ASSERT_RELEASE(value_set.size() == 200);
     ASSERT_RELEASE(*std::min_element(value_set.begin(), value_set.end()) == 0);
-    ASSERT_RELEASE(*std::max_element(value_set.begin(), value_set.end()) == 199);
+    ASSERT_RELEASE(*std::max_element(value_set.begin(), value_set.end()) ==
+                   199);
   }
 }

@@ -6,22 +6,22 @@
 #pragma once
 #include <vector>
 #include <ygm/comm.hpp>
+#include <ygm/container/container_traits.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
-#include <ygm/container/container_traits.hpp>
 
 namespace ygm::container::detail {
 
 template <typename Value, typename Index>
 class array_impl {
  public:
-  using self_type           = array_impl<Value, Index>;
-  using ptr_type            = typename ygm::ygm_ptr<self_type>;
-  using mapped_type         = Value;
-  using key_type            = Index;
-  using size_type           = Index;
-  using ygm_for_all_types   = std::tuple< Index, Value >;
-  using ygm_container_type  = ygm::container::array_tag;
+  using self_type          = array_impl<Value, Index>;
+  using ptr_type           = typename ygm::ygm_ptr<self_type>;
+  using mapped_type        = Value;
+  using key_type           = Index;
+  using size_type          = Index;
+  using ygm_for_all_types  = std::tuple<Index, Value>;
+  using ygm_container_type = ygm::container::array_tag;
 
   array_impl(ygm::comm &comm, const size_type size)
       : m_global_size(size), m_default_value{}, m_comm(comm), pthis(this) {
@@ -49,18 +49,21 @@ class array_impl {
   void resize(const size_type size, const mapped_type &fill_value) {
     m_comm.barrier();
 
-    m_global_size = size;
-    m_block_size  = size / m_comm.size() + (size % m_comm.size() > 0);
+    m_global_size      = size;
+    m_small_block_size = size / m_comm.size();
+    m_large_block_size = m_small_block_size + ((size / m_comm.size()) > 0);
+    m_comm.cout0(m_small_block_size, " : ", m_large_block_size);
 
-    if (m_comm.rank() != m_comm.size() - 1) {
-      m_local_vec.resize(m_block_size, fill_value);
+    m_local_vec.resize(
+        m_small_block_size + (m_comm.rank() < (size % m_comm.size())),
+        fill_value);
+
+    if (m_comm.rank() < (size % m_comm.size())) {
+      m_local_start_index = m_comm.rank() * m_large_block_size;
     } else {
-      // Last rank may get less data
-      size_type block_size = m_global_size % m_block_size;
-      if (block_size == 0) {
-        block_size = m_block_size;
-      }
-      m_local_vec.resize(block_size, fill_value);
+      m_local_start_index =
+          (size % m_comm.size()) * m_large_block_size +
+          (m_comm.rank() - (size % m_comm.size())) * m_small_block_size;
     }
 
     m_comm.barrier();
@@ -81,9 +84,9 @@ class array_impl {
   }
 
   template <typename BinaryOp>
-  void async_binary_op_update_value(const key_type  index,
+  void async_binary_op_update_value(const key_type     index,
                                     const mapped_type &value,
-                                    const BinaryOp   &b) {
+                                    const BinaryOp    &b) {
     ASSERT_RELEASE(index < m_global_size);
     auto updater = [](const key_type i, mapped_type &v,
                       const mapped_type &new_value) {
@@ -115,7 +118,7 @@ class array_impl {
       key_type l_index = parray->local_index(i);
       ASSERT_RELEASE(l_index < parray->m_local_vec.size());
       mapped_type &l_value = parray->m_local_vec[l_index];
-      Visitor    *vis     = nullptr;
+      Visitor     *vis     = nullptr;
       if constexpr (std::is_invocable<decltype(visitor), const key_type &,
                                       mapped_type &, VisitorArgs &...>() ||
                     std::is_invocable<decltype(visitor), ptr_type,
@@ -167,28 +170,47 @@ class array_impl {
 
   const mapped_type &default_value() const { return m_default_value; }
 
-  int owner(const key_type index) const { return index / m_block_size; }
+  int owner(const key_type index) const {
+    int to_return;
+    // Owner depends on whether index is before switching to small blocks
+    if (index < (m_global_size % m_comm.size()) * m_large_block_size) {
+      to_return = index / m_large_block_size;
+    } else {
+      to_return =
+          (m_global_size % m_comm.size()) +
+          (index - (m_global_size % m_comm.size()) * m_large_block_size) /
+              m_small_block_size;
+    }
+    ASSERT_RELEASE((to_return >= 0) && (to_return < m_comm.size()));
+
+    return to_return;
+  }
 
   bool is_mine(const key_type index) const {
     return owner(index) == m_comm.rank();
   }
 
   key_type local_index(const key_type index) {
-    return index % m_block_size;
+    key_type to_return = index - m_local_start_index;
+    ASSERT_RELEASE((to_return >= 0) && (to_return <= m_small_block_size));
+    return to_return;
   }
 
   key_type global_index(const key_type index) {
-    return m_comm.rank() * m_block_size + index;
+    key_type to_return;
+    return m_local_start_index + index;
   }
 
  protected:
   array_impl() = delete;
 
-  size_type                          m_global_size;
-  size_type                          m_block_size;
-  mapped_type                        m_default_value;
-  std::vector<mapped_type>           m_local_vec;
-  ygm::comm                          &m_comm;
-  typename ygm::ygm_ptr<self_type>   pthis;
+  size_type                        m_global_size;
+  size_type                        m_small_block_size;
+  size_type                        m_large_block_size;
+  size_type                        m_local_start_index;
+  mapped_type                      m_default_value;
+  std::vector<mapped_type>         m_local_vec;
+  ygm::comm                       &m_comm;
+  typename ygm::ygm_ptr<self_type> pthis;
 };
 }  // namespace ygm::container::detail
