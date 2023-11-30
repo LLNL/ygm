@@ -84,9 +84,24 @@ void bag<Item, Alloc>::rebalance() {
   // int to_send[m_comm.size()] = {0};
   std::unordered_map<size_t, size_t> to_send;
 
+  auto   global_size      = size();
+  size_t small_block_size = global_size / m_comm.size();
+  size_t large_block_size =
+      global_size / m_comm.size() + ((global_size / m_comm.size()) > 0);
+
   for (size_t i = 0; i < local_size(); i++) {
-    size_t idx         = prefix_val + i;
-    size_t target_rank = idx / target_size;
+    size_t idx = prefix_val + i;
+    size_t target_rank;
+
+    // Determine target rank to match partitioning in ygm::container::array
+    if (idx < (global_size % m_comm.size()) * large_block_size) {
+      target_rank = idx / large_block_size;
+    } else {
+      target_rank = (global_size % m_comm.size()) +
+                    (idx - (global_size % m_comm.size()) * large_block_size) /
+                        small_block_size;
+    }
+
     if (target_rank != m_comm.rank()) {
       to_send[target_rank]++;
     }
@@ -254,4 +269,3 @@ void bag<Item, Alloc>::local_for_all_pair_types(Function fn) {
 }
 
 }  // namespace ygm::container
-
