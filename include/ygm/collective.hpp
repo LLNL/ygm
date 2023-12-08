@@ -9,6 +9,8 @@
 
 namespace ygm {
 
+class comm;
+
 /**
  * @brief Collective computes the prefix sum of value across all ranks in the
  * communicator.

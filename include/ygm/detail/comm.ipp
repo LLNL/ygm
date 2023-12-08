@@ -4,6 +4,9 @@
 // SPDX-License-Identifier: MIT
 
 #pragma once
+#include <iomanip>
+
+#include <ygm/detail/comm_stats.hpp>
 #include <ygm/detail/meta/functional.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
 
@@ -87,22 +90,117 @@ inline void comm::welcome(std::ostream &os) {
 
 inline void comm::stats_reset() { stats.reset(); }
 inline void comm::stats_print(const std::string &name, std::ostream &os) {
+  // Synchronize tracked counters and timers before printing
+  std::vector<int> local_mask;
+  for (size_t i = 0; i < stats.get_timers().capacity(); ++i) {
+    if (stats.get_timers().is_filled(i)) {
+      local_mask.push_back(true);
+    } else {
+      local_mask.push_back(false);
+    }
+  }
+  ASSERT_MPI(MPI_Allreduce(MPI_IN_PLACE, local_mask.data(), local_mask.size(),
+                           detail::mpi_typeof(local_mask[0]), MPI_LOR,
+                           get_mpi_comm()));
+
+  // Adds default entry if none is found locally but another rank has an entry
+  for (size_t i = 0; i < local_mask.size(); ++i) {
+    if (local_mask[i]) {
+      stats.get_timers().get_value_from_index(i);
+    }
+  }
+
+  local_mask.clear();
+  for (size_t i = 0; i < stats.get_counters().capacity(); ++i) {
+    if (stats.get_counters().is_filled(i)) {
+      local_mask.push_back(true);
+    } else {
+      local_mask.push_back(false);
+    }
+  }
+  ASSERT_MPI(MPI_Allreduce(MPI_IN_PLACE, local_mask.data(), local_mask.size(),
+                           detail::mpi_typeof(local_mask[0]), MPI_LOR,
+                           get_mpi_comm()));
+
+  // Adds default entry if none is found locally but another rank has an entry
+  for (size_t i = 0; i < local_mask.size(); ++i) {
+    if (local_mask[i]) {
+      stats.get_counters().get_value_from_index(i);
+    }
+  }
+
   std::stringstream sstr;
-  sstr << "============== STATS =================\n"
-       << "NAME                     = " << name << "\n"
-       << "TIME                     = " << stats.get_elapsed_time() << "\n"
-       << "GLOBAL_ASYNC_COUNT       = "
-       << all_reduce_sum(stats.get_async_count()) << "\n"
-       << "GLOBAL_ISEND_COUNT       = "
-       << all_reduce_sum(stats.get_isend_count()) << "\n"
-       << "GLOBAL_ISEND_BYTES       = "
-       << all_reduce_sum(stats.get_isend_bytes()) << "\n"
-       << "MAX_WAITSOME_ISEND_IRECV = "
-       << all_reduce_max(stats.get_waitsome_isend_irecv_time()) << "\n"
-       << "MAX_WAITSOME_IALLREDUCE  = "
-       << all_reduce_max(stats.get_waitsome_iallreduce_time()) << "\n"
-       << "COUNT_IALLREDUCE         = " << stats.get_iallreduce_count() << "\n"
-       << "======================================";
+  constexpr int     number_field_width = 16;
+  constexpr int     name_width         = 24;
+  constexpr int     total_row_length   = 4 * number_field_width + name_width;
+
+  if (name.size() > 0) {
+    int filler_length =
+        std::max<int>(total_row_length - 7 - (name.size() + 1), 0);
+    sstr << std::string(filler_length / 2, '=') << " " << name << " STATS "
+         << std::string(filler_length / 2 + (filler_length % 2), '=') << "\n";
+  } else {
+    int filler_length = std::max<int>(total_row_length - 7, 0);
+    sstr << std::string(filler_length / 2, '=') << " STATS "
+         << std::string(filler_length / 2 + (filler_length % 2), '=') << "\n";
+  }
+
+  sstr << std::string(name_width, ' ');
+  sstr << std::string(number_field_width - 5, ' ') << "(min)";
+  sstr << std::string(number_field_width - 5, ' ') << "(max)";
+  sstr << std::string(number_field_width - 5, ' ') << "(sum)";
+  sstr << std::string(number_field_width - 9, ' ') << "(average)";
+  sstr << "\n";
+
+  // Print timers
+  // ygm::detail::string_literal_map_match_keys(m_counters, m_comm);
+  for (auto &&timer : stats.m_timers /*stats.get_timers()*/) {
+    const auto &name          = timer.first;
+    int         filler_length = std::max<int>(name_width - name.size(), 0);
+    sstr << std::string(filler_length, ' ')
+         << std::setw(name_width - filler_length)
+         << name.substr(0, name_width - filler_length);
+
+    const auto min = all_reduce_min(timer.second.second);
+    sstr << std::setw(number_field_width) << min;
+
+    const auto max = all_reduce_max(timer.second.second);
+    sstr << std::setw(number_field_width) << max;
+
+    const auto sum = all_reduce_sum(timer.second.second);
+    sstr << std::setw(number_field_width) << sum;
+
+    const auto avg = all_reduce_sum(timer.second.second) / size();
+    sstr << std::setw(number_field_width) << avg;
+
+    sstr << "\n";
+  }
+
+  // Print counters
+  // ygm::detail::string_literal_map_match_keys(m_timers, m_comm);
+  for (auto &&counter : stats.m_counters /*stats.get_counters()*/) {
+    const auto &name          = counter.first;
+    int         filler_length = std::max<int>(name_width - name.size(), 0);
+    sstr << std::setw(filler_length) << std::string(filler_length, ' ')
+         << std::setw(name_width - filler_length)
+         << name.substr(0, name_width - filler_length);
+
+    const auto min = all_reduce_min(counter.second);
+    sstr << std::setw(number_field_width) << min;
+
+    const auto max = all_reduce_max(counter.second);
+    sstr << std::setw(number_field_width) << max;
+
+    const auto sum = all_reduce_sum(counter.second);
+    sstr << std::setw(number_field_width) << sum;
+
+    const auto avg = ((double)all_reduce_sum(counter.second)) / size();
+    sstr << std::setw(number_field_width) << avg;
+
+    sstr << "\n";
+  }
+
+  sstr << std::string(total_row_length, '=');
 
   if (rank0()) {
     os << sstr.str() << std::endl;
@@ -137,7 +235,7 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
                 "comm::async() AsyncFunction must be is_trivially_copyable & "
                 "is_standard_layout.");
   ASSERT_RELEASE(dest < m_layout.size());
-  stats.async(dest);
+  stats.increment_counter<"async_count">();
 
   check_if_production_halt_required();
   m_send_count++;
@@ -469,7 +567,7 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
   MPI_Request req = MPI_REQUEST_NULL;
   ASSERT_MPI(MPI_Iallreduce(local_counts, global_counts, 2, MPI_UINT64_T,
                             MPI_SUM, m_comm_barrier, &req));
-  stats.iallreduce();
+  stats.increment_counter<"MPI_Iallreduce_count">();
   bool iallreduce_complete(false);
   while (!iallreduce_complete) {
     MPI_Request twin_req[2];
@@ -481,9 +579,10 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
     MPI_Status twin_status[2];
 
     {
-      auto timer = stats.waitsome_iallreduce();
+      stats.start_timer<"waitsome_iallreduce">();
       ASSERT_MPI(
           MPI_Waitsome(2, twin_req, &outcount, twin_indices, twin_status));
+      stats.stop_timer<"waitsome_iallreduce">();
     }
 
     for (int i = 0; i < outcount; ++i) {
@@ -527,7 +626,8 @@ inline void comm::flush_send_buffer(int dest) {
                            MPI_BYTE, dest, 0, m_comm_async,
                            &(request.request)));
     }
-    stats.isend(dest, request.buffer->size());
+    stats.increment_counter<"MPI_Isend count">();
+    stats.increment_counter<"MPI_Isend bytes">(request.buffer->size());
     m_pending_isend_bytes += request.buffer->size();
     m_send_buffer_bytes -= request.buffer->size();
     m_send_queue.push_back(request);
@@ -861,7 +961,8 @@ inline void comm::handle_next_receive(MPI_Status                   status,
                                       std::shared_ptr<std::byte[]> buffer) {
   int count{0};
   ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &count));
-  stats.irecv(status.MPI_SOURCE, count);
+  stats.increment_counter<"MPI_Irecv count">();
+  stats.increment_counter<"MPI_Irecv bytes">(count);
   cereal::YGMInputArchive iarchive(buffer.get(), count);
   while (!iarchive.empty()) {
     if (config.routing != detail::routing_type::NONE) {
@@ -872,7 +973,7 @@ inline void comm::handle_next_receive(MPI_Status                   status,
         iarchive.loadBinary(&lid, sizeof(lid));
         m_lambda_map.execute(lid, this, &iarchive);
         m_recv_count++;
-        stats.rpc_execute();
+        stats.increment_counter<"RPC Executions">();
       } else {
         int next_dest = m_router.next_hop(h.dest);
 
@@ -898,7 +999,7 @@ inline void comm::handle_next_receive(MPI_Status                   status,
       iarchive.loadBinary(&lid, sizeof(lid));
       m_lambda_map.execute(lid, this, &iarchive);
       m_recv_count++;
-      stats.rpc_execute();
+      stats.increment_counter<"RPC Executions">();
     }
   }
   post_new_irecv(buffer);
@@ -931,9 +1032,10 @@ inline bool comm::process_receive_queue() {
     int        twin_indices[2];
     MPI_Status twin_status[2];
     {
-      auto timer = stats.waitsome_isend_irecv();
+      stats.start_timer<"waitsome_isend_irecv">();
       ASSERT_MPI(
           MPI_Waitsome(2, twin_req, &outcount, twin_indices, twin_status));
+      stats.stop_timer<"waitsome_isend_irecv">();
     }
     for (int i = 0; i < outcount; ++i) {
       if (twin_indices[i] == 0) {  // completed a iSend
@@ -953,7 +1055,7 @@ inline bool comm::process_receive_queue() {
       int flag(0);
       ASSERT_MPI(
           MPI_Test(&(m_send_queue.front().request), &flag, MPI_STATUS_IGNORE));
-      stats.isend_test();
+      stats.increment_counter<"Isend test count">();
       if (flag) {
         m_pending_isend_bytes -= m_send_queue.front().buffer->size();
         m_send_queue.front().buffer->clear();
@@ -976,7 +1078,7 @@ inline bool comm::local_process_incoming() {
     int        flag(0);
     MPI_Status status;
     ASSERT_MPI(MPI_Test(&(m_recv_queue.front().request), &flag, &status));
-    stats.irecv_test();
+    stats.increment_counter<"Irecv test count">();
     if (flag) {
       received_to_return           = true;
       mpi_irecv_request req_buffer = m_recv_queue.front();
