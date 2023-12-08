@@ -144,7 +144,7 @@ class stats_tracker {
     ygm::detail::string_literal_map_match_keys(m_counters, m_comm);
     for (auto &&timer : m_timers) {
       const auto &name          = timer.first;
-      int         filler_length = name_width - name.size();
+      int         filler_length = std::max<int>(name_width - name.size(), 0);
       sstr << std::string(filler_length, ' ')
            << std::setw(name_width - filler_length)
            << name.substr(0, name_width - filler_length);
@@ -167,8 +167,9 @@ class stats_tracker {
     // Print counters
     ygm::detail::string_literal_map_match_keys(m_timers, m_comm);
     for (auto &&counter : m_counters) {
-      const auto &name          = counter.first;
-      int         filler_length = name_width - name.size();
+      const auto &name = counter.first;
+      std::cout << name << std::endl;
+      int filler_length = std::max<int>(name_width - name.size(), 0);
       sstr << std::string(filler_length, ' ')
            << std::setw(name_width - filler_length)
            << name.substr(0, name_width - filler_length);
