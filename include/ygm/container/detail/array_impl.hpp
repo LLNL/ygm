@@ -41,6 +41,9 @@ class array_impl {
       : m_default_value(rhs.m_default_value),
         m_comm(rhs.m_comm),
         m_global_size(rhs.m_global_size),
+        m_small_block_size(rhs.m_small_block_size),
+        m_large_block_size(rhs.m_large_block_size),
+        m_local_start_index(rhs.m_local_start_index),
         m_local_vec(rhs.m_local_vec),
         pthis(this) {}
 
@@ -52,7 +55,6 @@ class array_impl {
     m_global_size      = size;
     m_small_block_size = size / m_comm.size();
     m_large_block_size = m_small_block_size + ((size / m_comm.size()) > 0);
-    m_comm.cout0(m_small_block_size, " : ", m_large_block_size);
 
     m_local_vec.resize(
         m_small_block_size + (m_comm.rank() < (size % m_comm.size())),

@@ -192,5 +192,40 @@ int main(int argc, char **argv) {
     });
   }
 
+  // Test copy constructor
+  {
+    int size = 64;
+
+    ygm::container::array<int> arr(world, size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        arr.async_set(i, 2 * i);
+      }
+    }
+
+    world.barrier();
+
+    ygm::container::array<int> arr_copy(arr);
+
+    arr_copy.for_all([&arr](const auto &index, const auto &value) {
+      arr.async_visit(
+          index,
+          [](const auto &index, const auto &my_value, const auto &other_value) {
+            ASSERT_RELEASE(my_value == other_value);
+          },
+          value);
+    });
+
+    arr.for_all([&arr_copy](const auto &index, const auto &value) {
+      arr_copy.async_visit(
+          index,
+          [](const auto &index, const auto &my_value, const auto &other_value) {
+            ASSERT_RELEASE(my_value == other_value);
+          },
+          value);
+    });
+  }
+
   return 0;
 }
