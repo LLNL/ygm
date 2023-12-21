@@ -328,10 +328,6 @@ class arrow_parquet_parser {
         }
         num_assigned_rows += range.num_rows;
 
-        // std::cout << rank_no << " " << range.begin_file_no
-        // << " " << range.begin_row_offset
-        // << " " << range.num_rows << std::endl; // Debug
-
         // Send the read range to the rank
         m_comm.async(
             rank_no,
