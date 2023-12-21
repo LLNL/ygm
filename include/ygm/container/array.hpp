@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <ygm/container/detail/array_impl.hpp>
+#include <ygm/comm.hpp>
 #include <ygm/container/container_traits.hpp>
 
 namespace ygm::container {
@@ -13,33 +13,31 @@ namespace ygm::container {
 template <typename Value, typename Index = size_t>
 class array {
  public:
-  using self_type           = array<Value, Index>;
-  using mapped_type         = Value;
-  using key_type            = Index;
-  using size_type           = Index;
-  using ygm_for_all_types   = std::tuple< Index, Value >;
-  using ygm_container_type  = ygm::container::array_tag;
-  using impl_type           = detail::array_impl<mapped_type, key_type>;
+  using self_type          = array<Value, Index>;
+  using mapped_type        = Value;
+  using key_type           = Index;
+  using size_type          = Index;
+  using ygm_for_all_types  = std::tuple<Index, Value>;
+  using ygm_container_type = ygm::container::array_tag;
+  using ptr_type           = typename ygm::ygm_ptr<self_type>;
 
   array() = delete;
 
-  array(ygm::comm& comm, const size_type size) : m_impl(comm, size) {}
+  array(ygm::comm& comm, const size_type size);
 
-  array(ygm::comm& comm, const size_type size, const mapped_type& default_value)
-      : m_impl(comm, size, default_value) {}
+  array(ygm::comm& comm, const size_type size,
+        const mapped_type& default_value);
 
-  array(const self_type& rhs) : m_impl(rhs.m_impl) {}
+  array(const self_type& rhs);
 
-  void async_set(const key_type index, const mapped_type& value) {
-    m_impl.async_set(index, value);
-  }
+  ~array();
+
+  void async_set(const key_type index, const mapped_type& value);
 
   template <typename BinaryOp>
-  void async_binary_op_update_value(const key_type  index,
+  void async_binary_op_update_value(const key_type     index,
                                     const mapped_type& value,
-                                    const BinaryOp&   b) {
-    m_impl.async_binary_op_update_value(index, value, b);
-  }
+                                    const BinaryOp&    b);
 
   void async_bit_and(const key_type index, const mapped_type& value) {
     async_binary_op_update_value(index, value, std::bit_and<mapped_type>());
@@ -78,9 +76,7 @@ class array {
   }
 
   template <typename UnaryOp>
-  void async_unary_op_update_value(const key_type index, const UnaryOp& u) {
-    m_impl.async_unary_op_update_value(index, u);
-  }
+  void async_unary_op_update_value(const key_type index, const UnaryOp& u);
 
   void async_increment(const key_type index) {
     async_unary_op_update_value(index,
@@ -94,32 +90,46 @@ class array {
 
   template <typename Visitor, typename... VisitorArgs>
   void async_visit(const key_type index, Visitor visitor,
-                   const VisitorArgs&... args) {
-    m_impl.async_visit(index, visitor,
-                       std::forward<const VisitorArgs>(args)...);
-  }
+                   const VisitorArgs&... args);
 
   template <typename Function>
-  void for_all(Function fn) {
-    m_impl.for_all(fn);
-  }
+  void for_all(Function fn);
 
-  size_type size() { return m_impl.size(); }
+  size_type size();
 
-  typename ygm::ygm_ptr<impl_type> get_ygm_ptr() const {
-    return m_impl.get_ygm_ptr();
-  }
+  typename ygm::ygm_ptr<self_type> get_ygm_ptr() const;
 
-  int owner(const key_type index) const { return m_impl.owner(index); }
+  int owner(const key_type index) const;
 
-  bool is_mine(const key_type index) const { return m_impl.is_mine(index); }
+  bool is_mine(const key_type index) const;
 
-  ygm::comm& comm() { return m_impl.comm(); }
+  ygm::comm& comm();
 
-  const mapped_type& default_value() const { return m_impl.default_value(); }
+  const mapped_type& default_value() const;
+
+  void resize(const size_type size, const mapped_type& fill_value);
+
+  void resize(const size_type size);
 
  private:
-  impl_type m_impl;
+  template <typename Function>
+  void local_for_all(Function fn);
+
+  key_type local_index(key_type index);
+
+  key_type global_index(key_type index);
+
+ private:
+  size_type                        m_global_size;
+  size_type                        m_small_block_size;
+  size_type                        m_large_block_size;
+  size_type                        m_local_start_index;
+  mapped_type                      m_default_value;
+  std::vector<mapped_type>         m_local_vec;
+  ygm::comm&                       m_comm;
+  typename ygm::ygm_ptr<self_type> pthis;
 };
 
 }  // namespace ygm::container
+
+#include <ygm/container/detail/array.ipp>
