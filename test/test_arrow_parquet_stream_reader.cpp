@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
         "data/parquet_files_different_sizes/";
 
     // This test case tests the following cases (assuming there are 4
-    // processes):
+    // processes, and Arrow >= v14):
     // 1. 0 item files at the top and end.
     // 2. read a large file by multiple processes.
     // 3. a small file is read by a single process.
