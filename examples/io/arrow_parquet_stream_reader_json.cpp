@@ -28,7 +28,8 @@ int main(int argc, char** argv) {
       << "Arrow Parquet file parser example (reads data as JSON objects)"
       << std::endl;
 
-  std::string dir_name = "../test/data/parquet_files_no_fixed_len_binary/";
+  // assuming the build directory is inside the YGM root directory
+  std::string dir_name = "../test/data/parquet_files_json/";
   if (argc == 2) {
     dir_name = argv[1];
   }
