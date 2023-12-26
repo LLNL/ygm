@@ -5,71 +5,75 @@
 
 #pragma once
 
+#include <cereal/archives/json.hpp>
 #include <ygm/container/container_traits.hpp>
-#include <ygm/container/detail/set_impl.hpp>
+#include <ygm/container/detail/hash_partitioner.hpp>
+#include <ygm/detail/ygm_ptr.hpp>
 
 namespace ygm::container {
 
+/*
 template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
-          typename Compare = std::less<Key>,
-          class Alloc      = std::allocator<const Key>>
+        typename Compare = std::less<Key>,
+        class Alloc      = std::allocator<const Key>>
 class multiset {
- public:
-  using self_type         = multiset<Key, Partitioner, Compare, Alloc>;
-  using key_type          = Key;
-  using size_type         = size_t;
-  using ygm_for_all_types = std::tuple<Key>;
-  using impl_type = detail::set_impl<key_type, Partitioner, Compare, Alloc>;
+public:
+using self_type         = multiset<Key, Partitioner, Compare, Alloc>;
+using key_type          = Key;
+using size_type         = size_t;
+using ygm_for_all_types = std::tuple<Key>;
+using impl_type = detail::set_impl<key_type, Partitioner, Compare, Alloc>;
 
-  Partitioner partitioner;
+Partitioner partitioner;
 
-  multiset() = delete;
+multiset() = delete;
 
-  multiset(ygm::comm& comm) : m_impl(comm) {}
+multiset(ygm::comm& comm) : m_impl(comm) {}
 
-  void async_insert(const key_type& key) { m_impl.async_insert_multi(key); }
+void async_insert(const key_type& key) { m_impl.async_insert_multi(key); }
 
-  void async_erase(const key_type& key) { m_impl.async_erase(key); }
+void async_erase(const key_type& key) { m_impl.async_erase(key); }
 
-  template <typename Function>
-  void for_all(Function fn) {
-    m_impl.for_all(fn);
-  }
+template <typename Function>
+void for_all(Function fn) {
+  m_impl.for_all(fn);
+}
 
-  template <typename Function>
-  void consume_all(Function fn) {
-    m_impl.consume_all(fn);
-  }
+template <typename Function>
+void consume_all(Function fn) {
+  m_impl.consume_all(fn);
+}
 
-  void clear() { m_impl.clear(); }
+void clear() { m_impl.clear(); }
 
-  size_type size() { return m_impl.size(); }
+size_type size() { return m_impl.size(); }
 
-  bool empty() { return m_impl.size() == 0; }
+bool empty() { return m_impl.size() == 0; }
 
-  size_t count(const key_type& key) { return m_impl.count(key); }
+size_t count(const key_type& key) { return m_impl.count(key); }
 
-  void swap(self_type& s) { return m_impl.swap(s.m_impl); }
+void swap(self_type& s) { return m_impl.swap(s.m_impl); }
 
-  void serialize(const std::string& fname) { m_impl.serialize(fname); }
-  void deserialize(const std::string& fname) { m_impl.deserialize(fname); }
+void serialize(const std::string& fname) { m_impl.serialize(fname); }
+void deserialize(const std::string& fname) { m_impl.deserialize(fname); }
 
-  typename ygm::ygm_ptr<impl_type> get_ygm_ptr() const {
-    return m_impl.get_ygm_ptr();
-  }
+typename ygm::ygm_ptr<impl_type> get_ygm_ptr() const {
+  return m_impl.get_ygm_ptr();
+}
 
-  template <typename Function>
-  void local_for_all(Function fn) {
-    m_impl.local_for_all(fn);
-  }
+template <typename Function>
+void local_for_all(Function fn) {
+  m_impl.local_for_all(fn);
+}
 
-  int owner(const key_type& key) const { return m_impl.owner(key); }
+int owner(const key_type& key) const { return m_impl.owner(key); }
 
-  ygm::comm& comm() { return m_impl.comm(); }
+ygm::comm& comm() { return m_impl.comm(); }
 
- private:
-  impl_type m_impl;
+private:
+impl_type m_impl;
 };
+*/
 
 template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
           typename Compare = std::less<Key>,
@@ -81,84 +85,155 @@ class set {
   using size_type          = size_t;
   using ygm_container_type = ygm::container::set_tag;
   using ygm_for_all_types  = std::tuple<Key>;
-  using impl_type = detail::set_impl<key_type, Partitioner, Compare, Alloc>;
+  using ptr_type           = typename ygm::ygm_ptr<self_type>;
 
   Partitioner partitioner;
 
   set() = delete;
 
-  set(ygm::comm& comm) : m_impl(comm) {}
+  set(ygm::comm& comm);
 
-  void async_insert(const key_type& key) { m_impl.async_insert_unique(key); }
+  set(const self_type&& rhs) noexcept;
 
-  void async_erase(const key_type& key) { m_impl.async_erase(key); }
+  ~set();
+
+  void async_insert(const key_type& key);
+
+  void async_erase(const key_type& key);
 
   template <typename Visitor, typename... VisitorArgs>
   void async_insert_exe_if_missing(const key_type& key, Visitor visitor,
-                                   const VisitorArgs&... args) {
-    m_impl.async_insert_exe_if_missing(
-        key, visitor, std::forward<const VisitorArgs>(args)...);
-  }
+                                   const VisitorArgs&... args);
 
   template <typename Visitor, typename... VisitorArgs>
   void async_insert_exe_if_contains(const key_type& key, Visitor visitor,
-                                    const VisitorArgs&... args) {
-    m_impl.async_insert_exe_if_contains(
-        key, visitor, std::forward<const VisitorArgs>(args)...);
-  }
+                                    const VisitorArgs&... args);
 
   template <typename Visitor, typename... VisitorArgs>
   void async_exe_if_missing(const key_type& key, Visitor visitor,
-                            const VisitorArgs&... args) {
-    m_impl.async_exe_if_missing(key, visitor,
-                                std::forward<const VisitorArgs>(args)...);
-  }
+                            const VisitorArgs&... args);
 
   template <typename Visitor, typename... VisitorArgs>
   void async_exe_if_contains(const key_type& key, Visitor visitor,
-                             const VisitorArgs&... args) {
-    m_impl.async_exe_if_contains(key, visitor,
-                                 std::forward<const VisitorArgs>(args)...);
-  }
+                             const VisitorArgs&... args);
 
   template <typename Function>
-  void for_all(Function fn) {
-    m_impl.for_all(fn);
-  }
+  void for_all(Function fn);
 
   template <typename Function>
-  void consume_all(Function fn) {
-    m_impl.consume_all(fn);
-  }
+  void consume_all(Function fn);
 
-  void clear() { m_impl.clear(); }
+  void clear();
 
-  size_type size() { return m_impl.size(); }
+  size_type size();
 
-  bool empty() { return m_impl.size() == 0; }
+  bool empty() { return size() == 0; }
 
-  size_t count(const key_type& key) { return m_impl.count(key); }
+  size_t count(const key_type& key);
 
-  void swap(self_type& s) { return m_impl.swap(s.m_impl); }
+  void swap(self_type& s);
 
-  void serialize(const std::string& fname) { m_impl.serialize(fname); }
-  void deserialize(const std::string& fname) { m_impl.deserialize(fname); }
+  void serialize(const std::string& fname);
+  void deserialize(const std::string& fname);
 
-  typename ygm::ygm_ptr<impl_type> get_ygm_ptr() const {
-    return m_impl.get_ygm_ptr();
-  }
+  ptr_type get_ygm_ptr() const;
 
-  template <typename Function>
-  void local_for_all(Function fn) {
-    m_impl.local_for_all(fn);
-  }
+  int owner(const key_type& key) const;
 
-  int owner(const key_type& key) const { return m_impl.owner(key); }
-
-  ygm::comm& comm() { return m_impl.comm(); }
+  ygm::comm& comm();
 
  private:
-  impl_type m_impl;
+  template <typename Function>
+  void local_for_all(Function fn);
+
+  template <typename Function>
+  void local_consume_all(Function fn);
+
+ private:
+  std::set<key_type, Compare, Alloc> m_local_set;
+  ygm::comm&                         m_comm;
+  typename ygm::ygm_ptr<self_type>   pthis;
 };
 
+template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
+          typename Compare = std::less<Key>,
+          class Alloc      = std::allocator<const Key>>
+class multiset {
+ public:
+  using self_type          = multiset<Key, Partitioner, Compare, Alloc>;
+  using key_type           = Key;
+  using size_type          = size_t;
+  using ygm_container_type = ygm::container::set_tag;
+  using ygm_for_all_types  = std::tuple<Key>;
+  using ptr_type           = typename ygm::ygm_ptr<self_type>;
+
+  Partitioner partitioner;
+
+  multiset() = delete;
+
+  multiset(ygm::comm& comm);
+
+  multiset(const self_type&& rhs) noexcept;
+
+  ~multiset();
+
+  void async_insert(const key_type& key);
+
+  void async_erase(const key_type& key);
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_insert_exe_if_missing(const key_type& key, Visitor visitor,
+                                   const VisitorArgs&... args);
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_insert_exe_if_contains(const key_type& key, Visitor visitor,
+                                    const VisitorArgs&... args);
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_exe_if_missing(const key_type& key, Visitor visitor,
+                            const VisitorArgs&... args);
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_exe_if_contains(const key_type& key, Visitor visitor,
+                             const VisitorArgs&... args);
+
+  template <typename Function>
+  void for_all(Function fn);
+
+  template <typename Function>
+  void consume_all(Function fn);
+
+  void clear();
+
+  size_type size();
+
+  bool empty() { return size() == 0; }
+
+  size_t count(const key_type& key);
+
+  void swap(self_type& s);
+
+  void serialize(const std::string& fname);
+  void deserialize(const std::string& fname);
+
+  ptr_type get_ygm_ptr() const;
+
+  int owner(const key_type& key) const;
+
+  ygm::comm& comm();
+
+ private:
+  template <typename Function>
+  void local_for_all(Function fn);
+
+  template <typename Function>
+  void local_consume_all(Function fn);
+
+ private:
+  std::multiset<key_type, Compare, Alloc> m_local_set;
+  ygm::comm&                              m_comm;
+  typename ygm::ygm_ptr<self_type>        pthis;
+};
 }  // namespace ygm::container
+
+#include <ygm/container/detail/set.ipp>
