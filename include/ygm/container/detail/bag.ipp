@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <fstream>
+
 #include <cereal/archives/json.hpp>
 #include <ygm/collective.hpp>
 #include <ygm/detail/std_traits.hpp>
