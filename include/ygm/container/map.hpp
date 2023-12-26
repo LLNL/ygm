@@ -223,10 +223,10 @@ class multimap {
   void local_for_all(Function fn);
 
  private:
-  mapped_type                                     m_default_value;
-  std::map<key_type, mapped_type, Compare, Alloc> m_local_map;
-  ygm::comm&                                      m_comm;
-  ptr_type                                        pthis;
+  mapped_type                                          m_default_value;
+  std::multimap<key_type, mapped_type, Compare, Alloc> m_local_map;
+  ygm::comm&                                           m_comm;
+  ptr_type                                             pthis;
 };
 
 }  // namespace ygm::container
