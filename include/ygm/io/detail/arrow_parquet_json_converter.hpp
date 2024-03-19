@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <iostream>
 #include <iterator>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -28,33 +29,50 @@ inline boost::json::value read_parquet_element_as_json_value(
     arrow_parquet_parser::parquet_stream_reader& stream) {
   boost::json::value out_value;
   out_value.emplace_null();
+
   // Note: there is no uint types in Parquet
   if (type_holder.type == parquet::Type::BOOLEAN) {
-    stream >> out_value.emplace_bool();
-  } else if (type_holder.type == parquet::Type::INT32) {
-    int32_t buf;
-    stream >> buf;  // need to read to an int32 variable
-    // Note: there is no int32 type in boost::json
-    out_value.emplace_int64() = int64_t(buf);
-  } else if (type_holder.type == parquet::Type::INT64) {
-    stream >> out_value.emplace_int64();
-  } else if (type_holder.type == parquet::Type::FLOAT) {
-    float buf;
-    stream >> buf;  // need to read to a float variable
-    // Note: there is no float type in boost::json
-    out_value.emplace_double() = double(buf);
-  } else if (type_holder.type == parquet::Type::DOUBLE) {
-    stream >> out_value.emplace_double();
-  } else if (type_holder.type == parquet::Type::BYTE_ARRAY) {
-    std::string buf;
+    std::optional<bool> buf;
     stream >> buf;
-    out_value.emplace_string() = buf;
+    if (buf) {
+      out_value.emplace_bool() = buf.value();
+    }
+  } else if (type_holder.type == parquet::Type::INT32) {
+    std::optional<int32_t> buf;
+    stream >> buf;
+    if (buf) {
+      // Note: there is no int32 type in boost::json
+      out_value.emplace_int64() = static_cast<int64_t>(buf.value());
+    }
+  } else if (type_holder.type == parquet::Type::INT64) {
+    std::optional<int64_t> buf;
+    stream >> buf;
+    if (buf) {
+      out_value.emplace_int64() = buf.value();
+    }
+  } else if (type_holder.type == parquet::Type::FLOAT) {
+    std::optional<float> buf;
+    stream >> buf;
+    if (buf) {
+      // Note: there is no double type in boost::json
+      out_value.emplace_double() = static_cast<double>(buf.value());
+    }
+  } else if (type_holder.type == parquet::Type::DOUBLE) {
+    std::optional<double> buf;
+    stream >> buf;
+    if (buf) {
+      out_value.emplace_double() = buf.value();
+    }
+  } else if (type_holder.type == parquet::Type::BYTE_ARRAY) {
+    std::optional<std::string> buf;
+    stream >> buf;
+    if (buf) {
+      out_value.emplace_string() = buf.value();
+    }
   } else if (type_holder.type == parquet::Type::FIXED_LEN_BYTE_ARRAY) {
     throw std::runtime_error("FIXED_LEN_BYTE_ARRAY is not supported");
-
   } else if (type_holder.type == parquet::Type::INT96) {
     throw std::runtime_error("INT96 is not supported");
-
   } else {
     throw std::runtime_error("Undefined data type");
   }
