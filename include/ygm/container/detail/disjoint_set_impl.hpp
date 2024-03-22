@@ -389,6 +389,19 @@ class disjoint_set_impl {
 
     level = max_rank();
     while (level > 0) {
+      int outstanding_query_children{0};
+      for (const auto &[parent, query] : queries) {
+        outstanding_query_children += query.local_inquiring_items.size();
+      }
+      if (outstanding_query_children > 0) {
+        m_comm.cout() << "Awaiting query responses: "
+                      << outstanding_query_children << std::endl;
+      }
+      if (held_responses.size() > 0) {
+        m_comm.cout() << "Held responses remaining: " << held_responses.size()
+                      << std::endl;
+      }
+
       --level;  // Start at second highest level
       queries.clear();
       held_responses.clear();
