@@ -330,7 +330,8 @@ class disjoint_set_impl {
       async_visit(
           item_info.get_parent(),
           [](const auto &parent, const auto &child_rank) {
-            if (parent.second.get_rank() <= child_rank) {
+            if (parent.second.get_rank() <= child_rank &&
+                parent.second.get_rank() > 0) {
               std::cout << "Child rank: " << child_rank
                         << "\tParent rank: " << parent.second.get_rank()
                         << std::endl;
