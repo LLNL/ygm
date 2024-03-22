@@ -327,17 +327,18 @@ class disjoint_set_impl {
 
   void check_parent_ranks() {
     for (const auto &[local_item, item_info] : m_local_item_parent_map) {
-      async_visit(
-          item_info.get_parent(),
-          [](const auto &parent, const auto &child_rank) {
-            if (parent.second.get_rank() <= child_rank &&
-                parent.second.get_rank() > 0) {
-              std::cout << "Child rank: " << child_rank
-                        << "\tParent rank: " << parent.second.get_rank()
-                        << std::endl;
-            }
-          },
-          item_info.get_rank());
+      if (item_info.get_parent() != local_item) {
+        async_visit(
+            item_info.get_parent(),
+            [](const auto &parent, const auto &child_rank) {
+              if (parent.second.get_rank() <= child_rank) {
+                std::cout << "Child rank: " << child_rank
+                          << "\tParent rank: " << parent.second.get_rank()
+                          << std::endl;
+              }
+            },
+            item_info.get_rank());
+      }
     }
   }
 
