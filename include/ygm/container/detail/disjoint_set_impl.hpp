@@ -428,7 +428,8 @@ class disjoint_set_impl {
 
       // Prepare all queries for this round
       for (const auto &[local_item, item_info] : m_local_item_parent_map) {
-        if (item_info.get_rank() == level) {
+        if (item_info.get_rank() == level &&
+            item_info.get_parent() != local_item) {
           auto query_iter = queries.find(item_info.get_parent());
           if (query_iter == queries.end()) {  // Have not queried for parent's
                                               // rep. Begin new query.
