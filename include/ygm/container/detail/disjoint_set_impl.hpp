@@ -406,6 +406,7 @@ class disjoint_set_impl {
       queries.clear();
       held_responses.clear();
 
+      // Prepare all queries for this round
       for (const auto &[local_item, item_info] : m_local_item_parent_map) {
         if (item_info.get_rank() == level) {
           auto query_iter = queries.find(item_info.get_parent());
@@ -416,18 +417,25 @@ class disjoint_set_impl {
             new_query.returned = false;
             new_query.local_inquiring_items.push_back(local_item);
 
-            int dest = owner(item_info.get_parent());
-            m_comm.async(dest, query_rep_lambda, pthis, item_info.get_parent(),
-                         m_comm.rank());
+            // m_comm.async(dest, query_rep_lambda, pthis,
+            // item_info.get_parent(), m_comm.rank());
           } else {
-            if (query_iter->second
-                    .returned) {  // Query for parent's rep already completed.
-              local_set_parent(local_item, query_iter->second.rep);
-            } else {  // Query for parent's rep still in progress.
-              query_iter->second.local_inquiring_items.push_back(local_item);
-            }
+            // if (query_iter->second
+            //.returned) {  // Query for parent's rep already completed.
+            // local_set_parent(local_item, query_iter->second.rep);
+            //} else {  // Query for parent's rep still in progress.
+            query_iter->second.local_inquiring_items.push_back(local_item);
+            //}
           }
         }
+      }
+
+      m_comm.cf_barrier();
+
+      // Start all queries for this round
+      for (const auto &[item, query] : queries) {
+        int dest = owner(item);
+        m_comm.async(dest, query_rep_lambda, pthis, item, m_comm.rank());
       }
 
       m_comm.barrier();
