@@ -352,12 +352,17 @@ class disjoint_set_impl {
       bool                    returned;
     };
 
+    struct item_status {
+      bool             found_root;
+      std::vector<int> held_responses;
+    };
+
     static rank_type                                 level;
     static std::unordered_map<value_type, rep_query> queries;
-    static std::unordered_map<value_type, std::vector<int>>
-        held_responses;  // For holding incoming queries while my items are
-                         // waiting for their representatives (only needed for
-                         // when parent rank is same as mine)
+    static std::unordered_map<value_type, item_status>
+        local_item_status;  // For holding incoming queries while my items are
+                            // waiting for their representatives (only needed
+                            // for when parent rank is same as mine)
 
     struct update_rep_functor {
      public:
@@ -371,13 +376,13 @@ class disjoint_set_impl {
           p_dset->local_set_parent(local_item, rep);
 
           // Forward rep for any held responses
-          auto held_responses_iter = held_responses.find(local_item);
-          if (held_responses_iter != held_responses.end()) {
-            for (int dest : held_responses_iter->second) {
+          auto local_item_statuses_iter = local_item_status.find(local_item);
+          if (local_item_statuses_iter != local_item_status.end()) {
+            for (int dest : local_item_statuses_iter->second.held_responses) {
               p_dset->comm().async(dest, update_rep_functor(), p_dset,
                                    local_item, rep);
             }
-            held_responses.erase(held_responses_iter);
+            // held_responses.erase(held_responses_iter);
           }
         }
         local_rep_query.local_inquiring_items.clear();
@@ -394,13 +399,13 @@ class disjoint_set_impl {
         p_dset->comm().async(inquiring_rank, update_rep_functor(), p_dset, item,
                              rep);
       } else {  // May need to hold because this item is in the current level
-        auto query_iter = queries.find(item_info.get_parent());
-        if ((query_iter != queries.end()) &&
-            (query_iter->second.returned == false)) {
+        auto local_item_status_iter = local_item_status.find(item);
+        if ((local_item_status_iter != local_item_status.end()) &&
+            (local_item_status_iter->second.found_root == false)) {
           // if (queries.count(
           // item_info.get_parent())) {  // If query is ongoing for my
           //  parent, hold response
-          held_responses[item].push_back(inquiring_rank);
+          local_item_status[item].held_responses.push_back(inquiring_rank);
         } else {
           p_dset->comm().async(inquiring_rank, update_rep_functor(), p_dset,
                                item, item_info.get_parent());
@@ -438,18 +443,20 @@ class disjoint_set_impl {
                       << std::endl;
       }
       */
-      for (const auto &[local_item, inquiring_ranks] : held_responses) {
-        m_comm.cout() << "Still holding response from " << local_item << " "
-                      << local_get_rank(local_item) << " for ranks: ";
-        for (const auto &inquiring_rank : inquiring_ranks) {
-          std::cout << inquiring_rank << "\t";
+      for (const auto &[local_item, status] : local_item_status) {
+        if (not status.found_root) {
+          m_comm.cout() << "Still holding response from " << local_item << " "
+                        << local_get_rank(local_item) << " for ranks: ";
+          for (const auto &inquiring_rank : status.held_responses) {
+            std::cout << inquiring_rank << "\t";
+          }
+          std::cout << std::endl;
         }
-        std::cout << std::endl;
       }
 
       --level;  // Start at second highest level
       queries.clear();
-      held_responses.clear();
+      local_item_status.clear();
 
       // Prepare all queries for this round
       for (const auto &[local_item, item_info] : m_local_item_parent_map) {
