@@ -325,27 +325,7 @@ class disjoint_set_impl {
     async_visit(a, simul_parent_walk_functor(), a, b, b, -1, a, b, args...);
   }
 
-  /*
-  void check_parent_ranks() {
-    for (const auto &[local_item, item_info] : m_local_item_parent_map) {
-      if (item_info.get_parent() != local_item) {
-        async_visit(
-            item_info.get_parent(),
-            [](const auto &parent, const auto &child_rank) {
-              if (parent.second.get_rank() <= child_rank) {
-                std::cout << "Child rank: " << child_rank
-                          << "\tParent rank: " << parent.second.get_rank()
-                          << std::endl;
-              }
-            },
-            item_info.get_rank());
-      }
-    }
-  }
-  */
-
   void all_compress() {
-    // check_parent_ranks();
     struct rep_query {
       value_type              rep;
       std::vector<value_type> local_inquiring_items;
