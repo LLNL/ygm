@@ -363,7 +363,6 @@ class disjoint_set_impl {
      public:
       void operator()(self_ygm_ptr_type p_dset, const value_type &parent,
                       const value_type &rep) {
-        /*
         auto &local_rep_query    = queries.at(parent);
         local_rep_query.rep      = rep;
         local_rep_query.returned = true;
@@ -382,31 +381,6 @@ class disjoint_set_impl {
           }
         }
         local_rep_query.local_inquiring_items.clear();
-        */
-
-        auto rep_query_iter             = queries.find(parent);
-        rep_query_iter->second.rep      = rep;
-        rep_query_iter->second.returned = true;
-
-        // Set parents of local items before any YGM calls
-        std::vector<value_type> local_items_copy =
-            rep_query_iter->second.local_inquiring_items;
-        for (const auto &local_item : local_items_copy) {
-          p_dset->local_set_parent(local_item, rep);
-        }
-        queries.erase(rep_query_iter);
-
-        for (const auto &local_item : local_items_copy) {
-          // Forward rep for any held responses
-          auto held_responses_iter = held_responses.find(local_item);
-          if (held_responses_iter != held_responses.end()) {
-            for (int dest : held_responses_iter->second) {
-              p_dset->comm().async(dest, update_rep_functor(), p_dset,
-                                   local_item, rep);
-            }
-            held_responses.erase(held_responses_iter);
-          }
-        }
       }
     };
 
@@ -446,7 +420,8 @@ class disjoint_set_impl {
                         << query.rep << ", " << query.returned
                         << ") for items: ";
           for (const auto &local_item : query.local_inquiring_items) {
-            std::cout << local_item << "\t";
+            std::cout << local_item << " " << local_get_rank(local_item)
+                      << "\t";
           }
           std::cout << std::endl;
         }
@@ -464,8 +439,8 @@ class disjoint_set_impl {
       }
       */
       for (const auto &[local_item, inquiring_ranks] : held_responses) {
-        m_comm.cout() << "Still holding response from " << local_item
-                      << " for ranks: ";
+        m_comm.cout() << "Still holding response from " << local_item << " "
+                      << local_get_rank(local_item) << " for ranks: ";
         for (const auto &inquiring_rank : inquiring_ranks) {
           std::cout << inquiring_rank << "\t";
         }
@@ -634,7 +609,7 @@ class disjoint_set_impl {
     auto itr = m_local_item_parent_map.find(item);
 
     if (itr != m_local_item_parent_map.end()) {
-      return itr->second.first;
+      return itr->second.get_rank();
     }
     return 0;
   }
