@@ -384,13 +384,13 @@ class disjoint_set_impl {
         local_rep_query.local_inquiring_items.clear();
         */
 
-        auto rep_query_iter      = queries.find(parent);
-        rep_query_iter->rep      = rep;
-        rep_query_iter->returned = true;
+        auto rep_query_iter             = queries.find(parent);
+        rep_query_iter->second.rep      = rep;
+        rep_query_iter->second.returned = true;
 
         // Set parents of local items before any YGM calls
         std::vector<value_type> local_items_copy =
-            rep_query_iter->local_inquiring_items;
+            rep_query_iter->second.local_inquiring_items;
         for (const auto &local_item : local_items_copy) {
           p_dset->local_set_parent(local_item, rep);
         }
