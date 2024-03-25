@@ -363,6 +363,7 @@ class disjoint_set_impl {
      public:
       void operator()(self_ygm_ptr_type p_dset, const value_type &parent,
                       const value_type &rep) {
+        /*
         auto &local_rep_query    = queries.at(parent);
         local_rep_query.rep      = rep;
         local_rep_query.returned = true;
@@ -381,6 +382,31 @@ class disjoint_set_impl {
           }
         }
         local_rep_query.local_inquiring_items.clear();
+        */
+
+        auto rep_query_iter      = queries.find(parent);
+        rep_query_iter->rep      = rep;
+        rep_query_iter->returned = true;
+
+        // Set parents of local items before any YGM calls
+        std::vector<value_type> local_items_copy =
+            rep_query_iter->local_inquiring_items;
+        for (const auto &local_item : local_items_copy) {
+          p_dset->local_set_parent(local_item, rep);
+        }
+        queries.erase(rep_query_iter);
+
+        for (const auto &local_item : local_items_copy) {
+          // Forward rep for any held responses
+          auto held_responses_iter = held_responses.find(local_item);
+          if (held_responses_iter != held_responses.end()) {
+            for (int dest : held_responses_iter->second) {
+              p_dset->comm().async(dest, update_rep_functor(), p_dset,
+                                   local_item, rep);
+            }
+            held_responses.erase(held_responses_iter);
+          }
+        }
       }
     };
 
