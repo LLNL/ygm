@@ -325,6 +325,7 @@ class disjoint_set_impl {
     async_visit(a, simul_parent_walk_functor(), a, b, b, -1, a, b, args...);
   }
 
+  /*
   void check_parent_ranks() {
     for (const auto &[local_item, item_info] : m_local_item_parent_map) {
       if (item_info.get_parent() != local_item) {
@@ -341,9 +342,10 @@ class disjoint_set_impl {
       }
     }
   }
+  */
 
   void all_compress() {
-    check_parent_ranks();
+    // check_parent_ranks();
     struct rep_query {
       value_type              rep;
       std::vector<value_type> local_inquiring_items;
@@ -361,7 +363,7 @@ class disjoint_set_impl {
      public:
       void operator()(self_ygm_ptr_type p_dset, const value_type &parent,
                       const value_type &rep) {
-        auto local_rep_query     = queries.at(parent);
+        auto &local_rep_query    = queries.at(parent);
         local_rep_query.rep      = rep;
         local_rep_query.returned = true;
 
@@ -407,7 +409,6 @@ class disjoint_set_impl {
 
     level = max_rank();
     while (level > 0) {
-      /*
       int outstanding_query_children{0};
       for (const auto &[parent, query] : queries) {
         outstanding_query_children += query.local_inquiring_items.size();
@@ -420,7 +421,6 @@ class disjoint_set_impl {
         m_comm.cout() << "Held responses remaining: " << held_responses.size()
                       << std::endl;
       }
-      */
 
       --level;  // Start at second highest level
       queries.clear();
