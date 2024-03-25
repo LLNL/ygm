@@ -329,35 +329,38 @@ class disjoint_set_impl {
     struct rep_query {
       value_type              rep;
       std::vector<value_type> local_inquiring_items;
-      bool                    returned;
+    };
+
+    struct item_status {
+      bool             found_root;
+      std::vector<int> held_responses;
     };
 
     static rank_type                                 level;
     static std::unordered_map<value_type, rep_query> queries;
-    static std::unordered_map<value_type, std::vector<int>>
-        held_responses;  // For holding incoming queries while my items are
-                         // waiting for their representatives (only needed for
-                         // when parent rank is same as mine)
+    static std::unordered_map<value_type, item_status>
+        local_item_status;  // For holding incoming queries while my items are
+                            // waiting for their representatives (only needed
+                            // for when parent rank is same as mine)
 
     struct update_rep_functor {
      public:
       void operator()(self_ygm_ptr_type p_dset, const value_type &parent,
                       const value_type &rep) {
-        auto local_rep_query     = queries.at(parent);
-        local_rep_query.rep      = rep;
-        local_rep_query.returned = true;
+        auto &local_rep_query = queries.at(parent);
+        local_rep_query.rep   = rep;
 
         for (const auto &local_item : local_rep_query.local_inquiring_items) {
           p_dset->local_set_parent(local_item, rep);
 
           // Forward rep for any held responses
-          auto held_responses_iter = held_responses.find(local_item);
-          if (held_responses_iter != held_responses.end()) {
-            for (int dest : held_responses_iter->second) {
+          auto local_item_statuses_iter = local_item_status.find(local_item);
+          if (local_item_statuses_iter != local_item_status.end()) {
+            for (int dest : local_item_statuses_iter->second.held_responses) {
               p_dset->comm().async(dest, update_rep_functor(), p_dset,
                                    local_item, rep);
             }
-            held_responses.erase(held_responses_iter);
+            // held_responses.erase(held_responses_iter);
           }
         }
         local_rep_query.local_inquiring_items.clear();
@@ -374,10 +377,11 @@ class disjoint_set_impl {
         p_dset->comm().async(inquiring_rank, update_rep_functor(), p_dset, item,
                              rep);
       } else {  // May need to hold because this item is in the current level
-        if (queries.count(
-                item_info.get_parent())) {  // If query is ongoing for my
-                                            // parent, hold response
-          held_responses[item].push_back(inquiring_rank);
+        auto local_item_status_iter = local_item_status.find(item);
+        // If query is ongoing for my parent, hold response
+        if ((local_item_status_iter != local_item_status.end()) &&
+            (local_item_status_iter->second.found_root == false)) {
+          local_item_status[item].held_responses.push_back(inquiring_rank);
         } else {
           p_dset->comm().async(inquiring_rank, update_rep_functor(), p_dset,
                                item, item_info.get_parent());
@@ -389,35 +393,37 @@ class disjoint_set_impl {
 
     level = max_rank();
     while (level > 0) {
-      --level;  // Start at second highest level
       queries.clear();
-      held_responses.clear();
+      local_item_status.clear();
 
+      // Prepare all queries for this round
       for (const auto &[local_item, item_info] : m_local_item_parent_map) {
-        if (item_info.get_rank() == level) {
+        if (item_info.get_rank() == level &&
+            item_info.get_parent() != local_item) {
           auto query_iter = queries.find(item_info.get_parent());
           if (query_iter == queries.end()) {  // Have not queried for parent's
                                               // rep. Begin new query.
-            auto &new_query    = queries[item_info.get_parent()];
-            new_query.rep      = item_info.get_parent();
-            new_query.returned = false;
+            auto &new_query = queries[item_info.get_parent()];
+            new_query.rep   = item_info.get_parent();
             new_query.local_inquiring_items.push_back(local_item);
 
-            int dest = owner(item_info.get_parent());
-            m_comm.async(dest, query_rep_lambda, pthis, item_info.get_parent(),
-                         m_comm.rank());
           } else {
-            if (query_iter->second
-                    .returned) {  // Query for parent's rep already completed.
-              local_set_parent(local_item, query_iter->second.rep);
-            } else {  // Query for parent's rep still in progress.
-              query_iter->second.local_inquiring_items.push_back(local_item);
-            }
+            query_iter->second.local_inquiring_items.push_back(local_item);
           }
         }
       }
 
+      m_comm.cf_barrier();
+
+      // Start all queries for this round
+      for (const auto &[item, query] : queries) {
+        int dest = owner(item);
+        m_comm.async(dest, query_rep_lambda, pthis, item, m_comm.rank());
+      }
+
       m_comm.barrier();
+
+      --level;
     }
   }
 
@@ -542,7 +548,7 @@ class disjoint_set_impl {
     auto itr = m_local_item_parent_map.find(item);
 
     if (itr != m_local_item_parent_map.end()) {
-      return itr->second.first;
+      return itr->second.get_rank();
     }
     return 0;
   }
