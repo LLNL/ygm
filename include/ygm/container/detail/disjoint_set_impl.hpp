@@ -411,15 +411,36 @@ class disjoint_set_impl {
     while (level > 0) {
       int outstanding_query_children{0};
       for (const auto &[parent, query] : queries) {
-        outstanding_query_children += query.local_inquiring_items.size();
+        // outstanding_query_children += query.local_inquiring_items.size();
+        if (query.local_inquiring_items.size() > 0) {
+          m_comm.cout() << "Awaiting response from (" << parent << ", "
+                        << query.rep << ", " << query.returned
+                        << ") for items: ";
+          for (const auto &local_item : query.local_inquiring_items) {
+            std::cout << local_item << "\t";
+          }
+          std::cout << std::endl;
+        }
       }
+      /*
       if (outstanding_query_children > 0) {
         m_comm.cout() << "Awaiting query responses: "
                       << outstanding_query_children << std::endl;
       }
+      */
+      /*
       if (held_responses.size() > 0) {
         m_comm.cout() << "Held responses remaining: " << held_responses.size()
                       << std::endl;
+      }
+      */
+      for (const auto &[local_item, inquiring_ranks] : held_responses) {
+        m_comm.cout() << "Still holding response from " << local_item
+                      << " for ranks: ";
+        for (const auto &inquiring_rank : inquiring_ranks) {
+          std::cout << inquiring_rank << "\t";
+        }
+        std::cout << std::endl;
       }
 
       --level;  // Start at second highest level
