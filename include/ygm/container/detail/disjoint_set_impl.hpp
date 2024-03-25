@@ -394,7 +394,7 @@ class disjoint_set_impl {
         p_dset->comm().async(inquiring_rank, update_rep_functor(), p_dset, item,
                              rep);
       } else {  // May need to hold because this item is in the current level
-        query_iter = queries.find(item_info.get_parent());
+        auto query_iter = queries.find(item_info.get_parent());
         if ((query_iter != queries.end()) &&
             (query_iter->second.returned == false)) {
           // if (queries.count(
