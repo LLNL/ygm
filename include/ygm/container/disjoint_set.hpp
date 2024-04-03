@@ -23,6 +23,12 @@ class disjoint_set {
 
   disjoint_set(ygm::comm &comm) : m_impl(comm) {}
 
+  template <typename Visitor, typename... VisitorArgs>
+  void async_visit(const value_type &item, Visitor visitor,
+                   const VisitorArgs &...args) {
+    m_impl.async_visit(item, visitor, std::forward<const VisitorArgs>(args)...);
+  }
+
   void async_union(const value_type &a, const value_type &b) {
     m_impl.async_union(a, b);
   }
