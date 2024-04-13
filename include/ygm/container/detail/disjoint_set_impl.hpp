@@ -392,7 +392,7 @@ class disjoint_set_impl {
     m_comm.barrier();
 
     level = max_rank();
-    while (level > 0) {
+    while (level >= 0) {
       queries.clear();
       local_item_status.clear();
 
