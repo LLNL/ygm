@@ -360,7 +360,8 @@ class disjoint_set_impl {
               p_dset->comm().async(dest, update_rep_functor(), p_dset,
                                    local_item, rep);
             }
-            // held_responses.erase(held_responses_iter);
+            local_item_statuses_iter->second.found_root = true;
+            local_item_statuses_iter->second.held_responses.clear();
           }
         }
         local_rep_query.local_inquiring_items.clear();
@@ -400,6 +401,8 @@ class disjoint_set_impl {
       for (const auto &[local_item, item_info] : m_local_item_parent_map) {
         if (item_info.get_rank() == level &&
             item_info.get_parent() != local_item) {
+          local_item_status[local_item].found_root = false;
+
           auto query_iter = queries.find(item_info.get_parent());
           if (query_iter == queries.end()) {  // Have not queried for parent's
                                               // rep. Begin new query.
