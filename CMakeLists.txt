@@ -253,7 +253,6 @@ endif ()
 # Testing & examples are only available if this is the main app
 if (YGM_MAIN_PROJECT)
     add_subdirectory(test)
-    add_subdirectory(performance)
     # Example codes are here.
     add_subdirectory(examples)
 endif ()
