@@ -11,6 +11,22 @@
 int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
 
+  // Test basic tagging
+  {
+    int                        size = 64;
+    ygm::container::array<int> arr(world, size);
+
+    static_assert(std::is_same_v<decltype(arr)::self_type, decltype(arr)>);
+    static_assert(std::is_same_v<decltype(arr)::mapped_type, decltype(size)>);
+    static_assert(std::is_same_v<decltype(arr)::key_type, size_t>);
+    static_assert(
+        std::is_same_v<decltype(arr)::size_type, decltype(arr)::key_type>);
+    static_assert(
+        std::is_same_v<
+            decltype(arr)::ygm_for_all_types,
+            std::tuple<decltype(arr)::key_type, decltype(arr)::mapped_type> >);
+  }
+
   // Test async_set
   {
     int                        size = 64;
@@ -108,6 +124,106 @@ int main(int argc, char **argv) {
 
     arr.for_all([&world](const auto index, const auto value) {
       ASSERT_RELEASE(value == index + world.size());
+    });
+  }
+
+  // Test async_visit
+  {
+    int size = 64;
+
+    ygm::container::array<int> arr(world, size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        arr.async_set(i, i);
+      }
+    }
+
+    world.barrier();
+
+    for (int i = 0; i < size; ++i) {
+      arr.async_visit(i, [](const auto index, const auto value) {
+        ASSERT_RELEASE(value == index);
+      });
+    }
+  }
+
+  // Test async_visit (ptr)
+  {
+    int size = 64;
+
+    ygm::container::array<int> arr(world, size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        arr.async_set(i, i);
+      }
+    }
+
+    world.barrier();
+
+    for (int i = 0; i < size; ++i) {
+      arr.async_visit(i, [](auto ptr, const auto index, const auto value) {
+        ASSERT_RELEASE(value == index);
+      });
+    }
+  }
+
+  // Test value-only for_all
+  {
+    int size = 64;
+
+    ygm::container::array<int> arr(world, size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        arr.async_set(i, 1);
+      }
+    }
+
+    world.barrier();
+
+    for (int i = 0; i < size; ++i) {
+      arr.async_increment(i);
+    }
+
+    arr.for_all([&world](const auto value) {
+      ASSERT_RELEASE(value == world.size() + 1);
+    });
+  }
+
+  // Test copy constructor
+  {
+    int size = 64;
+
+    ygm::container::array<int> arr(world, size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        arr.async_set(i, 2 * i);
+      }
+    }
+
+    world.barrier();
+
+    ygm::container::array<int> arr_copy(arr);
+
+    arr_copy.for_all([&arr](const auto &index, const auto &value) {
+      arr.async_visit(
+          index,
+          [](const auto &index, const auto &my_value, const auto &other_value) {
+            ASSERT_RELEASE(my_value == other_value);
+          },
+          value);
+    });
+
+    arr.for_all([&arr_copy](const auto &index, const auto &value) {
+      arr_copy.async_visit(
+          index,
+          [](const auto &index, const auto &my_value, const auto &other_value) {
+            ASSERT_RELEASE(my_value == other_value);
+          },
+          value);
     });
   }
 

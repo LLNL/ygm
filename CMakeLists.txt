@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.14)
 
 project(
     ygm
-    VERSION 0.5
+    VERSION 0.6
     DESCRIPTION "HPC Communication Library"
     LANGUAGES CXX
 )
@@ -141,6 +141,21 @@ endif()
 if (NOT Arrow_FOUND)
 	find_package(Arrow 10.0 QUIET)
 endif()
+if (NOT Arrow_FOUND)
+	find_package(Arrow 11.0 QUIET)
+endif()
+if (NOT Arrow_FOUND)
+	find_package(Arrow 12.0 QUIET)
+endif()
+if (NOT Arrow_FOUND)
+	find_package(Arrow 13.0 QUIET)
+endif()
+if (NOT Arrow_FOUND)
+	find_package(Arrow 14.0 QUIET)
+endif()
+if (NOT Arrow_FOUND)
+	find_package(Arrow 15.0 QUIET)
+endif()
 if (Arrow_FOUND)
    message(STATUS ${PROJECT_NAME} " found Arrow ")
    message(STATUS "Arrow version: ${ARROW_VERSION}")
@@ -150,12 +165,15 @@ if (Arrow_FOUND)
    if (Parquet_FOUND)
        message(STATUS ${PROJECT_NAME} " found Parquet ")
        message(STATUS "Parquet version: ${PARQUET_VERSION}")
-       message(STATUS "Parquet SO version: ${PARQUET_FULL_SO_VERSION}") 
+       message(STATUS "Parquet SO version: ${PARQUET_FULL_SO_VERSION}")
    else ()
-       message(WARNING ${PROJECT_NAME} " did not find Parquet. Building without Parquet.") 
-   endif () 
+       message(WARNING ${PROJECT_NAME} " did not find Parquet. Building without Parquet.")
+   endif ()
 else ()
-   message(WARNING ${PROJECT_NAME} " did not find Arrow >= 8.0. Building without Arrow.") 
+   message(WARNING ${PROJECT_NAME} " did not find Arrow >= 8.0. Building without Arrow.")
+   if (YGM_REQUIRE_ARROW)
+	   message(FATAL_ERROR "YGM configured to require Arrow, but Arrow could not be found")
+   endif ()
 endif ()
 
 #
@@ -235,7 +253,6 @@ endif ()
 # Testing & examples are only available if this is the main app
 if (YGM_MAIN_PROJECT)
     add_subdirectory(test)
-    add_subdirectory(performance)
     # Example codes are here.
     add_subdirectory(examples)
 endif ()

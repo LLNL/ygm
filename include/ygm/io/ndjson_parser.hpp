@@ -11,10 +11,10 @@
 
 #include <ygm/comm.hpp>
 #include <ygm/detail/cereal_boost_json.hpp>
-#include <ygm/io/csv_parser.hpp>
+#include <ygm/io/line_parser.hpp>
 
 namespace ygm::io {
-std::size_t json_erase(boost::json::object &           obj,
+std::size_t json_erase(boost::json::object            &obj,
                        const std::vector<std::string> &keys) {
   std::size_t num_erased = 0;
   for (const auto &key : keys) {
@@ -23,7 +23,7 @@ std::size_t json_erase(boost::json::object &           obj,
   return num_erased;
 }
 
-std::size_t json_filter(boost::json::object &           obj,
+std::size_t json_filter(boost::json::object            &obj,
                         const std::vector<std::string> &include_keys) {
   std::set<std::string>    include_keys_set{include_keys.begin(),
                                          include_keys.end()};
@@ -39,7 +39,7 @@ std::size_t json_filter(boost::json::object &           obj,
 class ndjson_parser {
  public:
   template <typename... Args>
-  ndjson_parser(Args &&... args) : m_lp(std::forward<Args>(args)...) {}
+  ndjson_parser(Args &&...args) : m_lp(std::forward<Args>(args)...) {}
 
   /**
    * @brief Executes a user function for every CSV record in a set of files.
@@ -49,7 +49,6 @@ class ndjson_parser {
    */
   template <typename Function>
   void for_all(Function fn) {
-    using namespace ygm::io::detail;
     m_lp.for_all([fn](const std::string &line) {
       fn(boost::json::parse(line).as_object());
     });

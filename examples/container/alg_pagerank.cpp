@@ -34,8 +34,8 @@ int main(int argc, char **argv) {
     value = value + update_val;
   };
 
-  auto deg_acc_lambda = [](auto &rv_pair, const auto &update_val) {
-    rv_pair.second = rv_pair.second + update_val;
+  auto deg_acc_lambda = [](auto &row, auto &val, const auto &update_val) {
+    val = val + update_val;
   };
 
   std::string key1, key2;
@@ -59,12 +59,12 @@ int main(int argc, char **argv) {
 
   int N              = pr.size();
   init_pr            = ((double)1) / N;
-  auto mod_pr_lambda = [&init_pr](auto &rv_pair) { rv_pair.second = init_pr; };
+  auto mod_pr_lambda = [&init_pr](const auto &vtx, auto &pg_rnk) {
+    pg_rnk = init_pr;
+  };
   pr.for_all(mod_pr_lambda);
 
-  auto deg_lambda = [&A](const auto &kv_pair) {
-    auto vtx            = kv_pair.first;
-    auto deg            = kv_pair.second;
+  auto deg_lambda = [&A](const auto &vtx, const auto &deg) {
     auto scale_A_lambda = [](const auto &row, const auto &col, auto &value,
                              const auto &deg) {
       value = ((double)value) / deg;
@@ -83,20 +83,18 @@ int main(int argc, char **argv) {
         ns_spmv::spmv(A, pr, std::plus<double>(), std::multiplies<double>());
     world.barrier();
 
-    auto adding_damping_pr_lambda = [&map_res, d_val, N](auto &vtx_pr) {
-      auto vtx_id       = vtx_pr.first;
-      auto pg_rnk       = vtx_pr.second;
-      auto visit_lambda = [](auto &vtx_pr_pair, auto &da_val, auto &d_val) {
-        vtx_pr_pair.second = da_val + d_val * vtx_pr_pair.second;
-      };
-      map_res.async_insert_if_missing_else_visit(vtx_id, (float(1 - d_val) / N),
+    auto adding_damping_pr_lambda = [&map_res, d_val, N](const auto &vtx,
+                                                         const auto &pg_rnk) {
+      auto visit_lambda = [](const auto &vtx_id, auto &pr, auto &da_val,
+                             auto &d_val) { pr = da_val + d_val * pr; };
+      map_res.async_insert_if_missing_else_visit(vtx, (float(1 - d_val) / N),
                                                  visit_lambda, d_val);
     };
     pr.for_all(adding_damping_pr_lambda);
     pr.swap(map_res);
 
-    auto agg_pr_lambda = [&agg_pr](auto &vtx_pr_pair) {
-      agg_pr = agg_pr + vtx_pr_pair.second;
+    auto agg_pr_lambda = [&agg_pr](const auto &vtx, const auto &pg_rnk) {
+      agg_pr = agg_pr + pg_rnk;
     };
     pr.for_all(agg_pr_lambda);
     world.barrier();

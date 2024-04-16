@@ -4,19 +4,30 @@
 // SPDX-License-Identifier: MIT
 
 #pragma once
+
+#include <ygm/container/container_traits.hpp>
 #include <ygm/container/detail/disjoint_set_impl.hpp>
 
 namespace ygm::container {
 template <typename Item, typename Partitioner = detail::hash_partitioner<Item>>
 class disjoint_set {
  public:
-  using self_type  = disjoint_set<Item, Partitioner>;
-  using value_type = Item;
-  using impl_type  = detail::disjoint_set_impl<Item, Partitioner>;
+  using self_type          = disjoint_set<Item, Partitioner>;
+  using value_type         = Item;
+  using size_type          = size_t;
+  using ygm_for_all_types  = std::tuple<Item, Item>;
+  using ygm_container_type = ygm::container::disjoint_set_tag;
+  using impl_type          = detail::disjoint_set_impl<Item, Partitioner>;
 
   disjoint_set() = delete;
 
   disjoint_set(ygm::comm &comm) : m_impl(comm) {}
+
+  template <typename Visitor, typename... VisitorArgs>
+  void async_visit(const value_type &item, Visitor visitor,
+                   const VisitorArgs &...args) {
+    m_impl.async_visit(item, visitor, std::forward<const VisitorArgs>(args)...);
+  }
 
   void async_union(const value_type &a, const value_type &b) {
     m_impl.async_union(a, b);
@@ -24,7 +35,7 @@ class disjoint_set {
 
   template <typename Function, typename... FunctionArgs>
   void async_union_and_execute(const value_type &a, const value_type &b,
-                               Function fn, const FunctionArgs &... args) {
+                               Function fn, const FunctionArgs &...args) {
     m_impl.async_union_and_execute(a, b, fn,
                                    std::forward<const FunctionArgs>(args)...);
   }
@@ -41,15 +52,17 @@ class disjoint_set {
     return m_impl.all_find(items);
   }
 
-  size_t size() { return m_impl.size(); }
+  void clear() { m_impl.clear(); }
 
-  size_t num_sets() { return m_impl.num_sets(); }
+  size_type size() { return m_impl.size(); }
+
+  size_type num_sets() { return m_impl.num_sets(); }
 
   typename ygm::ygm_ptr<impl_type> get_ygm_ptr() const {
     return m_impl.get_ygm_ptr();
-  }  
- 
-private:
+  }
+
+ private:
   impl_type m_impl;
 };
 }  // namespace ygm::container

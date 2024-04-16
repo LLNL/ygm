@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <sstream>
@@ -58,7 +59,7 @@ class multi_output {
   }
 
   template <typename... Args>
-  void async_write_line(const std::string &subpath, Args &&... args) {
+  void async_write_line(const std::string &subpath, Args &&...args) {
     std::string s = pack_stream(args...);
 
     m_comm.async(
@@ -125,7 +126,7 @@ class multi_output {
   }
 
   template <typename... Args>
-  std::string pack_stream(Args &&... args) const {
+  std::string pack_stream(Args &&...args) const {
     std::stringstream ss;
     (ss << ... << args);
     return ss.str();
@@ -180,7 +181,7 @@ class multi_output {
   size_t                                   m_buffer_length;
   bool                                     m_append_flag;
   std::map<std::string, buffered_ofstream> m_map_file_pointers;
-  ygm::comm                                m_comm;
+  ygm::comm                               &m_comm;
   typename ygm::ygm_ptr<self_type>         pthis;
   Partitioner                              partitioner;
 };

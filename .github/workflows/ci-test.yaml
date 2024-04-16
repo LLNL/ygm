@@ -2,7 +2,7 @@ name: CI Test
 
 on:
   pull_request:
-    branches: [ main, develop ]
+    branches: [ master, develop ]
   push:
     branches: [ 'feature/**', 'hotfix/**']
 
@@ -39,9 +39,9 @@ jobs:
         run: |
           cd ~
           wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-          sudo apt install ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-          sudo apt update
-          sudo apt install libarrow-dev libparquet-dev
+          sudo apt-get install ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+          sudo apt-get update
+          sudo apt-get install libarrow-dev libparquet-dev
       - name: Install mpich
         if: matrix.mpi-type == 'mpich'
         run: sudo apt-get install mpich
@@ -58,8 +58,8 @@ jobs:
           g++-${{ matrix.gcc-version }} --version
           mkdir build
           cd build
-          cmake ../ -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_CXX_COMPILER=g++-${{ matrix.gcc-version }} -DBOOST_ROOT=~/boost_1_77_0
-          make
+          cmake ../ -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_CXX_COMPILER=g++-${{ matrix.gcc-version }} -DBOOST_ROOT=~/boost_1_77_0 -DYGM_REQUIRE_ARROW=ON
+          make -j
       - name: Make test (mpich)
         if: matrix.mpi-type == 'mpich'
         run: |
