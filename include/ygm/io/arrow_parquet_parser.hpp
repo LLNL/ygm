@@ -82,7 +82,11 @@ class arrow_parquet_parser {
     read_files(fn);
   }
 
-  size_t local_file_count() { return m_paths.size(); }
+  // Returns the number of total files
+  size_t file_count() { return m_paths.size(); }
+
+  // Returns the number of rows in all files
+  size_t row_count() { return count_all_rows(); }
 
  private:
   /// @brief Holds the information about the range of file data to be read by a
@@ -207,6 +211,16 @@ class arrow_parquet_parser {
       return false;
     }
     return true;
+  }
+
+  size_t count_all_rows() {
+    size_t total_rows = 0;
+    if (m_comm.rank0()) {
+      for (size_t i = 0; i < m_paths.size(); ++i) {
+        total_rows += count_rows(m_paths[i]);
+      }
+    }
+    return m_comm.all_reduce_sum(total_rows);
   }
 
   template <typename Function>

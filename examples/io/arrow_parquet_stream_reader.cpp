@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
   // arrow_parquet_parser assumes files have identical scehma
   ygm::io::arrow_parquet_parser parquetp(world, {dir_name});
 
-  world.cout0() << parquetp.local_file_count() << " files in " << dir_name
+  world.cout0() << parquetp.file_count() << " files in " << dir_name
                 << std::endl;
   world.cout0() << "#Fields: " << parquetp.schema().size() << std::endl;
   world.cout0() << "Schema: " << std::endl;

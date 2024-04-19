@@ -255,4 +255,5 @@ if (YGM_MAIN_PROJECT)
     add_subdirectory(test)
     # Example codes are here.
     add_subdirectory(examples)
+    add_subdirectory(tools)
 endif ()
