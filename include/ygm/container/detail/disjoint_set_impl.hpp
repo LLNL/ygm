@@ -13,7 +13,6 @@
 #include <ygm/container/detail/hash_partitioner.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/detail/ygm_traits.hpp>
-#include <ygm/stats_tracker.hpp>
 
 namespace ygm::container::detail {
 template <typename Item, typename Partitioner>
@@ -106,7 +105,6 @@ class disjoint_set_impl {
       // rank is higher
       if (current_entry.occupied == false ||
           parent_rank_est >= current_entry.parent_rank_est) {
-        // m_stats.increment_counter<"successful_cache_additions">();
         current_entry.occupied        = true;
         current_entry.item            = item;
         current_entry.parent          = parent;
@@ -132,20 +130,11 @@ class disjoint_set_impl {
   };
 
   disjoint_set_impl(ygm::comm &comm, const size_t cache_size)
-      : m_comm(comm),
-        pthis(this),
-        m_stats(m_comm),
-        m_cache(cache_size) /*,
-         m_log_ofs("/p/lustre1/steil1/amst_log/rank" +
-                   std::to_string(m_comm.rank()) + ".log")*/
-  {
+      : m_comm(comm), pthis(this), m_cache(cache_size) {
     pthis.check(m_comm);
   }
 
-  ~disjoint_set_impl() {
-    m_comm.barrier();
-    m_stats.print();
-  }
+  ~disjoint_set_impl() { m_comm.barrier(); }
 
   typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }
 
@@ -176,21 +165,18 @@ class disjoint_set_impl {
 
   void async_union(const value_type &a, const value_type &b) {
     m_is_compressed = false;
-    m_stats.increment_counter<"async_union">();
     static auto update_parent_and_cache_lambda =
         [](auto p_dset, auto &item_data, const value_type &old_parent,
            const value_type &new_parent, const rank_type &new_parent_rank_est) {
           p_dset->m_cache.add_cache_entry(old_parent, new_parent,
                                           new_parent_rank_est);
 
-          p_dset->m_stats.template increment_counter<"update_parent">();
           item_data.second.set_parent(new_parent, new_parent_rank_est);
         };
 
     static auto resolve_merge_lambda = [](auto p_dset, auto &item_data,
                                           const value_type &merging_item,
                                           const rank_type   merging_rank) {
-      p_dset->m_stats.template increment_counter<"merge_resolutions">();
       const auto &my_item   = item_data.first;
       const auto  my_rank   = item_data.second.get_rank();
       const auto &my_parent = item_data.second.get_parent();
@@ -199,18 +185,13 @@ class disjoint_set_impl {
       ASSERT_RELEASE(my_rank >= merging_rank);
 
       if (my_rank > merging_rank) {
-        p_dset->m_stats
-            .template increment_counter<"unsuccessful_merge_resolutions">();
         return;
       } else {
         ASSERT_RELEASE(my_rank == merging_rank);
         if (my_parent ==
             my_item) {  // Merging new item onto root. Need to increase rank.
-          p_dset->m_stats.template increment_counter<"rank_increases">();
           item_data.second.increase_rank(merging_rank + 1);
         } else {  // Tell merging item about new parent
-          p_dset->m_stats
-              .template increment_counter<"stale_successful_merges">();
           p_dset->async_visit(
               merging_item,
               [](auto p_dset, auto &item_data, const value_type &new_parent,
@@ -231,7 +212,6 @@ class disjoint_set_impl {
         // Note: other_item needs rank info for comparison with my_item's
         // parent. All others need rank and item to determine if other_item
         // has been visited/initialized.
-        p_dset->m_stats.template increment_counter<"walk_functors">();
 
         value_type my_item   = my_item_data.first;
         rank_type  my_rank   = my_item_data.second.get_rank();
@@ -262,8 +242,6 @@ class disjoint_set_impl {
 
         if (my_parent_rank_est < other_rank) {  // Current path has lower rank
           if (my_parent == my_item) {           // At a root
-            p_dset->m_stats.template increment_counter<"roots_reached">();
-            p_dset->m_stats.template increment_counter<"successful_merges">();
             my_item_data.second.set_parent(
                 other_parent, other_rank);  // Safe to attach to other path
 
@@ -277,13 +255,11 @@ class disjoint_set_impl {
 
         if (my_parent_rank_est == other_rank) {
           if (my_parent == my_item) {  // At a root
-            p_dset->m_stats.template increment_counter<"roots_reached">();
 
             if (my_item < other_parent) {  // Need to break ties in rank before
                                            // merging to avoid cycles of merges
                                            // creating cycles in disjoint set
               // Perform merge
-              p_dset->m_stats.template increment_counter<"successful_merges">();
               my_item_data.second.set_parent(
                   other_parent,
                   my_rank);  // other_parent may be of same rank as my_item
@@ -329,7 +305,6 @@ class disjoint_set_impl {
   void async_union_and_execute(const value_type &a, const value_type &b,
                                Function fn, const FunctionArgs &...args) {
     m_is_compressed = false;
-    m_stats.increment_counter<"async_union_and_execute">();
     static auto update_parent_and_cache_lambda =
         [](auto p_dset, auto &item_data, const value_type &old_parent,
            const value_type &new_parent, const rank_type &new_parent_rank_est) {
@@ -338,25 +313,11 @@ class disjoint_set_impl {
 
           auto &current_entry = p_dset->m_cache.m_cache[index];
 
-          /*
-          boost::json::object log_entry;
-          log_entry["curr_cache_item"]   = current_entry.item;
-          log_entry["curr_cache_parent"] = current_entry.parent;
-          log_entry["curr_cache_parent_rank_est"] =
-              current_entry.parent_rank_est;
-          log_entry["new_cache_item"]            = old_parent;
-          log_entry["new_cache_parent"]          = new_parent;
-          log_entry["new_cache_parent_rank_est"] = new_parent_rank_est;
-          */
           if (current_entry.occupied == false ||
               new_parent_rank_est >= current_entry.parent_rank_est) {
-            // log_entry["action"] = "replace";
           } else {
-            // log_entry["action"] = "ignore";
           }
-          // p_dset->m_log_ofs << log_entry << "\n";
 
-          p_dset->m_stats.template increment_counter<"update_parent">();
           p_dset->m_cache.add_cache_entry(old_parent, new_parent,
                                           new_parent_rank_est);
 
@@ -366,7 +327,6 @@ class disjoint_set_impl {
     static auto resolve_merge_lambda = [](auto p_dset, auto &item_data,
                                           const value_type &merging_item,
                                           const rank_type   merging_rank) {
-      p_dset->m_stats.template increment_counter<"merge_resolutions">();
       const auto &my_item   = item_data.first;
       const auto  my_rank   = item_data.second.get_rank();
       const auto &my_parent = item_data.second.get_parent();
@@ -375,13 +335,10 @@ class disjoint_set_impl {
       ASSERT_RELEASE(my_rank >= merging_rank);
 
       if (my_rank > merging_rank) {
-        p_dset->m_stats
-            .template increment_counter<"unsuccessful_merge_resolutions">();
         return;
       } else {
         ASSERT_RELEASE(my_rank == merging_rank);
         if (my_parent == my_item) {  // Has not found new parent
-          p_dset->m_stats.template increment_counter<"rank_increases">();
           item_data.second.increase_rank(merging_rank + 1);
         } else {  // Tell merging item about new parent
           p_dset->m_stats
@@ -405,12 +362,9 @@ class disjoint_set_impl {
                       value_type other_item, rank_type other_rank,
                       const value_type &orig_a, const value_type &orig_b,
                       const FunctionArgs &...args) {
-        // boost::json::object log_entry;
-
         // Note: other_item needs rank info for comparison with my_item's
         // parent. All others need rank and item to determine if other_item
         // has been visited/initialized.
-        p_dset->m_stats.template increment_counter<"walk_functors">();
 
         value_type my_item   = my_item_data.first;
         rank_type  my_rank   = my_item_data.second.get_rank();
@@ -420,28 +374,10 @@ class disjoint_set_impl {
 
         my_parent_rank_est = std::max<rank_type>(my_rank, my_parent_rank_est);
 
-        /*
-        log_entry["comm_rank"]    = p_dset->m_comm.rank();
-        log_entry["item"]         = my_item;
-        log_entry["child"]        = my_child;
-        log_entry["parent"]       = my_parent;
-        log_entry["rank"]         = my_rank;
-        log_entry["other_item"]   = other_item;
-        log_entry["other_parent"] = other_parent;
-        log_entry["other_rank"]   = other_rank;
-        */
-
         std::tie(my_parent, my_parent_rank_est) =
             p_dset->walk_cache(my_parent, my_rank);
         std::tie(other_parent, other_rank) =
             p_dset->walk_cache(other_parent, other_rank);
-
-        /*
-        log_entry["parent_walk"]       = my_parent;
-        log_entry["rank_walk"]         = my_rank;
-        log_entry["other_parent_walk"] = other_parent;
-        log_entry["other_rank_walk"]   = other_rank;
-        */
 
         // Path splitting
         if (my_child != my_item) {
@@ -450,17 +386,10 @@ class disjoint_set_impl {
         }
 
         if (my_parent == other_parent || my_parent == other_item) {
-          // log_entry["action"] = "return";
-          // p_dset->m_log_ofs << log_entry << "\n";
           return;
         }
 
         if (my_parent_rank_est > other_rank) {  // Other path has lower rank
-                                                /*
-          log_entry["next"]   = other_parent;
-          log_entry["action"] = "switch";
-          p_dset->m_log_ofs << log_entry << "\n";
-          */
           p_dset->async_visit(other_parent, simul_parent_walk_functor(),
                               other_item, my_parent, my_item,
                               my_parent_rank_est, orig_a, orig_b, args...);
@@ -468,13 +397,6 @@ class disjoint_set_impl {
 
         if (my_parent_rank_est < other_rank) {  // Current path has lower rank
           if (my_parent == my_item) {           // At a root
-                                                /*
-            log_entry["root"]   = my_item;
-            log_entry["action"] = "attach";
-            p_dset->m_log_ofs << log_entry << "\n";
-            */
-            p_dset->m_stats.template increment_counter<"roots_reached">();
-            p_dset->m_stats.template increment_counter<"successful_merges">();
             my_item_data.second.set_parent(
                 other_parent, other_rank);  // Safe to attach to other path
 
@@ -487,11 +409,6 @@ class disjoint_set_impl {
             return;
 
           } else {  // Not at a root
-                    /*
-            log_entry["next"]   = my_parent;
-            log_entry["action"] = "continue";
-            p_dset->m_log_ofs << log_entry << "\n";
-            */
             //   Continue walking current path
             p_dset->async_visit(my_parent, simul_parent_walk_functor(), my_item,
                                 other_parent, other_item, other_rank, orig_a,
@@ -500,19 +417,11 @@ class disjoint_set_impl {
         }
 
         if (my_parent_rank_est == other_rank) {
-          if (my_parent == my_item) {  // At a root
-            // log_entry["root"] = my_item;
-            p_dset->m_stats.template increment_counter<"roots_reached">();
-
+          if (my_parent == my_item) {      // At a root
             if (my_item < other_parent) {  // Need to break ties in rank before
               // merging to avoid cycles of merges
               // creating cycles in disjoint set
               // Perform merge
-              /*
-              log_entry["action"] = "attach";
-              p_dset->m_log_ofs << log_entry << "\n";
-              */
-              p_dset->m_stats.template increment_counter<"successful_merges">();
 
               // Guaranteed any path through current
               // item will find an item with rank >=
@@ -543,22 +452,12 @@ class disjoint_set_impl {
               p_dset->async_visit(other_parent, resolve_merge_lambda, my_item,
                                   my_rank);
             } else {
-              /*
-              log_entry["next"]   = other_parent;
-              log_entry["action"] = "switch";
-              p_dset->m_log_ofs << log_entry << "\n";
-              */
               //   Switch to other path to attempt merge
               p_dset->async_visit(other_parent, simul_parent_walk_functor(),
                                   other_item, my_parent, my_item, my_rank,
                                   orig_a, orig_b, args...);
             }
           } else {  // Not at a root
-                    /*
-            log_entry["next"]   = my_parent;
-            log_entry["action"] = "continue";
-            p_dset->m_log_ofs << log_entry << "\n";
-            */
             //   Continue walking current path
             p_dset->async_visit(my_parent, simul_parent_walk_functor(), my_item,
                                 other_parent, other_item, other_rank, orig_a,
@@ -800,7 +699,6 @@ class disjoint_set_impl {
  private:
   const std::pair<value_type, rank_type> walk_cache(const value_type &item,
                                                     const rank_type  &r) {
-    m_stats.increment_counter<"cache_walks">();
     const typename hash_cache::cache_entry *prev_cache_entry = nullptr;
     const typename hash_cache::cache_entry *curr_cache_entry =
         &m_cache.get_cache_entry(item);
@@ -808,12 +706,10 @@ class disjoint_set_impl {
     // Don't walk cache if first item is wrong
     if (curr_cache_entry->item != item || not curr_cache_entry->occupied ||
         curr_cache_entry->parent_rank_est < r) {
-      m_stats.increment_counter<"cache_walk_early_returns">();
       return std::make_pair(item, r);
     }
 
     do {
-      m_stats.increment_counter<"cache_walk_steps">();
       prev_cache_entry = curr_cache_entry;
       curr_cache_entry = &m_cache.get_cache_entry(prev_cache_entry->parent);
     } while (prev_cache_entry->parent == curr_cache_entry->item &&
@@ -833,11 +729,8 @@ class disjoint_set_impl {
   self_ygm_ptr_type pthis;
   item_map_type     m_local_item_map;
 
-  ygm::stats_tracker m_stats;
-  hash_cache         m_cache;
+  hash_cache m_cache;
 
   bool m_is_compressed = true;
-
-  std::ofstream m_log_ofs;
 };
 }  // namespace ygm::container::detail
