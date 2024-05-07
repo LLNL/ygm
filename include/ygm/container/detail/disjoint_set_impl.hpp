@@ -341,8 +341,6 @@ class disjoint_set_impl {
         if (my_parent == my_item) {  // Has not found new parent
           item_data.second.increase_rank(merging_rank + 1);
         } else {  // Tell merging item about new parent
-          p_dset->m_stats
-              .template increment_counter<"stale_successful_merges">();
           p_dset->async_visit(
               merging_item,
               [](auto p_dset, auto &item_data, const value_type &new_parent,
