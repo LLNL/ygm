@@ -487,6 +487,8 @@ class disjoint_set_impl {
   }
 
   void all_compress() {
+    m_comm.barrier();
+
     // Exit if no async_union(_and_execute) since last compress
     if (logical_and(m_is_compressed, m_comm) == true) {
       return;
@@ -507,6 +509,8 @@ class disjoint_set_impl {
         local_item_status;  // For holding incoming queries while my items are
                             // waiting for their representatives (only needed
                             // for when parent rank is same as mine)
+    queries.clear();
+    local_item_status.clear();
 
     struct update_rep_functor {
      public:
