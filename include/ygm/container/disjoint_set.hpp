@@ -21,7 +21,7 @@ class disjoint_set {
 
   disjoint_set() = delete;
 
-  disjoint_set(ygm::comm &comm, const size_t cache_size = 4096)
+  disjoint_set(ygm::comm &comm, const size_t cache_size = 8192)
       : m_impl(comm, cache_size) {}
 
   template <typename Visitor, typename... VisitorArgs>
