@@ -21,7 +21,8 @@ class disjoint_set {
 
   disjoint_set() = delete;
 
-  disjoint_set(ygm::comm &comm) : m_impl(comm) {}
+  disjoint_set(ygm::comm &comm, const size_t cache_size = 8192)
+      : m_impl(comm, cache_size) {}
 
   template <typename Visitor, typename... VisitorArgs>
   void async_visit(const value_type &item, Visitor visitor,
