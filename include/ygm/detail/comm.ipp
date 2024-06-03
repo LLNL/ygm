@@ -132,12 +132,17 @@ inline comm::~comm() {
 
 template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
+
+  TimeResolution start_time = ygm_tracer.get_time();
+
   static_assert(std::is_trivially_copyable<AsyncFunction>::value &&
                     std::is_standard_layout<AsyncFunction>::value,
                 "comm::async() AsyncFunction must be is_trivially_copyable & "
                 "is_standard_layout.");
   ASSERT_RELEASE(dest < m_layout.size());
   stats.async(dest);
+
+  
 
   check_if_production_halt_required();
   m_send_count++;
@@ -181,6 +186,14 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
   if (!m_in_process_receive_queue) {
     flush_to_capacity();
   }
+
+  ConstEventType event_name = "async";
+  TimeResolution end_time = ygm_tracer.get_time();
+  TimeResolution duration = end_time - start_time;
+
+  ygm_tracer.trace_event(event_name, start_time, duration);
+
+
 }
 
 template <typename AsyncFunction, typename... SendArgs>
@@ -199,6 +212,14 @@ inline void comm::async_bcast(AsyncFunction fn, const SendArgs &...args) {
   if (!m_in_process_receive_queue) {
     flush_to_capacity();
   }
+
+  // if (tracer_enabled){
+  //   // get metadata
+
+  //   // get endtime
+
+  //   // trace_event
+  // }
 }
 
 template <typename AsyncFunction, typename... SendArgs>

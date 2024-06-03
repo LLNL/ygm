@@ -19,6 +19,7 @@
 #include <ygm/detail/mpi.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
+#include <ygm/detail/tracer.hpp>
 
 namespace ygm {
 
@@ -27,6 +28,7 @@ class interrupt_mask;
 class comm_stats;
 class layout;
 class comm_router;
+class tracer;
 }  // namespace detail
 
 class comm {
@@ -235,6 +237,7 @@ class comm {
   const detail::comm_environment config;
   const detail::layout           m_layout;
   detail::comm_router            m_router;
+  detail::tracer                 ygm_tracer;
 
   detail::lambda_map<void (*)(comm *, cereal::YGMInputArchive *), uint16_t>
       m_lambda_map;

@@ -65,6 +65,9 @@ class comm_environment {
         throw std::runtime_error("comm_enviornment -- unknown routing type");
       }
     }
+    if (const char* cc = std::getenv("YGM_COMM_TRACE")) {
+      trace = true;
+    }
   }
 
   void print(std::ostream& os = std::cout) const {
@@ -86,6 +89,7 @@ class comm_environment {
         os << "NLNR\n";
         break;
     }
+    os << "YGM_COMM_TRACE           = " << trace << "\n";
     os << "======================================\n";
   }
 
@@ -102,6 +106,8 @@ class comm_environment {
   routing_type routing = routing_type::NONE;
 
   bool welcome = false;
+
+  bool trace = false;
 };
 
 }  // namespace detail
