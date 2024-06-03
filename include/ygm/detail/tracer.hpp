@@ -42,7 +42,7 @@ class tracer {
             return t;
         }
 
-        void trace_event(TimeResolution start_time, TimeResolution duration){    
+        void trace_event(ConstEventType event_name, TimeResolution start_time, TimeResolution duration){    
 
             if (!output_file.is_open()) {
                 open_file();
@@ -52,7 +52,6 @@ class tracer {
             
             ThreadID tid = syscall(SYS_gettid);
             
-            ConstEventType event_name = "async";
             ConstEventType category = "ygm";
             std::unordered_map<std::string, std::any> metadata; 
 
