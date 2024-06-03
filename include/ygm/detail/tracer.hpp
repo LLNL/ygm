@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <string>
 #include <unordered_map>
 #include <unistd.h>
 #include <syscall.h>
@@ -25,13 +26,15 @@ class tracer {
         tracer() {}
 
         ~tracer() {
-            size = snprintf(data, MAX_LINE_SIZE, "]");
-            output_file.write(data, size); 
+            if (output_file.is_open()) { // Check if the file is open
+                size = snprintf(data, MAX_LINE_SIZE, "]");
+                output_file.write(data, size);
 
-            output_file.close();
-            if (output_file.fail()) {
-                std::cerr << "Error writing to tracing file!" << std::endl;
-                // Handle failure to close the file
+                output_file.close();
+                if (output_file.fail()) {
+                    std::cerr << "Error closing trace file!" << std::endl;
+                    // Handle failure to close the file
+                }
             }
         }
 
@@ -42,7 +45,8 @@ class tracer {
             return t;
         }
 
-        void trace_event(ConstEventType event_name, TimeResolution start_time, TimeResolution duration){    
+        void trace_event(ConstEventType event_name, TimeResolution start_time, TimeResolution duration,
+             std::unordered_map<std::string, std::any> metadata){    
 
             if (!output_file.is_open()) {
                 open_file();
@@ -53,11 +57,12 @@ class tracer {
             ThreadID tid = syscall(SYS_gettid);
             
             ConstEventType category = "ygm";
-            std::unordered_map<std::string, std::any> metadata; 
+
+            std::string meta_str = stream_metadata(metadata);
 
             // convert to json formating
             convert_json(event_name, category, start_time,
-                duration, &metadata, pid, tid, &size, data);
+                duration, meta_str, pid, tid, &size, data);
 
             output_file.write(data, size);
             
@@ -74,7 +79,7 @@ class tracer {
 
         void convert_json(ConstEventType event_name, ConstEventType category,
         TimeResolution start_time, TimeResolution duration,
-        std::unordered_map<std::string, std::any> *metadata, ProcessID process_id,
+        std::string meta_str, ProcessID process_id,
         ThreadID thread_id, int *size, char* data){
 
         std::atomic_int index;
@@ -84,14 +89,19 @@ class tracer {
             data, MAX_LINE_SIZE,
             "%s{\"id\":\"%d\",\"name\":\"%s\",\"cat\":\"%s\",\"pid\":\"%lu\","
             "\"tid\":\"%lu\",\"ts\":\"%llu\",\"dur\":\"%llu\",\"ph\":\"X\","
-            "\"args\":{}}\n",
+            "\"args\":{%s}}\n",
             is_first_char.c_str(), index.load(), event_name, category, process_id,
-            thread_id, start_time, duration);
+            thread_id, start_time, duration, meta_str.c_str());
 
         }
 
         void open_file() {
-            output_file.open("output.txt");
+
+            ProcessID pid = syscall(SYS_getpid); 
+
+            std::string file_name = std::to_string(pid) + "_output.json";
+
+            output_file.open(file_name);
 
             if (!output_file.is_open()) {
                 std::cerr << "Error opening tracing file for writing!" << std::endl;
@@ -100,6 +110,65 @@ class tracer {
 
             size = snprintf(data, MAX_LINE_SIZE, "[\n");
             output_file.write(data, size);
+        }
+
+        std::string stream_metadata(const std::unordered_map<std::string, std::any>& metadata) {
+
+            std::stringstream meta_stream;
+            bool has_meta = false;
+            size_t i = 0;
+            
+            for (const auto& item : metadata) {
+                if (has_meta) {
+                    meta_stream << ",";
+                }
+                
+                try {
+                    meta_stream << "\"" << item.first << "\":\"";
+
+                    if (item.second.type() == typeid(unsigned int)) {
+                        const auto& value = std::any_cast<unsigned int>(item.second);
+                        meta_stream << value;
+                    } else if (item.second.type() == typeid(int)) {
+                        const auto& value = std::any_cast<int>(item.second);
+                        meta_stream << value;
+                    } else if (item.second.type() == typeid(const char *)) {
+                        const auto& value = std::any_cast<const char *>(item.second);
+                        meta_stream << value;
+                    } else if (item.second.type() == typeid(std::string)) {
+                        const auto& value = std::any_cast<std::string>(item.second);
+                        meta_stream << value;
+                    } else if (item.second.type() == typeid(size_t)) {
+                        const auto& value = std::any_cast<size_t>(item.second);
+                        meta_stream << value;
+                    } else if (item.second.type() == typeid(long)) {
+                        const auto& value = std::any_cast<long>(item.second);
+                        meta_stream << value;
+                    } else if (item.second.type() == typeid(ssize_t)) {
+                        const auto& value = std::any_cast<ssize_t>(item.second);
+                        meta_stream << value;
+                    } else if (item.second.type() == typeid(off_t)) {
+                        const auto& value = std::any_cast<off_t>(item.second);
+                        meta_stream << value;
+                    } else if (item.second.type() == typeid(off64_t)) {
+                        const auto& value = std::any_cast<off64_t>(item.second);
+                        meta_stream << value;
+                    }else if (item.second.type() == typeid(float)) {
+                        const auto& value = std::any_cast<float>(item.second);
+                        meta_stream << value;
+                    }
+                     else {
+                        meta_stream << "No conversion for " << item.first << "'s type";
+                    }
+
+                } catch (const std::bad_any_cast&) {
+                    meta_stream << "No conversion for type";
+                }
+                meta_stream << "\"";
+                has_meta = true;
+                ++i;
+            }
+            return meta_stream.str();
         }
 
 };

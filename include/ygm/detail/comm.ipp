@@ -134,6 +134,11 @@ template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
 
   TimeResolution start_time = ygm_tracer.get_time();
+  std::unordered_map<std::string, std::any> metadata; 
+
+  metadata["m_pending_isend_bytes"] = m_pending_isend_bytes;                          
+  metadata["m_recv_count"] = m_recv_count;                          
+  metadata["m_send_count"] = m_send_count;
 
   static_assert(std::is_trivially_copyable<AsyncFunction>::value &&
                     std::is_standard_layout<AsyncFunction>::value,
@@ -187,11 +192,14 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
     flush_to_capacity();
   }
 
-  ConstEventType event_name = "async";
-  TimeResolution end_time = ygm_tracer.get_time();
-  TimeResolution duration = end_time - start_time;
+  if (config.trace){
+    std::cout << "Tracing Event!!" << std::endl;
+    ConstEventType event_name = "async";
+    TimeResolution end_time = ygm_tracer.get_time();
+    TimeResolution duration = end_time - start_time;
 
-  ygm_tracer.trace_event(event_name, start_time, duration);
+    ygm_tracer.trace_event(event_name, start_time, duration, metadata);
+  }
 
 
 }
