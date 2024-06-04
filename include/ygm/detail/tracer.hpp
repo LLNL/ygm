@@ -5,6 +5,7 @@
 #include <string>
 #include <stack>
 #include <unordered_map>
+#include <filesystem>
 #include <unistd.h>
 #include <syscall.h>
 #include <sys/time.h>
@@ -51,10 +52,10 @@ class tracer {
             metadata_stack.push(metadata);
         }
 
-        void trace_event(ConstEventType event_name, int rank, TimeResolution end_time){  
+        void trace_event(ConstEventType event_name, int rank, TimeResolution end_time, std::string trace_path){  
 
             if (!output_file.is_open()) {
-                open_file();
+                open_file(rank, trace_path);
             }
 
             ProcessID pid = rank;
@@ -108,13 +109,17 @@ class tracer {
 
         }
 
-        void open_file() {
+        void open_file(int rank, std::string trace_path) {
 
-            ProcessID pid = syscall(SYS_getpid); 
+            if (!std::filesystem::is_directory(trace_path)) {
+                if (!std::filesystem::create_directories(trace_path)) {
+                    std::cerr << "Error creating directory!" << std::endl;
+                }
+            }
 
-            std::string file_name = std::to_string(pid) + "_output.json";
+            std::string file_path = trace_path + "/trace_" + std::to_string(rank) + ".json";;
 
-            output_file.open(file_name);
+            output_file.open(file_path);
 
             if (!output_file.is_open()) {
                 std::cerr << "Error opening tracing file for writing!" << std::endl;

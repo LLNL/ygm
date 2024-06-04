@@ -201,7 +201,7 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
     ConstEventType event_name = "async";
     TimeResolution end_time = ygm_tracer.get_time();
 
-    ygm_tracer.trace_event(event_name, m_layout.rank(), end_time);
+    ygm_tracer.trace_event(event_name, m_layout.rank(), end_time, config.trace_path);
   }
 
 

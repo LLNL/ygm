@@ -68,6 +68,10 @@ class comm_environment {
     if (const char* cc = std::getenv("YGM_COMM_TRACE")) {
       trace = convert<bool>(cc);
     }
+    if (const char* cc = std::getenv("YGM_COMM_TRACE_PATH")) {
+      trace_path = std::string(cc);
+    }
+
   }
 
   void print(std::ostream& os = std::cout) const {
@@ -108,6 +112,7 @@ class comm_environment {
   bool welcome = false;
 
   bool trace = false;
+  std::string trace_path = "trace/";
 };
 
 }  // namespace detail
