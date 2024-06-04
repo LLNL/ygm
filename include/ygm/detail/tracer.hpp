@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <stack>
 #include <unordered_map>
 #include <unistd.h>
 #include <syscall.h>
@@ -27,7 +28,7 @@ class tracer {
 
         ~tracer() {
             if (output_file.is_open()) { 
-                size = snprintf(data, MAX_LINE_SIZE, "]");
+                size = snprintf(data, MAX_LINE_SIZE, "]\n");
                 output_file.write(data, size);
 
                 output_file.close();
@@ -45,18 +46,30 @@ class tracer {
             return t;
         }
 
-        void trace_event(ConstEventType event_name, TimeResolution start_time, TimeResolution duration,
-             std::unordered_map<std::string, std::any> metadata){    
+        void start_event(TimeResolution start_time, std::unordered_map<std::string, std::any> metadata){
+            start_time_stack.push(start_time);
+            metadata_stack.push(metadata);
+        }
+
+        void trace_event(ConstEventType event_name, int rank, TimeResolution end_time){  
 
             if (!output_file.is_open()) {
                 open_file();
             }
 
-            ProcessID pid = syscall(SYS_getpid);
+            ProcessID pid = rank;
             
             ThreadID tid = syscall(SYS_gettid);
             
             ConstEventType category = "ygm";
+
+            std::unordered_map<std::string, std::any> metadata = metadata_stack.top();
+            metadata_stack.pop();
+
+            TimeResolution start_time = start_time_stack.top();
+            start_time_stack.pop();
+
+            TimeResolution duration = end_time - start_time;
 
             std::string meta_str = stream_metadata(metadata);
 
@@ -71,6 +84,9 @@ class tracer {
     private: 
         std::ofstream output_file;
 
+        std::stack<TimeResolution> start_time_stack;
+        std::stack<std::unordered_map<std::string, std::any>> metadata_stack;
+
         static const int MAX_LINE_SIZE = 4096;
         static const int MAX_META_LINE_SIZE = 3000;
 
@@ -82,15 +98,12 @@ class tracer {
         std::string meta_str, ProcessID process_id,
         ThreadID thread_id, int *size, char* data){
 
-            std::atomic_int index;
-            std::string is_first_char = ""; // Initialize based on index value
-
             *size = snprintf(
                 data, MAX_LINE_SIZE,
-                "%s{\"id\":\"%d\",\"name\":\"%s\",\"cat\":\"%s\",\"pid\":\"%lu\","
+                "{\"name\":\"%s\",\"cat\":\"%s\",\"pid\":\"%lu\","
                 "\"tid\":\"%lu\",\"ts\":\"%llu\",\"dur\":\"%llu\",\"ph\":\"X\","
                 "\"args\":{%s}}\n",
-                is_first_char.c_str(), index.load(), event_name, category, process_id,
+                event_name, category, process_id,
                 thread_id, start_time, duration, meta_str.c_str());
 
         }
