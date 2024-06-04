@@ -26,7 +26,7 @@ class tracer {
         tracer() {}
 
         ~tracer() {
-            if (output_file.is_open()) { // Check if the file is open
+            if (output_file.is_open()) { 
                 size = snprintf(data, MAX_LINE_SIZE, "]");
                 output_file.write(data, size);
 
@@ -82,16 +82,16 @@ class tracer {
         std::string meta_str, ProcessID process_id,
         ThreadID thread_id, int *size, char* data){
 
-        std::atomic_int index;
-        std::string is_first_char = ""; // Initialize based on index value
+            std::atomic_int index;
+            std::string is_first_char = ""; // Initialize based on index value
 
-        *size = snprintf(
-            data, MAX_LINE_SIZE,
-            "%s{\"id\":\"%d\",\"name\":\"%s\",\"cat\":\"%s\",\"pid\":\"%lu\","
-            "\"tid\":\"%lu\",\"ts\":\"%llu\",\"dur\":\"%llu\",\"ph\":\"X\","
-            "\"args\":{%s}}\n",
-            is_first_char.c_str(), index.load(), event_name, category, process_id,
-            thread_id, start_time, duration, meta_str.c_str());
+            *size = snprintf(
+                data, MAX_LINE_SIZE,
+                "%s{\"id\":\"%d\",\"name\":\"%s\",\"cat\":\"%s\",\"pid\":\"%lu\","
+                "\"tid\":\"%lu\",\"ts\":\"%llu\",\"dur\":\"%llu\",\"ph\":\"X\","
+                "\"args\":{%s}}\n",
+                is_first_char.c_str(), index.load(), event_name, category, process_id,
+                thread_id, start_time, duration, meta_str.c_str());
 
         }
 

@@ -66,7 +66,7 @@ class comm_environment {
       }
     }
     if (const char* cc = std::getenv("YGM_COMM_TRACE")) {
-      trace = true;
+      trace = convert<bool>(cc);
     }
   }
 
