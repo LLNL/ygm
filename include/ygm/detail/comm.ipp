@@ -58,6 +58,11 @@ inline void comm::comm_setup(MPI_Comm c) {
     std::shared_ptr<std::byte[]> recv_buffer{new std::byte[config.irecv_size]};
     post_new_irecv(recv_buffer);
   }
+
+  if (config.trace) {
+    if (rank0()) m_tracer.create_directory(config.trace_path);
+    // ASSERT_RELEASE(MPI_Barrier(c) == MPI_SUCCESS);
+  }
 }
 
 inline void comm::welcome(std::ostream &os) {
@@ -132,15 +137,13 @@ inline comm::~comm() {
 
 template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
-
-
-  if (config.trace){
-    TimeResolution start_time = m_tracer.get_time();
-    std::unordered_map<std::string, std::any> metadata; 
-    metadata["m_pending_isend_bytes"] = m_pending_isend_bytes;  
-    metadata["m_send_buffer_bytes"] = m_send_buffer_bytes;                        
-    metadata["m_recv_count"] = m_recv_count;                          
-    metadata["m_send_count"] = m_send_count;
+  if (config.trace) {
+    TimeResolution                            start_time = m_tracer.get_time();
+    std::unordered_map<std::string, std::any> metadata;
+    metadata["m_pending_isend_bytes"] = m_pending_isend_bytes;
+    metadata["m_send_buffer_bytes"]   = m_send_buffer_bytes;
+    metadata["m_recv_count"]          = m_recv_count;
+    metadata["m_send_count"]          = m_send_count;
 
     m_tracer.start_event(start_time, metadata);
   }
@@ -151,8 +154,6 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
                 "is_standard_layout.");
   ASSERT_RELEASE(dest < m_layout.size());
   stats.async(dest);
-
-  
 
   check_if_production_halt_required();
   m_send_count++;
@@ -197,25 +198,24 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
     flush_to_capacity();
   }
 
-  if (config.trace){
+  if (config.trace) {
     ConstEventType event_name = "async";
-    TimeResolution end_time = m_tracer.get_time();
+    TimeResolution end_time   = m_tracer.get_time();
 
-    m_tracer.trace_event(event_name, m_layout.rank(), end_time, config.trace_path);
+    m_tracer.trace_event(event_name, m_layout.rank(), end_time,
+                         config.trace_path);
   }
-
-
 }
 
 template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async_bcast(AsyncFunction fn, const SendArgs &...args) {
-  if (config.trace){
-    TimeResolution start_time = m_tracer.get_time();
-    std::unordered_map<std::string, std::any> metadata; 
-    metadata["m_pending_isend_bytes"] = m_pending_isend_bytes;  
-    metadata["m_send_buffer_bytes"] = m_send_buffer_bytes;                        
-    metadata["m_recv_count"] = m_recv_count;                          
-    metadata["m_send_count"] = m_send_count;
+  if (config.trace) {
+    TimeResolution                            start_time = m_tracer.get_time();
+    std::unordered_map<std::string, std::any> metadata;
+    metadata["m_pending_isend_bytes"] = m_pending_isend_bytes;
+    metadata["m_send_buffer_bytes"]   = m_send_buffer_bytes;
+    metadata["m_recv_count"]          = m_recv_count;
+    metadata["m_send_count"]          = m_send_count;
 
     m_tracer.start_event(start_time, metadata);
   }
@@ -235,11 +235,12 @@ inline void comm::async_bcast(AsyncFunction fn, const SendArgs &...args) {
     flush_to_capacity();
   }
 
-  if (config.trace){
+  if (config.trace) {
     ConstEventType event_name = "async_bcast";
-    TimeResolution end_time = m_tracer.get_time();
+    TimeResolution end_time   = m_tracer.get_time();
 
-    m_tracer.trace_event(event_name, m_layout.rank(), end_time, config.trace_path);
+    m_tracer.trace_event(event_name, m_layout.rank(), end_time,
+                         config.trace_path);
   }
 }
 
@@ -273,14 +274,13 @@ inline MPI_Comm comm::get_mpi_comm() const { return m_comm_other; }
  *
  */
 inline void comm::barrier() {
-
-  if (config.trace){
-    TimeResolution start_time = m_tracer.get_time();
-    std::unordered_map<std::string, std::any> metadata; 
-    metadata["m_pending_isend_bytes"] = m_pending_isend_bytes;  
-    metadata["m_send_buffer_bytes"] = m_send_buffer_bytes;                        
-    metadata["m_recv_count"] = m_recv_count;                          
-    metadata["m_send_count"] = m_send_count;
+  if (config.trace) {
+    TimeResolution                            start_time = m_tracer.get_time();
+    std::unordered_map<std::string, std::any> metadata;
+    metadata["m_pending_isend_bytes"] = m_pending_isend_bytes;
+    metadata["m_send_buffer_bytes"]   = m_send_buffer_bytes;
+    metadata["m_recv_count"]          = m_recv_count;
+    metadata["m_send_count"]          = m_send_count;
 
     m_tracer.start_event(start_time, metadata);
   }
@@ -299,11 +299,12 @@ inline void comm::barrier() {
   ASSERT_RELEASE(m_pre_barrier_callbacks.empty());
   ASSERT_RELEASE(m_send_dest_queue.empty());
 
-  if (config.trace){
+  if (config.trace) {
     ConstEventType event_name = "barrier";
-    TimeResolution end_time = m_tracer.get_time();
+    TimeResolution end_time   = m_tracer.get_time();
 
-    m_tracer.trace_event(event_name, m_layout.rank(), end_time, config.trace_path);
+    m_tracer.trace_event(event_name, m_layout.rank(), end_time,
+                         config.trace_path);
   }
 }
 

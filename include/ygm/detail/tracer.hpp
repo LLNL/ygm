@@ -27,9 +27,6 @@ class tracer {
 
   ~tracer() {
     if (output_file.is_open()) {
-      size = snprintf(data, MAX_LINE_SIZE, "]\n");
-      output_file.write(data, size);
-
       output_file.close();
       if (output_file.fail()) {
         std::cerr << "Error closing trace file!" << std::endl;
@@ -43,6 +40,15 @@ class tracer {
     gettimeofday(&tv, NULL);
     TimeResolution t = 1000000 * tv.tv_sec + tv.tv_usec;
     return t;
+  }
+
+  void create_directory(std::string trace_path) {
+    if (!std::filesystem::is_directory(trace_path)) {
+      if (!std::filesystem::create_directories(trace_path)) {
+        std::cerr << "Error creating directory!" << std::endl;
+      }
+    }
+    std::cout << "Created Directory to write at " << trace_path << std::endl;
   }
 
   void start_event(TimeResolution                            start_time,
@@ -100,22 +106,17 @@ class tracer {
         data, MAX_LINE_SIZE,
         "{\"name\":\"%s\",\"cat\":\"%s\",\"pid\":\"%lu\","
         "\"tid\":\"%lu\",\"ts\":\"%llu\",\"dur\":\"%llu\",\"ph\":\"X\","
-        "\"args\":{%s}}\n",
+        "\"args\":{%s}},\n",
         event_name, category, process_id, thread_id, start_time, duration,
         meta_str.c_str());
   }
 
   void open_file(int rank, std::string trace_path) {
-    if (!std::filesystem::is_directory(trace_path)) {
-      if (!std::filesystem::create_directories(trace_path)) {
-        std::cerr << "Error creating directory!" << std::endl;
-      }
-    }
-
     std::string file_path =
-        trace_path + "/trace_" + std::to_string(rank) + ".json";
+        trace_path + "/trace_" + std::to_string(rank) + ".txt";
     ;
 
+    std::cout << "Opening File at " << file_path << std::endl;
     output_file.open(file_path);
 
     if (!output_file.is_open()) {
