@@ -48,17 +48,12 @@ class tracer {
         std::cerr << "Error creating directory!" << std::endl;
       }
     }
-    std::cout << "Created Directory to write at " << trace_path << std::endl;
   }
 
-  void start_event(TimeResolution                            start_time,
-                   std::unordered_map<std::string, std::any> metadata) {
-    start_time_stack.push(start_time);
-    metadata_stack.push(metadata);
-  }
-
-  void trace_event(ConstEventType event_name, int rank, TimeResolution end_time,
-                   std::string trace_path) {
+  void trace_event(ConstEventType event_name, int rank,
+                   TimeResolution start_time, TimeResolution end_time,
+                   std::string                                trace_path,
+                   std::unordered_map<std::string, std::any>* metadata_ptr) {
     if (!output_file.is_open()) {
       open_file(rank, trace_path);
     }
@@ -69,15 +64,9 @@ class tracer {
 
     ConstEventType category = "ygm";
 
-    std::unordered_map<std::string, std::any> metadata = metadata_stack.top();
-    metadata_stack.pop();
-
-    TimeResolution start_time = start_time_stack.top();
-    start_time_stack.pop();
-
     TimeResolution duration = end_time - start_time;
 
-    std::string meta_str = stream_metadata(metadata);
+    std::string meta_str = stream_metadata(*metadata_ptr);
 
     // convert to json formating
     convert_json(event_name, category, start_time, duration, meta_str, pid, tid,
@@ -88,9 +77,6 @@ class tracer {
 
  private:
   std::ofstream output_file;
-
-  std::stack<TimeResolution>                            start_time_stack;
-  std::stack<std::unordered_map<std::string, std::any>> metadata_stack;
 
   static const int MAX_LINE_SIZE      = 4096;
   static const int MAX_META_LINE_SIZE = 3000;
@@ -116,7 +102,6 @@ class tracer {
         trace_path + "/trace_" + std::to_string(rank) + ".txt";
     ;
 
-    std::cout << "Opening File at " << file_path << std::endl;
     output_file.open(file_path);
 
     if (!output_file.is_open()) {

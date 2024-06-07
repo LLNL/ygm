@@ -137,15 +137,16 @@ inline comm::~comm() {
 
 template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
+  TimeResolution                                             start_time;
+  std::unique_ptr<std::unordered_map<std::string, std::any>> metadata_ptr;
   if (config.trace) {
-    TimeResolution                            start_time = m_tracer.get_time();
-    std::unordered_map<std::string, std::any> metadata;
-    metadata["m_pending_isend_bytes"] = m_pending_isend_bytes;
-    metadata["m_send_buffer_bytes"]   = m_send_buffer_bytes;
-    metadata["m_recv_count"]          = m_recv_count;
-    metadata["m_send_count"]          = m_send_count;
-
-    m_tracer.start_event(start_time, metadata);
+    start_time = m_tracer.get_time();
+    metadata_ptr =
+        std::make_unique<std::unordered_map<std::string, std::any>>();
+    (*metadata_ptr)["m_pending_isend_bytes"] = m_pending_isend_bytes;
+    (*metadata_ptr)["m_send_buffer_bytes"]   = m_send_buffer_bytes;
+    (*metadata_ptr)["m_recv_count"]          = m_recv_count;
+    (*metadata_ptr)["m_send_count"]          = m_send_count;
   }
 
   static_assert(std::is_trivially_copyable<AsyncFunction>::value &&
@@ -202,24 +203,13 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
     ConstEventType event_name = "async";
     TimeResolution end_time   = m_tracer.get_time();
 
-    m_tracer.trace_event(event_name, m_layout.rank(), end_time,
-                         config.trace_path);
+    m_tracer.trace_event(event_name, m_layout.rank(), start_time, end_time,
+                         config.trace_path, metadata_ptr.get());
   }
 }
 
 template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async_bcast(AsyncFunction fn, const SendArgs &...args) {
-  if (config.trace) {
-    TimeResolution                            start_time = m_tracer.get_time();
-    std::unordered_map<std::string, std::any> metadata;
-    metadata["m_pending_isend_bytes"] = m_pending_isend_bytes;
-    metadata["m_send_buffer_bytes"]   = m_send_buffer_bytes;
-    metadata["m_recv_count"]          = m_recv_count;
-    metadata["m_send_count"]          = m_send_count;
-
-    m_tracer.start_event(start_time, metadata);
-  }
-
   static_assert(
       std::is_trivially_copyable<AsyncFunction>::value &&
           std::is_standard_layout<AsyncFunction>::value,
@@ -233,14 +223,6 @@ inline void comm::async_bcast(AsyncFunction fn, const SendArgs &...args) {
   // Check if send buffer capacity has been exceeded
   if (!m_in_process_receive_queue) {
     flush_to_capacity();
-  }
-
-  if (config.trace) {
-    ConstEventType event_name = "async_bcast";
-    TimeResolution end_time   = m_tracer.get_time();
-
-    m_tracer.trace_event(event_name, m_layout.rank(), end_time,
-                         config.trace_path);
   }
 }
 
@@ -274,17 +256,6 @@ inline MPI_Comm comm::get_mpi_comm() const { return m_comm_other; }
  *
  */
 inline void comm::barrier() {
-  if (config.trace) {
-    TimeResolution                            start_time = m_tracer.get_time();
-    std::unordered_map<std::string, std::any> metadata;
-    metadata["m_pending_isend_bytes"] = m_pending_isend_bytes;
-    metadata["m_send_buffer_bytes"]   = m_send_buffer_bytes;
-    metadata["m_recv_count"]          = m_recv_count;
-    metadata["m_send_count"]          = m_send_count;
-
-    m_tracer.start_event(start_time, metadata);
-  }
-
   flush_all_local_and_process_incoming();
   std::pair<uint64_t, uint64_t> previous_counts{1, 2};
   std::pair<uint64_t, uint64_t> current_counts{3, 4};
@@ -298,14 +269,6 @@ inline void comm::barrier() {
   }
   ASSERT_RELEASE(m_pre_barrier_callbacks.empty());
   ASSERT_RELEASE(m_send_dest_queue.empty());
-
-  if (config.trace) {
-    ConstEventType event_name = "barrier";
-    TimeResolution end_time   = m_tracer.get_time();
-
-    m_tracer.trace_event(event_name, m_layout.rank(), end_time,
-                         config.trace_path);
-  }
 }
 
 /**
