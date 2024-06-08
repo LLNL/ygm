@@ -17,6 +17,7 @@ jobs:
         os: [ubuntu-latest, ubuntu-20.04]
         gcc-version: [8, 9, 10]
         mpi-type: [mpich, openmpi]
+        pyarrow-version: [16.1.*]
         exclude:
           - os: ubuntu-latest
             gcc-version: 8
@@ -37,11 +38,9 @@ jobs:
           tar -xjf boost_1_77_0.tar.bz2
       - name: Install Apache Arrow
         run: |
-          cd ~
-          wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-          sudo apt-get install ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-          sudo apt-get update
-          sudo apt-get install libarrow-dev libparquet-dev
+          python -m pip install pyarrow==${{ matrix.pyarrow-version }}
+          PIP_PYARROW_ROOT=$(python -c "import pyarrow as pa; print(pa.get_library_dirs()[0])")
+          echo "PIP_PYARROW_ROOT=${PIP_PYARROW_ROOT}" >> $GITHUB_ENV
       - name: Install mpich
         if: matrix.mpi-type == 'mpich'
         run: sudo apt-get install mpich
@@ -58,7 +57,7 @@ jobs:
           g++-${{ matrix.gcc-version }} --version
           mkdir build
           cd build
-          cmake ../ -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_CXX_COMPILER=g++-${{ matrix.gcc-version }} -DBOOST_ROOT=~/boost_1_77_0 -DYGM_REQUIRE_ARROW=ON
+          cmake ../ -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_CXX_COMPILER=g++-${{ matrix.gcc-version }} -DBOOST_ROOT=~/boost_1_77_0 -DPIP_PYARROW_ROOT=$PIP_PYARROW_ROOT -DYGM_REQUIRE_ARROW_PARQUET=ON
           make -j
       - name: Make test (mpich)
         if: matrix.mpi-type == 'mpich'

@@ -5,17 +5,16 @@
 
 if (Arrow_FOUND AND Parquet_FOUND)
     add_ygm_example(arrow_parquet_stream_reader)
-    target_link_libraries(arrow_parquet_stream_reader PUBLIC
-        Arrow::arrow_shared Parquet::parquet_shared)
+    link_arrow_parquet(arrow_parquet_stream_reader)
 
     add_ygm_example(arrow_parquet_stream_reader_variant)
-    target_link_libraries(arrow_parquet_stream_reader_variant PUBLIC
-            Arrow::arrow_shared Parquet::parquet_shared)
+    link_arrow_parquet(arrow_parquet_stream_reader_variant)
 
     if (Boost_FOUND)
         add_ygm_example(arrow_parquet_stream_reader_json)
         target_include_directories(arrow_parquet_stream_reader_json PUBLIC ${Boost_INCLUDE_DIRS})
-        target_link_libraries(arrow_parquet_stream_reader_json PUBLIC
-            Arrow::arrow_shared Parquet::parquet_shared)
+        link_arrow_parquet(arrow_parquet_stream_reader_json)
     endif()
+else ()
+    message(STATUS "Arrow or Parquet not found, skipping bulding arrow_parquet examples.")
 endif()

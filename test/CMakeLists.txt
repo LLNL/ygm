@@ -74,16 +74,14 @@ endif ()
 
 if (Arrow_FOUND AND Parquet_FOUND)
     add_ygm_test(test_arrow_parquet_stream_reader)
-    target_link_libraries(MPI_test_arrow_parquet_stream_reader PUBLIC
-        Arrow::arrow_shared Parquet::parquet_shared)
+    link_arrow_parquet(MPI_test_arrow_parquet_stream_reader)
 
     if (Boost_FOUND)
         add_ygm_test(test_arrow_parquet_stream_reader_json)
         target_include_directories(MPI_test_arrow_parquet_stream_reader_json
             PUBLIC
             ${Boost_INCLUDE_DIRS})
-        target_link_libraries(MPI_test_arrow_parquet_stream_reader_json PUBLIC
-            Arrow::arrow_shared Parquet::parquet_shared)
+        link_arrow_parquet(MPI_test_arrow_parquet_stream_reader_json)
     endif()
 endif()
 
