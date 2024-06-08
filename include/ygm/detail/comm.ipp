@@ -476,14 +476,16 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
     twin_req[0] = req;
     twin_req[1] = m_recv_queue.front().request;
 
-    int        outcount;
+    int        outcount{0};
     int        twin_indices[2];
     MPI_Status twin_status[2];
 
     {
       auto timer = stats.waitsome_iallreduce();
-      ASSERT_MPI(
-          MPI_Waitsome(2, twin_req, &outcount, twin_indices, twin_status));
+      while (outcount == 0) {
+        ASSERT_MPI(
+            MPI_Testsome(2, twin_req, &outcount, twin_indices, twin_status));
+      }
     }
 
     for (int i = 0; i < outcount; ++i) {
@@ -494,7 +496,10 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
       } else {
         mpi_irecv_request req_buffer = m_recv_queue.front();
         m_recv_queue.pop_front();
-        handle_next_receive(twin_status[i], req_buffer.buffer);
+        int buffer_size{0};
+        ASSERT_MPI(MPI_Get_count(&twin_status[i], MPI_BYTE, &buffer_size));
+        stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
+        handle_next_receive(req_buffer.buffer, buffer_size);
         flush_all_local_and_process_incoming();
       }
     }
@@ -857,12 +862,9 @@ inline void comm::queue_message_bytes(const std::vector<std::byte> &packed,
   m_send_buffer_bytes += packed.size();
 }
 
-inline void comm::handle_next_receive(MPI_Status                   status,
-                                      std::shared_ptr<std::byte[]> buffer) {
-  int count{0};
-  ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &count));
-  stats.irecv(status.MPI_SOURCE, count);
-  cereal::YGMInputArchive iarchive(buffer.get(), count);
+inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
+                                      const size_t buffer_size) {
+  cereal::YGMInputArchive iarchive(buffer.get(), buffer_size);
   while (!iarchive.empty()) {
     if (config.routing != detail::routing_type::NONE) {
       header_t h;
@@ -921,19 +923,21 @@ inline bool comm::process_receive_queue() {
   }
 
   //
-  // if we have a pending iRecv, then we can issue a Waitsome
+  // if we have a pending iRecv, then we can issue a Testsome
   if (m_send_queue.size() > config.num_isends_wait) {
     MPI_Request twin_req[2];
     twin_req[0] = m_send_queue.front().request;
     twin_req[1] = m_recv_queue.front().request;
 
-    int        outcount;
+    int        outcount{0};
     int        twin_indices[2];
     MPI_Status twin_status[2];
     {
       auto timer = stats.waitsome_isend_irecv();
-      ASSERT_MPI(
-          MPI_Waitsome(2, twin_req, &outcount, twin_indices, twin_status));
+      while (outcount == 0) {
+        ASSERT_MPI(
+            MPI_Testsome(2, twin_req, &outcount, twin_indices, twin_status));
+      }
     }
     for (int i = 0; i < outcount; ++i) {
       if (twin_indices[i] == 0) {  // completed a iSend
@@ -945,7 +949,10 @@ inline bool comm::process_receive_queue() {
         received_to_return           = true;
         mpi_irecv_request req_buffer = m_recv_queue.front();
         m_recv_queue.pop_front();
-        handle_next_receive(twin_status[i], req_buffer.buffer);
+        int buffer_size{0};
+        ASSERT_MPI(MPI_Get_count(&twin_status[i], MPI_BYTE, &buffer_size));
+        stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
+        handle_next_receive(req_buffer.buffer, buffer_size);
       }
     }
   } else {
@@ -981,7 +988,10 @@ inline bool comm::local_process_incoming() {
       received_to_return           = true;
       mpi_irecv_request req_buffer = m_recv_queue.front();
       m_recv_queue.pop_front();
-      handle_next_receive(status, req_buffer.buffer);
+      int buffer_size{0};
+      ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &buffer_size));
+      stats.irecv(status.MPI_SOURCE, buffer_size);
+      handle_next_receive(req_buffer.buffer, buffer_size);
     } else {
       break;  // not ready yet
     }
