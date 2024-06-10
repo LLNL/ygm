@@ -195,7 +195,7 @@ class comm {
 
   void flush_to_capacity();
 
-  void post_new_irecv(std::shared_ptr<std::byte[]> &recv_buffer);
+  void post_new_irecv(std::shared_ptr<std::vector<std::byte>> &recv_buffer);
 
   template <typename Lambda, typename... PackArgs>
   size_t pack_lambda(std::vector<std::byte> &packed, Lambda l,
@@ -211,7 +211,7 @@ class comm {
   void queue_message_bytes(const std::vector<std::byte> &packed,
                            const int                     dest);
 
-  void handle_next_receive(std::shared_ptr<std::byte[]> buffer,
+  void handle_next_receive(std::shared_ptr<std::vector<std::byte>> buffer,
                            const size_t                 buffer_size);
 
   bool process_receive_queue();

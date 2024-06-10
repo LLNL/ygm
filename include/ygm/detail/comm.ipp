@@ -10,8 +10,8 @@
 namespace ygm {
 
 struct comm::mpi_irecv_request {
-  std::shared_ptr<std::byte[]> buffer;
-  MPI_Request                  request;
+  std::shared_ptr<std::vector<std::byte>> buffer;
+  MPI_Request                             request;
 };
 
 struct comm::mpi_isend_request {
@@ -55,7 +55,7 @@ inline void comm::comm_setup(MPI_Comm c) {
   }
 
   for (size_t i = 0; i < config.num_irecvs; ++i) {
-    std::shared_ptr<std::byte[]> recv_buffer{new std::byte[config.irecv_size]};
+    std::shared_ptr<std::vector<std::byte>> recv_buffer{new std::vector<std::byte>(config.irecv_size)};
     post_new_irecv(recv_buffer);
   }
 }
@@ -628,12 +628,12 @@ inline void comm::flush_to_capacity() {
   }
 }
 
-inline void comm::post_new_irecv(std::shared_ptr<std::byte[]> &recv_buffer) {
+inline void comm::post_new_irecv(std::shared_ptr<std::vector<std::byte>> &recv_buffer) {
   mpi_irecv_request recv_req;
   recv_req.buffer = recv_buffer;
 
   //::madvise(recv_req.buffer.get(), config.irecv_size, MADV_DONTNEED);
-  ASSERT_MPI(MPI_Irecv(recv_req.buffer.get(), config.irecv_size, MPI_BYTE,
+  ASSERT_MPI(MPI_Irecv(recv_req.buffer.get()->data(), config.irecv_size, MPI_BYTE,
                        MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_async,
                        &(recv_req.request)));
   m_recv_queue.push_back(recv_req);
@@ -864,9 +864,9 @@ inline void comm::queue_message_bytes(const std::vector<std::byte> &packed,
   m_send_buffer_bytes += packed.size();
 }
 
-inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
+inline void comm::handle_next_receive(std::shared_ptr<std::vector<std::byte>> buffer,
                                       const size_t buffer_size) {
-  cereal::YGMInputArchive iarchive(buffer.get(), buffer_size);
+  cereal::YGMInputArchive iarchive(buffer.get()->data(), buffer_size);
   while (!iarchive.empty()) {
     if (config.routing != detail::routing_type::NONE) {
       header_t h;
