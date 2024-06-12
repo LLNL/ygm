@@ -5,7 +5,7 @@
 
 // Usage:
 // cd /ygm/build/dir
-// mpirun -np 2 ./arrow_parquet_stream_reader_variant \
+// mpirun -np 2 ./parquet_stream_reader_variant \
 //  [(option) /path/to/parquet/file/or/dir]
 
 #include <algorithm>
@@ -17,7 +17,7 @@
 #include <vector>
 
 #include <ygm/comm.hpp>
-#include <ygm/io/detail/arrow_parquet_variant_converter.hpp>
+#include <ygm/io/detail/parquet2variant.hpp>
 
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
     dir_name = argv[1];
   }
 
-  ygm::io::arrow_parquet_parser parquetp(world, {dir_name});
+  ygm::io::parquet_parser parquetp(world, {dir_name});
 
   const auto& schema = parquetp.schema();
 

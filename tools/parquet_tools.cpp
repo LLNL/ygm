@@ -12,9 +12,9 @@
 #include <vector>
 
 #include <ygm/comm.hpp>
-#include <ygm/io/arrow_parquet_parser.hpp>
-#include <ygm/io/detail/arrow_parquet_json_converter.hpp>
-#include <ygm/io/detail/arrow_parquet_variant_converter.hpp>
+#include <ygm/io/detail/parquet2json.hpp>
+#include <ygm/io/detail/parquet2variant.hpp>
+#include <ygm/io/parquet_parser.hpp>
 #include <ygm/utility.hpp>
 
 // #define NDEBUG
@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
       count_rows(opt, world);
     } else if (opt.subcommand == "schema") {
       world.cout0() << "Schema" << std::endl;
-      ygm::io::arrow_parquet_parser parquetp(world, {opt.input_path.c_str()});
+      ygm::io::parquet_parser parquetp(world, {opt.input_path.c_str()});
       world.cout0() << parquetp.schema_to_string() << std::endl;
     } else if (opt.subcommand == "dump") {
       dump(opt, world);
@@ -149,8 +149,8 @@ void count_rows(const options_t& opt, ygm::comm& world) {
     world.cout0() << "Read rows w/o converting." << std::endl;
   }
 
-  ygm::io::arrow_parquet_parser parquetp(world, {opt.input_path.c_str()});
-  const auto&                   schema = parquetp.schema();
+  ygm::io::parquet_parser parquetp(world, {opt.input_path.c_str()});
+  const auto&             schema = parquetp.schema();
 
   std::size_t num_rows        = 0;
   std::size_t num_error_lines = 0;
@@ -198,8 +198,8 @@ void dump(const options_t& opt, ygm::comm& world) {
     world.cout0() << "Dump as variants." << std::endl;
   }
 
-  ygm::io::arrow_parquet_parser parquetp(world, {opt.input_path.c_str()});
-  const auto&                   schema = parquetp.schema();
+  ygm::io::parquet_parser parquetp(world, {opt.input_path.c_str()});
+  const auto&             schema = parquetp.schema();
 
   std::size_t num_rows        = 0;
   std::size_t num_error_lines = 0;

@@ -73,17 +73,17 @@ if (Boost_FOUND)
 endif ()
 
 if (Arrow_FOUND AND Parquet_FOUND)
-    add_ygm_test(test_arrow_parquet_stream_reader)
-    link_arrow_parquet(MPI_test_arrow_parquet_stream_reader)
+    add_ygm_test(test_parquet_reader)
+    link_arrow_parquet(MPI_test_parquet_reader)
 
     if (Boost_FOUND)
-        add_ygm_test(test_arrow_parquet_stream_reader_json)
-        target_include_directories(MPI_test_arrow_parquet_stream_reader_json
-            PUBLIC
-            ${Boost_INCLUDE_DIRS})
-        link_arrow_parquet(MPI_test_arrow_parquet_stream_reader_json)
-    endif()
-endif()
+        add_ygm_test(test_parquet_reader_json)
+        target_include_directories(MPI_test_parquet_reader_json
+                PUBLIC
+                ${Boost_INCLUDE_DIRS})
+        link_arrow_parquet(MPI_test_parquet_reader_json)
+    endif ()
+endif ()
 
 #
 # Copy the testing data directory

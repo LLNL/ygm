@@ -48,21 +48,20 @@ std::ostream& operator<<(std::ostream& os, const parquet_data_type& t) {
 // Parquet file parser
 // Only supports the plain encoding.
 // Do not support nested or hierarchical columns.
-class arrow_parquet_parser {
+class parquet_parser {
  public:
-  using self_type = arrow_parquet_parser;
+  using self_type = parquet_parser;
   // 0: a column type, 1: column name
   using file_schema_container =
       std::vector<std::tuple<parquet_data_type, std::string>>;
   using parquet_stream_reader = parquet::StreamReader;
 
-  arrow_parquet_parser(ygm::comm& _comm) : m_comm(_comm), pthis(this) {
+  parquet_parser(ygm::comm& _comm) : m_comm(_comm), pthis(this) {
     pthis.check(m_comm);
   }
 
-  arrow_parquet_parser(ygm::comm&                      _comm,
-                       const std::vector<std::string>& stringpaths,
-                       bool                            recursive = false)
+  parquet_parser(ygm::comm& _comm, const std::vector<std::string>& stringpaths,
+                 bool recursive = false)
       : m_comm(_comm), pthis(this) {
     pthis.check(m_comm);
     check_paths(stringpaths, recursive);
@@ -70,7 +69,7 @@ class arrow_parquet_parser {
     m_comm.barrier();
   }
 
-  ~arrow_parquet_parser() { m_comm.barrier(); }
+  ~parquet_parser() { m_comm.barrier(); }
 
   // Returns a list of column schema information
   const file_schema_container& schema() { return m_schema; }
