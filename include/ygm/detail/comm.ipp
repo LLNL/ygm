@@ -66,7 +66,7 @@ inline void comm::comm_setup(MPI_Comm c) {
 
   if (config.trace) {
     if (rank0()) m_tracer.create_directory(config.trace_path);
-    // barrier();
+    ASSERT_MPI(MPI_Barrier(c));
     m_tracer.open_file(config.trace_path, rank());
     m_next_message_id = rank();
   }
@@ -937,25 +937,14 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
   cereal::YGMInputArchive iarchive(buffer.get(), buffer_size);
   while (!iarchive.empty()) {
     if (config.routing != detail::routing_type::NONE) {
-      header_t h;
+      header_t       h;
+      trace_header_t trace_h;
       iarchive.loadBinary(&h, sizeof(header_t));
+      if (config.trace) {
+        iarchive.loadBinary(&trace_h, sizeof(trace_header_t));
+      }
+
       if (h.dest == m_layout.rank() || (h.dest == -1 && h.message_size == 0)) {
-        // TODO: load binary for tracing header if it exists
-        trace_header_t trace_h;
-        if (config.trace) {
-          iarchive.loadBinary(&trace_h, sizeof(trace_header_t));
-          TimeResolution event_time = m_tracer.get_time();
-          std::unique_ptr<std::unordered_map<std::string, std::any>>
-              metadata_ptr =
-                  std::make_unique<std::unordered_map<std::string, std::any>>();
-          (*metadata_ptr)["event"] = " routing recieved ";
-
-          ConstEventType event_name = "async";
-
-          m_tracer.trace_event(trace_h.trace_id, 'n', event_name, rank(),
-                               event_time, metadata_ptr.get());
-        }
-
         uint16_t lid;
         iarchive.loadBinary(&lid, sizeof(lid));
         m_lambda_map.execute(lid, this, &iarchive);
@@ -987,6 +976,25 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
         size_t header_bytes = pack_routing_header(m_vec_send_buffers[next_dest],
                                                   h.dest, h.message_size);
         m_send_buffer_bytes += header_bytes;
+
+        size_t trace_header_bytes = 0;
+        if (config.trace) {
+          trace_header_bytes = pack_tracing_header(
+              m_vec_send_buffers[next_dest], trace_h.trace_id, 0);
+          m_send_buffer_bytes += trace_header_bytes;
+
+          TimeResolution event_time = m_tracer.get_time();
+          std::unique_ptr<std::unordered_map<std::string, std::any>>
+              metadata_ptr =
+                  std::make_unique<std::unordered_map<std::string, std::any>>();
+          (*metadata_ptr)["event"]   = " routing recieved ";
+          (*metadata_ptr)["current"] = rank();
+
+          ConstEventType event_name = "async";
+
+          m_tracer.trace_event(trace_h.trace_id, 'n', event_name, rank(),
+                               event_time, metadata_ptr.get());
+        }
 
         size_t precopy_size = m_vec_send_buffers[next_dest].size();
         m_vec_send_buffers[next_dest].resize(precopy_size + h.message_size);
