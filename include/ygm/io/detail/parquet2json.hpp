@@ -21,12 +21,12 @@
 #endif
 #include <boost/json/src.hpp>
 
-#include <ygm/io/arrow_parquet_parser.hpp>
+#include <ygm/io/parquet_parser.hpp>
 
 namespace ygm::io::detail {
 inline boost::json::value read_parquet_element_as_json_value(
     const ygm::io::parquet_data_type&            type_holder,
-    arrow_parquet_parser::parquet_stream_reader& stream) {
+    parquet_parser::parquet_stream_reader& stream) {
   boost::json::value out_value;
   out_value.emplace_null();
 
@@ -82,8 +82,8 @@ inline boost::json::value read_parquet_element_as_json_value(
 
 template <typename key_container>
 inline boost::json::object read_parquet_as_json_helper(
-    arrow_parquet_parser::parquet_stream_reader&       reader,
-    const arrow_parquet_parser::file_schema_container& schema,
+    parquet_parser::parquet_stream_reader&       reader,
+    const parquet_parser::file_schema_container& schema,
     const bool                                         read_all,
     const key_container& include_columns = key_container()) {
   boost::json::object object;
@@ -109,8 +109,8 @@ inline boost::json::object read_parquet_as_json_helper(
  * columns.
  */
 inline boost::json::object read_parquet_as_json(
-    arrow_parquet_parser::parquet_stream_reader&       reader,
-    const arrow_parquet_parser::file_schema_container& schema) {
+    parquet_parser::parquet_stream_reader&       reader,
+    const parquet_parser::file_schema_container& schema) {
   return read_parquet_as_json_helper<std::unordered_set<std::string>>(
       reader, schema, true);
 }
@@ -121,8 +121,8 @@ inline boost::json::object read_parquet_as_json(
  */
 template <typename key_container>
 inline boost::json::object read_parquet_as_json(
-    arrow_parquet_parser::parquet_stream_reader&       reader,
-    const arrow_parquet_parser::file_schema_container& schema,
+    parquet_parser::parquet_stream_reader&       reader,
+    const parquet_parser::file_schema_container& schema,
     const key_container&                               include_columns) {
   return read_parquet_as_json_helper(reader, schema, false, include_columns);
 }

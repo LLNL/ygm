@@ -12,6 +12,8 @@ project(
     LANGUAGES CXX
 )
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     set(YGM_MAIN_PROJECT ON)
 endif ()
@@ -134,29 +136,9 @@ endif ()
 # Arrow
 #
 #
-find_package(Arrow 15.0 QUIET)
-if (NOT Arrow_FOUND)
-	find_package(Arrow 16.0 QUIET)
-endif()
-if (Arrow_FOUND)
-   message(STATUS ${PROJECT_NAME} " found Arrow ")
-   message(STATUS "Arrow version: ${ARROW_VERSION}")
-   message(STATUS "Arrow SO version: ${ARROW_FULL_SO_VERSION}")
-   set(ARROW_CMAKE_DIR ${Arrow_DIR})
-   find_package(Parquet PATHS ${ARROW_CMAKE_DIR})
-   if (Parquet_FOUND)
-       message(STATUS ${PROJECT_NAME} " found Parquet ")
-       message(STATUS "Parquet version: ${PARQUET_VERSION}")
-       message(STATUS "Parquet SO version: ${PARQUET_FULL_SO_VERSION}")
-   else ()
-       message(WARNING ${PROJECT_NAME} " did not find Parquet. Building without Parquet.")
-   endif ()
-else ()
-   message(WARNING ${PROJECT_NAME} " did not find Arrow >= 15.0. Building without Arrow.")
-   if (YGM_REQUIRE_ARROW)
-	   message(FATAL_ERROR "YGM configured to require Arrow, but Arrow could not be found")
-   endif ()
-endif ()
+include(FindArrowParquet)
+option(YGM_REQUIRE_ARROW_PARQUET "YGM requires Apache Arrow Parquet." OFF)
+find_arrow_parquet()
 
 #
 # Create the YGM target library
@@ -237,4 +219,5 @@ if (YGM_MAIN_PROJECT)
     add_subdirectory(test)
     # Example codes are here.
     add_subdirectory(examples)
+    add_subdirectory(tools)
 endif ()

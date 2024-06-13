@@ -16,7 +16,7 @@
 
 #include <parquet/types.h>
 
-#include <ygm/io/arrow_parquet_parser.hpp>
+#include <ygm/io/parquet_parser.hpp>
 
 namespace ygm::io::detail {
 
@@ -25,7 +25,7 @@ using parquet_type_variant = std::variant<std::monostate, bool, int32_t,
 
 inline parquet_type_variant read_parquet_element_as_variant(
     const ygm::io::parquet_data_type&            type_holder,
-    arrow_parquet_parser::parquet_stream_reader& stream) {
+    parquet_parser::parquet_stream_reader& stream) {
   parquet_type_variant out_value = std::monostate{};
 
   // Note: there is no uint types in Parquet
@@ -77,8 +77,8 @@ inline parquet_type_variant read_parquet_element_as_variant(
 }
 
 inline std::vector<parquet_type_variant> read_parquet_as_variant_helper(
-    arrow_parquet_parser::parquet_stream_reader&          reader,
-    const arrow_parquet_parser::file_schema_container&    schema,
+    parquet_parser::parquet_stream_reader&          reader,
+    const parquet_parser::file_schema_container&    schema,
     const std::optional<std::unordered_set<std::string>>& include_columns =
         std::nullopt) {
   std::vector<parquet_type_variant> row;
@@ -104,8 +104,8 @@ inline std::vector<parquet_type_variant> read_parquet_as_variant_helper(
  * columns.
  */
 inline std::vector<parquet_type_variant> read_parquet_as_variant(
-    arrow_parquet_parser::parquet_stream_reader&       reader,
-    const arrow_parquet_parser::file_schema_container& schema) {
+    parquet_parser::parquet_stream_reader&       reader,
+    const parquet_parser::file_schema_container& schema) {
   return read_parquet_as_variant_helper(reader, schema);
 }
 
@@ -114,8 +114,8 @@ inline std::vector<parquet_type_variant> read_parquet_as_variant(
  * (string) to include.
  */
 inline std::vector<parquet_type_variant> read_parquet_as_variant(
-    arrow_parquet_parser::parquet_stream_reader&       reader,
-    const arrow_parquet_parser::file_schema_container& schema,
+    parquet_parser::parquet_stream_reader&       reader,
+    const parquet_parser::file_schema_container& schema,
     const std::unordered_set<std::string>&             include_columns) {
   return read_parquet_as_variant_helper(reader, schema, include_columns);
 }
