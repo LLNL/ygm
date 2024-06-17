@@ -171,7 +171,9 @@ class disjoint_set_impl {
           p_dset->m_cache.add_cache_entry(old_parent, new_parent,
                                           new_parent_rank_est);
 
-          item_data.second.set_parent(new_parent, new_parent_rank_est);
+          if (old_parent == item_data.second.get_parent()) {
+            item_data.second.set_parent(new_parent, new_parent_rank_est);
+          }
         };
 
     static auto resolve_merge_lambda = [](auto p_dset, auto &item_data,
@@ -313,15 +315,12 @@ class disjoint_set_impl {
 
           auto &current_entry = p_dset->m_cache.m_cache[index];
 
-          if (current_entry.occupied == false ||
-              new_parent_rank_est >= current_entry.parent_rank_est) {
-          } else {
-          }
-
           p_dset->m_cache.add_cache_entry(old_parent, new_parent,
                                           new_parent_rank_est);
 
-          item_data.second.set_parent(new_parent, new_parent_rank_est);
+          if (old_parent == item_data.second.get_parent()) {
+            item_data.second.set_parent(new_parent, new_parent_rank_est);
+          }
         };
 
     static auto resolve_merge_lambda = [](auto p_dset, auto &item_data,
