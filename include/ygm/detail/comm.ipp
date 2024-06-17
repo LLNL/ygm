@@ -144,19 +144,8 @@ inline comm::~comm() {
 
 template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
-  if (config.trace) {
-    TimeResolution event_time;
-    event_time = m_tracer.get_time();
-    m_next_message_id += size();
-    std::unique_ptr<std::unordered_map<std::string, std::any>> metadata_ptr =
-        std::make_unique<std::unordered_map<std::string, std::any>>();
-    (*metadata_ptr)["from"] = rank();
-
-    ConstEventType event_name = "async";
-
-    m_tracer.trace_event(m_next_message_id, 'b', event_name, rank(), event_time,
-                         metadata_ptr.get());
-  }
+  TimeResolution event_time;
+  if (config.trace) event_time = m_tracer.get_time();
 
   static_assert(std::is_trivially_copyable<AsyncFunction>::value &&
                     std::is_standard_layout<AsyncFunction>::value,
@@ -217,6 +206,23 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
   // Check if send buffer capacity has been exceeded
   if (!m_in_process_receive_queue) {
     flush_to_capacity();
+  }
+
+  if (config.trace) {
+    TimeResolution duration = m_tracer.get_time() - event_time;
+    m_next_message_id += size();
+    std::unique_ptr<std::unordered_map<std::string, std::any>> metadata_ptr =
+        std::make_unique<std::unordered_map<std::string, std::any>>();
+    (*metadata_ptr)["from"]         = rank();
+    (*metadata_ptr)["to"]           = dest;
+    (*metadata_ptr)["event_id"]     = m_next_message_id;
+    (*metadata_ptr)["message_size"] = bytes;
+
+    ConstEventType event_name = "async";
+    ConstEventType action     = "send";
+
+    m_tracer.trace_event(m_next_message_id, action, event_name, rank(),
+                         event_time, metadata_ptr.get(), duration);
   }
 }
 
@@ -296,10 +302,11 @@ inline void comm::barrier() {
     (*metadata_ptr)["m_recv_count"]          = m_recv_count;
     (*metadata_ptr)["m_send_count"]          = m_send_count;
     ConstEventType event_name                = "barrier";
+    ConstEventType action                    = "barrier";
     TimeResolution duration                  = m_tracer.get_time() - start_time;
 
-    m_tracer.trace_event(m_next_message_id, 'X', event_name, rank(), start_time,
-                         metadata_ptr.get(), duration);
+    m_tracer.trace_event(m_next_message_id, action, event_name, rank(),
+                         start_time, metadata_ptr.get(), duration);
   }
 }
 
@@ -942,24 +949,27 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
       iarchive.loadBinary(&h, sizeof(header_t));
 
       trace_header_t trace_h;
+      TimeResolution event_time;
       if (config.trace) {
+        event_time = m_tracer.get_time();
         iarchive.loadBinary(&trace_h, sizeof(trace_header_t));
       }
 
       if (h.dest == m_layout.rank() || (h.dest == -1 && h.message_size == 0)) {
         // TODO: load binary for tracing header if it exists
-        if (config.trace) {
-          TimeResolution event_time = m_tracer.get_time();
-          std::unique_ptr<std::unordered_map<std::string, std::any>>
-              metadata_ptr =
-                  std::make_unique<std::unordered_map<std::string, std::any>>();
-          (*metadata_ptr)["event"] = " routing recieved ";
+        // if (config.trace) {
+        //   TimeResolution event_time = m_tracer.get_time();
+        //   std::unique_ptr<std::unordered_map<std::string, std::any>>
+        //       metadata_ptr =
+        //           std::make_unique<std::unordered_map<std::string,
+        //           std::any>>();
+        //   (*metadata_ptr)["event"] = " routing recieved ";
 
-          ConstEventType event_name = "async";
+        //   ConstEventType event_name = "async";
 
-          m_tracer.trace_event(trace_h.trace_id, 'n', event_name, rank(),
-                               event_time, metadata_ptr.get());
-        }
+        //   m_tracer.trace_event(trace_h.trace_id, 'n', event_name, rank(),
+        //                        event_time, metadata_ptr.get());
+        // }
 
         uint16_t lid;
         iarchive.loadBinary(&lid, sizeof(lid));
@@ -969,34 +979,37 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
 
         // TODO: IMPLEMENTING Async 'e'
         if (config.trace) {
-          TimeResolution event_time = m_tracer.get_time();
+          TimeResolution duration = m_tracer.get_time() - event_time;
           std::unique_ptr<std::unordered_map<std::string, std::any>>
               metadata_ptr =
                   std::make_unique<std::unordered_map<std::string, std::any>>();
+          (*metadata_ptr)["from"]         = trace_h.from;
           (*metadata_ptr)["to"]           = rank();
           (*metadata_ptr)["event_id"]     = trace_h.trace_id;
           (*metadata_ptr)["message_size"] = h.message_size;
 
           ConstEventType event_name = "async";
+          ConstEventType action     = "reviece";
 
-          m_tracer.trace_event(trace_h.trace_id, 'e', event_name, rank(),
-                               event_time, metadata_ptr.get());
+          m_tracer.trace_event(trace_h.trace_id, action, event_name, rank(),
+                               event_time, metadata_ptr.get(), duration);
         }
 
       } else {
-        if (config.trace) {
-          TimeResolution event_time = m_tracer.get_time();
-          std::unique_ptr<std::unordered_map<std::string, std::any>>
-              metadata_ptr =
-                  std::make_unique<std::unordered_map<std::string, std::any>>();
-          (*metadata_ptr)["event"]        = " routing step ";
-          (*metadata_ptr)["current_rank"] = rank();
+        // if (config.trace) {
+        //   TimeResolution event_time = m_tracer.get_time();
+        //   std::unique_ptr<std::unordered_map<std::string, std::any>>
+        //       metadata_ptr =
+        //           std::make_unique<std::unordered_map<std::string,
+        //           std::any>>();
+        //   (*metadata_ptr)["event"]        = " routing step ";
+        //   (*metadata_ptr)["current_rank"] = rank();
 
-          ConstEventType event_name = "async";
+        //   ConstEventType event_name = "async";
 
-          m_tracer.trace_event(trace_h.trace_id, 'n', event_name, rank(),
-                               event_time, metadata_ptr.get());
-        }
+        //   m_tracer.trace_event(trace_h.trace_id, 'n', event_name, rank(),
+        //                        event_time, metadata_ptr.get());
+        // }
         int next_dest = m_router.next_hop(h.dest);
 
         if (m_vec_send_buffers[next_dest].empty()) {
@@ -1023,18 +1036,21 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
     } else {
       // TODO: load binary for tracing header if it exists
       trace_header_t trace_h;
+      TimeResolution event_time;
       if (config.trace) {
+        event_time = m_tracer.get_time();
         iarchive.loadBinary(&trace_h, sizeof(trace_header_t));
-        TimeResolution event_time = m_tracer.get_time();
-        std::unique_ptr<std::unordered_map<std::string, std::any>>
-            metadata_ptr =
-                std::make_unique<std::unordered_map<std::string, std::any>>();
-        (*metadata_ptr)["event"] = "recieved ";
+        // TimeResolution event_time = m_tracer.get_time();
+        // std::unique_ptr<std::unordered_map<std::string, std::any>>
+        //     metadata_ptr =
+        //         std::make_unique<std::unordered_map<std::string,
+        //         std::any>>();
+        // (*metadata_ptr)["event"] = "recieved ";
 
-        ConstEventType event_name = "async";
+        // ConstEventType event_name = "async";
 
-        m_tracer.trace_event(trace_h.trace_id, 'n', event_name, rank(),
-                             event_time, metadata_ptr.get());
+        // m_tracer.trace_event(trace_h.trace_id, 'n', event_name, rank(),
+        //                      event_time, metadata_ptr.get());
       }
 
       uint16_t lid;
@@ -1045,16 +1061,19 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
 
       // TODO: IMPLEMENTING Async 'e'
       if (config.trace) {
-        TimeResolution event_time = m_tracer.get_time();
+        TimeResolution duration = m_tracer.get_time() - event_time;
         std::unique_ptr<std::unordered_map<std::string, std::any>>
             metadata_ptr =
                 std::make_unique<std::unordered_map<std::string, std::any>>();
+        (*metadata_ptr)["from"]     = trace_h.from;
         (*metadata_ptr)["to"]       = rank();
         (*metadata_ptr)["event_id"] = trace_h.trace_id;
-        ConstEventType event_name   = "async";
 
-        m_tracer.trace_event(trace_h.trace_id, 'e', event_name, rank(),
-                             event_time, metadata_ptr.get());
+        ConstEventType event_name = "async";
+        ConstEventType action     = "reviece";
+
+        m_tracer.trace_event(trace_h.trace_id, action, event_name, rank(),
+                             event_time, metadata_ptr.get(), duration);
       }
     }
   }

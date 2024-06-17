@@ -1,5 +1,16 @@
 #pragma once
 
+#include <sys/time.h>
+#include <syscall.h>
+#include <unistd.h>
+#include <atomic>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <stack>
+#include <string>
+#include <unordered_map>
+
 #include <any>
 
 using ProcessID      = unsigned long int;
@@ -55,22 +66,22 @@ class tracer {
     output_file.write(data, size);
   }
 
-  void trace_event(int event_id, char event_type, ConstEventType event_name,
-                   int rank, TimeResolution start_time,
+  void trace_event(int event_id, ConstEventType action,
+                   ConstEventType event_name, int rank,
+                   TimeResolution                             start_time,
                    std::unordered_map<std::string, std::any> *metadata_ptr,
                    TimeResolution                             duration = 0) {
-    ThreadID tid = syscall(SYS_gettid);
-
-    ConstEventType category = "ygm";
+    ConstEventType category   = "ygm";
+    char           event_type = 'X';
 
     std::string meta_str = stream_metadata(*metadata_ptr);
 
     size = snprintf(
         data, MAX_LINE_SIZE,
         "{\"id\":\"%lu\",\"name\":\"%s\",\"cat\":\"%s\",\"pid\":\"%lu\","
-        "\"tid\":\"%lu\",\"ts\":\"%llu\",\"dur\":\"%llu\",\"ph\":\"%c\","
+        "\"tid\":\"%s\",\"ts\":\"%llu\",\"dur\":\"%llu\",\"ph\":\"%c\","
         "\"args\":{%s}},\n",
-        event_id, event_name, category, rank, tid, start_time, duration,
+        event_id, event_name, category, rank, action, start_time, duration,
         event_type, meta_str.c_str());
 
     output_file.write(data, size);
