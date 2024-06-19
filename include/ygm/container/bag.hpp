@@ -5,68 +5,194 @@
 
 #pragma once
 
+#include <cereal/archives/json.hpp>
 #include <ygm/container/container_traits.hpp>
+#include <ygm/container/detail/base_async_insert_value.hpp>
+#include <ygm/container/detail/base_iteration.hpp>
+#include <ygm/container/detail/base_misc.hpp>
+#include <ygm/container/detail/round_robin_partitioner.hpp>
 #include <ygm/random.hpp>
 
 namespace ygm::container {
-template <typename Item, typename Alloc = std::allocator<Item>>
-class bag {
+
+template <typename Item>
+class bag : public detail::base_async_insert_value<bag<Item>, Item>,
+            public detail::base_misc<bag<Item>>,
+            public detail::base_iteration<bag<Item>, std::tuple<Item>> {
+  friend class detail::base_misc<bag<Item>>;
+
  public:
-  using self_type          = bag<Item, Alloc>;
+  using self_type          = bag<Item>;
   using value_type         = Item;
   using size_type          = size_t;
-  using ygm_for_all_types  = std::tuple<Item>;
+  using for_all_args       = std::tuple<Item>;
   using ygm_container_type = ygm::container::bag_tag;
 
-  bag(ygm::comm &comm);
-  ~bag();
+  bag(ygm::comm &comm) : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+  }
+  ~bag() { m_comm.barrier(); }
 
-  void async_insert(const value_type &item);
-  void async_insert(const value_type &item, int dest);
-  void async_insert(const std::vector<value_type> &items, int dest);
+  using detail::base_async_insert_value<bag<Item>, Item>::async_insert;
+
+  void async_insert(const Item &value, int dest) {
+    auto inserter = [](auto pcont, const value_type &item) {
+      pcont->local_insert(item);
+    };
+
+    m_comm.async(dest, inserter, this->get_ygm_ptr(), value);
+  }
+
+  void async_insert(const std::vector<Item> &values, int dest) {
+    auto inserter = [](auto pcont, const std::vector<Item> &values) {
+      for (const auto &v : values) {
+        pcont->local_insert(v);
+      }
+    };
+
+    m_comm.async(dest, inserter, this->get_ygm_ptr(), values);
+  }
+
+  void local_insert(const Item &val) { m_local_bag.push_back(val); }
+
+  void local_clear() { m_local_bag.clear(); }
+
+  size_t local_size() const { return m_local_bag.size(); }
 
   template <typename Function>
-  void for_all(Function fn);
+  void local_for_all(Function fn) {
+    std::for_each(m_local_bag.begin(), m_local_bag.end(), fn);
+  }
 
-  void clear();
+  template <typename Function>
+  void local_for_all(Function fn) const {
+    std::for_each(m_local_bag.cbegin(), m_local_bag.cend(), fn);
+  }
 
-  size_type size();
-  size_type local_size();
+  void serialize(const std::string &fname) {
+    m_comm.barrier();
+    std::string   rank_fname = fname + std::to_string(m_comm.rank());
+    std::ofstream os(rank_fname, std::ios::binary);
+    cereal::JSONOutputArchive oarchive(os);
+    // oarchive(m_local_bag, m_round_robin, m_comm.size());
+    oarchive(m_local_bag, m_comm.size());
+  }
 
-  void rebalance();
+  void deserialize(const std::string &fname) {
+    m_comm.barrier();
 
-  void swap(self_type &s);
+    std::string   rank_fname = fname + std::to_string(m_comm.rank());
+    std::ifstream is(rank_fname, std::ios::binary);
+
+    cereal::JSONInputArchive iarchive(is);
+    int                      comm_size;
+    // iarchive(m_local_bag, m_round_robin, comm_size);
+    iarchive(m_local_bag, comm_size);
+
+    if (comm_size != m_comm.size()) {
+      m_comm.cerr0(
+          "Attempting to deserialize bag_impl using communicator of "
+          "different size than serialized with");
+    }
+  }
+
+  void rebalance() {
+    auto global_size = this->size();  // includes barrier
+
+    // Find current rank's prefix val and desired target size
+    size_t prefix_val  = ygm::prefix_sum(local_size(), m_comm);
+    size_t target_size = std::ceil((global_size * 1.0) / m_comm.size());
+
+    // Init to_send array where index is dest and value is the num to send
+    // int to_send[m_comm.size()] = {0};
+    std::unordered_map<size_t, size_t> to_send;
+
+    size_t small_block_size = global_size / m_comm.size();
+    size_t large_block_size =
+        global_size / m_comm.size() + ((global_size / m_comm.size()) > 0);
+
+    for (size_t i = 0; i < local_size(); i++) {
+      size_t idx = prefix_val + i;
+      size_t target_rank;
+
+      // Determine target rank to match partitioning in ygm::container::array
+      if (idx < (global_size % m_comm.size()) * large_block_size) {
+        target_rank = idx / large_block_size;
+      } else {
+        target_rank = (global_size % m_comm.size()) +
+                      (idx - (global_size % m_comm.size()) * large_block_size) /
+                          small_block_size;
+      }
+
+      if (target_rank != m_comm.rank()) {
+        to_send[target_rank]++;
+      }
+    }
+    m_comm.barrier();
+
+    // Build and send bag indexes as calculated by to_send
+    for (auto &kv_pair : to_send) {
+      async_insert(local_pop(kv_pair.second), kv_pair.first);
+    }
+
+    m_comm.barrier();
+  }
 
   template <typename RandomFunc>
-  void local_shuffle(RandomFunc &r);
-  void local_shuffle();
+  void local_shuffle(RandomFunc &r) {
+    m_comm.barrier();
+    std::shuffle(m_local_bag.begin(), m_local_bag.end(), r);
+  }
+
+  void local_shuffle() {
+    ygm::default_random_engine<> r(m_comm, std::random_device()());
+    local_shuffle(r);
+  }
 
   template <typename RandomFunc>
-  void global_shuffle(RandomFunc &r);
-  void global_shuffle();
+  void global_shuffle(RandomFunc &r) {
+    m_comm.barrier();
+    std::vector<value_type> old_local_bag;
+    std::swap(old_local_bag, m_local_bag);
 
-  template <typename Function>
-  void local_for_all(Function fn);
+    auto send_item = [](auto bag, const value_type &item) {
+      bag->m_local_bag.push_back(item);
+    };
 
-  ygm::comm &comm();
+    std::uniform_int_distribution<> distrib(0, m_comm.size() - 1);
+    for (value_type i : old_local_bag) {
+      m_comm.async(distrib(r), send_item, pthis, i);
+    }
+  }
 
-  void                    serialize(const std::string &fname);
-  void                    deserialize(const std::string &fname);
-  std::vector<value_type> gather_to_vector(int dest);
-  std::vector<value_type> gather_to_vector();
+  void global_shuffle() {
+    ygm::default_random_engine<> r(m_comm, std::random_device()());
+    global_shuffle(r);
+  }
+
+  //  private:
+  //   template <typename Function∏>
+  //   void local_for_all_pair_types(Function fn);
+
+  detail::round_robin_partitioner partitioner;
 
  private:
-  std::vector<value_type> local_pop(int n);
+  std::vector<value_type> local_pop(int n) {
+    ASSERT_RELEASE(n <= local_size());
 
-  template <typename Function>
-  void local_for_all_pair_types(Function fn);
+    size_t                  new_size  = local_size() - n;
+    auto                    pop_start = m_local_bag.begin() + new_size;
+    std::vector<value_type> ret;
+    ret.assign(pop_start, m_local_bag.end());
+    m_local_bag.resize(new_size);
+    return ret;
+  }
 
- private:
-  size_t                           m_round_robin = 0;
+  void local_swap(self_type &other) { m_local_bag.swap(other.m_local_bag); }
+
   ygm::comm                       &m_comm;
   std::vector<value_type>          m_local_bag;
   typename ygm::ygm_ptr<self_type> pthis;
 };
-}  // namespace ygm::container
 
-#include <ygm/container/detail/bag.ipp>
+}  // namespace ygm::container
