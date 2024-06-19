@@ -33,6 +33,26 @@ class bag : public detail::base_async_insert<bag<Item>, std::tuple<Item>>,
   }
   ~bag() { m_comm.barrier(); }
 
+  bag(const self_type &other)
+      : m_comm(other.comm), pthis(this), partitioner(other.comm) {
+    pthis.check(m_comm);
+  }
+
+  bag(self_type &&other) noexcept
+      : m_comm(other.comm),
+        pthis(this),
+        partitioner(other.comm),
+        m_local_bag(std::move(other.m_local_bag)) {
+    pthis.check(m_comm);
+  }
+
+  bag &operator=(const self_type &other) { return *this = bag(other); }
+
+  bag &operator=(self_type &&other) noexcept {
+    std::swap(m_local_bag, other.m_local_bag);
+    return *this;
+  }
+
   using detail::base_async_insert<bag<Item>, for_all_args>::async_insert;
 
   void async_insert(const Item &value, int dest) {
