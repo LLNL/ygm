@@ -13,13 +13,13 @@ namespace ygm::container {
 template <typename Value, typename Index = size_t>
 class array {
  public:
-  using self_type          = array<Value, Index>;
-  using mapped_type        = Value;
-  using key_type           = Index;
-  using size_type          = Index;
-  using ygm_for_all_types  = std::tuple<Index, Value>;
-  using ygm_container_type = ygm::container::array_tag;
-  using ptr_type           = typename ygm::ygm_ptr<self_type>;
+  using self_type         = array<Value, Index>;
+  using mapped_type       = Value;
+  using key_type          = Index;
+  using size_type         = Index;
+  using ygm_for_all_types = std::tuple<Index, Value>;
+  using container_type    = ygm::container::array_tag;
+  using ptr_type          = typename ygm::ygm_ptr<self_type>;
 
   array() = delete;
 

@@ -76,11 +76,11 @@ template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
           class Alloc      = std::allocator<const Key>>
 class set {
  public:
-  using self_type          = set<Key, Partitioner, Compare, Alloc>;
-  using key_type           = Key;
-  using size_type          = size_t;
-  using ygm_container_type = ygm::container::set_tag;
-  using ygm_for_all_types  = std::tuple<Key>;
+  using self_type         = set<Key, Partitioner, Compare, Alloc>;
+  using key_type          = Key;
+  using size_type         = size_t;
+  using container_type    = ygm::container::set_tag;
+  using ygm_for_all_types = std::tuple<Key>;
   using impl_type = detail::set_impl<key_type, Partitioner, Compare, Alloc>;
 
   Partitioner partitioner;

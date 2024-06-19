@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include <ygm/container/detail/map_impl.hpp>
 #include <ygm/container/container_traits.hpp>
+#include <ygm/container/detail/map_impl.hpp>
 
 namespace ygm::container {
 
@@ -16,12 +16,12 @@ template <typename Key, typename Value,
           class Alloc          = std::allocator<std::pair<const Key, Value>>>
 class map {
  public:
-  using self_type           = map<Key, Value, Partitioner, Compare, Alloc>;
-  using mapped_type         = Value;
-  using key_type            = Key;
-  using size_type           = size_t;
-  using ygm_for_all_types   = std::tuple< Key, Value >;
-  using ygm_container_type  = ygm::container::map_tag;
+  using self_type         = map<Key, Value, Partitioner, Compare, Alloc>;
+  using mapped_type       = Value;
+  using key_type          = Key;
+  using size_type         = size_t;
+  using ygm_for_all_types = std::tuple<Key, Value>;
+  using container_type    = ygm::container::map_tag;
   using impl_type =
       detail::map_impl<key_type, mapped_type, Partitioner, Compare, Alloc>;
 
@@ -65,9 +65,9 @@ class map {
   }
 
   template <typename Visitor, typename... VisitorArgs>
-  void async_insert_if_missing_else_visit(const key_type&   key,
+  void async_insert_if_missing_else_visit(const key_type&    key,
                                           const mapped_type& value,
-                                          Visitor           visitor,
+                                          Visitor            visitor,
                                           const VisitorArgs&... args) {
     m_impl.async_insert_if_missing_else_visit(
         key, value, visitor, std::forward<const VisitorArgs>(args)...);
@@ -118,7 +118,8 @@ class map {
     return to_return;
   }
 
-  std::map<key_type, mapped_type> all_gather(const std::vector<key_type>& keys) {
+  std::map<key_type, mapped_type> all_gather(
+      const std::vector<key_type>& keys) {
     std::map<key_type, mapped_type> to_return;
     m_impl.all_gather(keys, to_return);
     return to_return;
@@ -128,7 +129,7 @@ class map {
 
   template <typename CompareFunction>
   std::vector<std::pair<key_type, mapped_type>> topk(size_t          k,
-                                                    CompareFunction cfn) {
+                                                     CompareFunction cfn) {
     return m_impl.topk(k, cfn);
   }
 
@@ -144,10 +145,10 @@ template <typename Key, typename Value,
           class Alloc          = std::allocator<std::pair<const Key, Value>>>
 class multimap {
  public:
-  using self_type     = multimap<Key, Value, Partitioner, Compare, Alloc>;
-  using mapped_type   = Value;
-  using key_type      = Key;
-  using size_type     = size_t;
+  using self_type   = multimap<Key, Value, Partitioner, Compare, Alloc>;
+  using mapped_type = Value;
+  using key_type    = Key;
+  using size_type   = size_t;
   using impl_type =
       detail::map_impl<key_type, mapped_type, Partitioner, Compare, Alloc>;
   multimap() = delete;
@@ -235,7 +236,7 @@ class multimap {
 
   template <typename CompareFunction>
   std::vector<std::pair<key_type, mapped_type>> topk(size_t          k,
-                                                    CompareFunction cfn) {
+                                                     CompareFunction cfn) {
     return m_impl.topk(k, cfn);
   }
 

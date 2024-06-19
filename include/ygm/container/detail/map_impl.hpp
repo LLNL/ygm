@@ -23,13 +23,13 @@ template <typename Key, typename Value,
           class Alloc          = std::allocator<std::pair<const Key, Value>>>
 class map_impl {
  public:
-  using self_type          = map_impl<Key, Value, Partitioner, Compare, Alloc>;
-  using ptr_type           = typename ygm::ygm_ptr<self_type>;
-  using mapped_type        = Value;
-  using key_type           = Key;
-  using size_type          = size_t;
-  using ygm_for_all_types  = std::tuple<Key, Value>;
-  using ygm_container_type = ygm::container::map_tag;
+  using self_type         = map_impl<Key, Value, Partitioner, Compare, Alloc>;
+  using ptr_type          = typename ygm::ygm_ptr<self_type>;
+  using mapped_type       = Value;
+  using key_type          = Key;
+  using size_type         = size_t;
+  using ygm_for_all_types = std::tuple<Key, Value>;
+  using container_type    = ygm::container::map_tag;
 
   Partitioner partitioner;
 

@@ -9,7 +9,7 @@
 
 namespace ygm::container::detail {
 
-template <typename derived_type>
+template <typename derived_type, typename for_all_args>
 struct base_misc {
   size_t size() const {
     const derived_type* derived_this = static_cast<const derived_type*>(this);

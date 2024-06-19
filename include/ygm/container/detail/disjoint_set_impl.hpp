@@ -20,14 +20,14 @@ class disjoint_set_impl {
  public:
   struct data_t;
 
-  using self_type          = disjoint_set_impl<Item, Partitioner>;
-  using self_ygm_ptr_type  = typename ygm::ygm_ptr<self_type>;
-  using value_type         = Item;
-  using size_type          = size_t;
-  using ygm_for_all_types  = std::tuple<Item, Item>;
-  using ygm_container_type = ygm::container::disjoint_set_tag;
-  using rank_type          = int16_t;
-  using item_map_type      = std::map<value_type, data_t>;
+  using self_type         = disjoint_set_impl<Item, Partitioner>;
+  using self_ygm_ptr_type = typename ygm::ygm_ptr<self_type>;
+  using value_type        = Item;
+  using size_type         = size_t;
+  using ygm_for_all_types = std::tuple<Item, Item>;
+  using container_type    = ygm::container::disjoint_set_tag;
+  using rank_type         = int16_t;
+  using item_map_type     = std::map<value_type, data_t>;
 
   Partitioner partitioner;
 

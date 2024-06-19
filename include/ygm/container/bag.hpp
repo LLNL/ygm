@@ -7,7 +7,7 @@
 
 #include <cereal/archives/json.hpp>
 #include <ygm/container/container_traits.hpp>
-#include <ygm/container/detail/base_async_insert_value.hpp>
+#include <ygm/container/detail/base_async_insert.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_misc.hpp>
 #include <ygm/container/detail/round_robin_partitioner.hpp>
@@ -16,24 +16,24 @@
 namespace ygm::container {
 
 template <typename Item>
-class bag : public detail::base_async_insert_value<bag<Item>, Item>,
-            public detail::base_misc<bag<Item>>,
+class bag : public detail::base_async_insert<bag<Item>, std::tuple<Item>>,
+            public detail::base_misc<bag<Item>, std::tuple<Item>>,
             public detail::base_iteration<bag<Item>, std::tuple<Item>> {
-  friend class detail::base_misc<bag<Item>>;
+  friend class detail::base_misc<bag<Item>, std::tuple<Item>>;
 
  public:
-  using self_type          = bag<Item>;
-  using value_type         = Item;
-  using size_type          = size_t;
-  using for_all_args       = std::tuple<Item>;
-  using ygm_container_type = ygm::container::bag_tag;
+  using self_type      = bag<Item>;
+  using value_type     = Item;
+  using size_type      = size_t;
+  using for_all_args   = std::tuple<Item>;
+  using container_type = ygm::container::bag_tag;
 
   bag(ygm::comm &comm) : m_comm(comm), pthis(this), partitioner(comm) {
     pthis.check(m_comm);
   }
   ~bag() { m_comm.barrier(); }
 
-  using detail::base_async_insert_value<bag<Item>, Item>::async_insert;
+  using detail::base_async_insert<bag<Item>, for_all_args>::async_insert;
 
   void async_insert(const Item &value, int dest) {
     auto inserter = [](auto pcont, const value_type &item) {

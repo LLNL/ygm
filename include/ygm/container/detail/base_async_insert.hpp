@@ -5,17 +5,21 @@
 
 #pragma once
 
+#include <tuple>
+
 namespace ygm::container::detail {
 
-template <typename derived_type, typename value_type>
-
-struct base_async_insert_value {
-  void async_insert(const value_type& value) {
+template <typename derived_type, typename for_all_args>
+struct base_async_insert {
+  void async_insert(const std::tuple_element<0, for_all_args>::type& value)
+    requires(std::tuple_size_v<for_all_args> == 1)
+  {
     derived_type* derived_this = static_cast<derived_type*>(this);
 
     int dest = derived_this->partitioner.owner(value);
 
-    auto inserter = [](auto pcont, const value_type& item) {
+    auto inserter = [](auto                                             pcont,
+                       const std::tuple_element<0, for_all_args>::type& item) {
       pcont->local_insert(item);
     };
 
