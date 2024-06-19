@@ -12,9 +12,10 @@
 
 namespace ygm::container {
 
-template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
-          typename Compare = std::less<Key>,
-          class Alloc      = std::allocator<std::pair<const Key, size_t>>>
+template <typename Key,
+          typename Partitioner = detail::old_hash_partitioner<Key>,
+          typename Compare     = std::less<Key>,
+          class Alloc          = std::allocator<std::pair<const Key, size_t>>>
 class counting_set {
  public:
   using self_type         = counting_set<Key, Partitioner, Compare, Alloc>;

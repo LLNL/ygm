@@ -11,7 +11,7 @@
 namespace ygm::container {
 
 template <typename Key, typename Value,
-          typename Partitioner = detail::hash_partitioner<Key>,
+          typename Partitioner = detail::old_hash_partitioner<Key>,
           typename Compare     = std::less<Key>,
           class Alloc          = std::allocator<std::pair<const Key, Value>>>
 class map {
@@ -140,7 +140,7 @@ class map {
 };
 
 template <typename Key, typename Value,
-          typename Partitioner = detail::hash_partitioner<Key>,
+          typename Partitioner = detail::old_hash_partitioner<Key>,
           typename Compare     = std::less<Key>,
           class Alloc          = std::allocator<std::pair<const Key, Value>>>
 class multimap {

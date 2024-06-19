@@ -15,9 +15,10 @@
 namespace ygm::container::experimental::detail {
 
 template <typename Key, typename Value,
-          typename Partitioner = ygm::container::detail::hash_partitioner<Key>,
-          typename Compare     = std::less<Key>,
-          class Alloc          = std::allocator<std::pair<const Key, Value>>>
+          typename Partitioner =
+              ygm::container::detail::old_hash_partitioner<Key>,
+          typename Compare = std::less<Key>,
+          class Alloc      = std::allocator<std::pair<const Key, Value>>>
 class maptrix_impl {
  public:
   using key_type   = Key;

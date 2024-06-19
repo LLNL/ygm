@@ -10,9 +10,9 @@
 
 namespace ygm::container {
 
-template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
-          typename Compare = std::less<Key>,
-          class Alloc      = std::allocator<const Key>>
+template <
+    typename Key, typename Partitioner = detail::old_hash_partitioner<Key>,
+    typename Compare = std::less<Key>, class Alloc = std::allocator<const Key>>
 class multiset {
  public:
   using self_type         = multiset<Key, Partitioner, Compare, Alloc>;
@@ -71,9 +71,9 @@ class multiset {
   impl_type m_impl;
 };
 
-template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
-          typename Compare = std::less<Key>,
-          class Alloc      = std::allocator<const Key>>
+template <
+    typename Key, typename Partitioner = detail::old_hash_partitioner<Key>,
+    typename Compare = std::less<Key>, class Alloc = std::allocator<const Key>>
 class set {
  public:
   using self_type         = set<Key, Partitioner, Compare, Alloc>;

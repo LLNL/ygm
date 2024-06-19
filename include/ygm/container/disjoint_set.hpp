@@ -9,7 +9,8 @@
 #include <ygm/container/detail/disjoint_set_impl.hpp>
 
 namespace ygm::container {
-template <typename Item, typename Partitioner = detail::hash_partitioner<Item>>
+template <typename Item,
+          typename Partitioner = detail::old_hash_partitioner<Item>>
 class disjoint_set {
  public:
   using self_type         = disjoint_set<Item, Partitioner>;
