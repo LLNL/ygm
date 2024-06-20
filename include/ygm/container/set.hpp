@@ -9,156 +9,85 @@
 #include <ygm/container/detail/set_impl.hpp>
 
 namespace ygm::container {
+template <typename Item>
+class set : public detail::base_async_insert<set<Item>, std::tuple<Item>>,
+            public detail::base_misc<set<Item>, std::tuple<Item>>,
+            public detail::base_iteration<set<Item>, std::tuple<Item>> { 
+  friend class detail::base_misc<set<Item>, std::tuple<Item>;
 
-template <
-    typename Key, typename Partitioner = detail::old_hash_partitioner<Key>,
-    typename Compare = std::less<Key>, class Alloc = std::allocator<const Key>>
-class multiset {
- public:
-  using self_type         = multiset<Key, Partitioner, Compare, Alloc>;
-  using key_type          = Key;
-  using size_type         = size_t;
-  using ygm_for_all_types = std::tuple<Key>;
-  using impl_type = detail::set_impl<key_type, Partitioner, Compare, Alloc>;
+  public:
 
-  Partitioner partitioner;
+    using self_type         = set<Item>;
+    using value_type        = Item;
+    using size_type         = size_t;
+    using for_all_args      = std::tuple<Item>;
+    using container_type    = ygm::container::set_tag;
 
-  multiset() = delete;
+    set(ygm::comm& comm) : m_comm(comm), partitionier(comm) {
+      pthis.check(m_comm);
+    }
 
-  multiset(ygm::comm& comm) : m_impl(comm) {}
+    set(const self_type &other) 
+        : m_comm(other.comm), pthis(this), partitioner(other.comm) {
+      pthis.check(m_comm); // What is other.comm? Is this supposed to be other.comm()?
+    }
 
-  void async_insert(const key_type& key) { m_impl.async_insert_multi(key); }
+    set(self_type &&other) noexcept
+        : m_comm(other.comm),
+          pthis(this),
+          partitioner(other.comm),
+          m_local_set(std::move(other.m_local_set)) {
+      pthis.check(m_comm);
+    }
 
-  void async_erase(const key_type& key) { m_impl.async_erase(key); }
+    ~set() { m_comm.barrier(); }
 
-  template <typename Function>
-  void for_all(Function fn) {
-    m_impl.for_all(fn);
-  }
+    set() = delete;
 
-  template <typename Function>
-  void consume_all(Function fn) {
-    m_impl.consume_all(fn);
-  }
+    set &operator=(const self_type &other) {
+      return *this = set(other);
+    }
 
-  void clear() { m_impl.clear(); }
+    set &operator=(self_type &&other) noexcept {
+      std::swap(m_local_set, other.m_local_set);
+      return *this;
+    }
 
-  size_type size() { return m_impl.size(); }
+    using detail::base_async_insert<set<Item>, for_all_args>::async_insert;
 
-  bool empty() { return m_impl.size() == 0; }
+    void local_insert(const Item &val) { m_local_set.insert(val); }
 
-  size_t count(const key_type& key) { return m_impl.count(key); }
+    void local_clear() { m_local_set.clear(); }
 
-  void swap(self_type& s) { return m_impl.swap(s.m_impl); }
+    size_t local_size() const { return m_local_set.size(); }
 
-  void serialize(const std::string& fname) { m_impl.serialize(fname); }
-  void deserialize(const std::string& fname) { m_impl.deserialize(fname); }
+    template <typename Function>
+    void local_for_all(Function fn) {
+      std::for_each(m_local_set.begin(), m_local_set.end(), fn)
+    }
 
-  typename ygm::ygm_ptr<impl_type> get_ygm_ptr() const {
-    return m_impl.get_ygm_ptr();
-  }
+    template <typename Function>
+    void local_for_all(Function fn) const {
+      std::for_each(m_local_set.cbegin(), m_local_set.cend(), fn)
+    }
 
-  template <typename Function>
-  void local_for_all(Function fn) {
-    m_impl.local_for_all(fn);
-  }
+    void serialize(const std::string &fname) {
+    }
 
-  int owner(const key_type& key) const { return m_impl.owner(key); }
+    void deserialize(const std::string &fname) {
+    }
 
-  ygm::comm& comm() { return m_impl.comm(); }
+    detail::hash_partitioner             partitioner;
 
- private:
-  impl_type m_impl;
-};
+  private:
 
-template <
-    typename Key, typename Partitioner = detail::old_hash_partitioner<Key>,
-    typename Compare = std::less<Key>, class Alloc = std::allocator<const Key>>
-class set {
- public:
-  using self_type         = set<Key, Partitioner, Compare, Alloc>;
-  using key_type          = Key;
-  using size_type         = size_t;
-  using container_type    = ygm::container::set_tag;
-  using ygm_for_all_types = std::tuple<Key>;
-  using impl_type = detail::set_impl<key_type, Partitioner, Compare, Alloc>;
+    void local_swap(self_type &other) {
+      m_local_set.swap(other.m_local_set);
+    }
 
-  Partitioner partitioner;
-
-  set() = delete;
-
-  set(ygm::comm& comm) : m_impl(comm) {}
-
-  void async_insert(const key_type& key) { m_impl.async_insert_unique(key); }
-
-  void async_erase(const key_type& key) { m_impl.async_erase(key); }
-
-  template <typename Visitor, typename... VisitorArgs>
-  void async_insert_exe_if_missing(const key_type& key, Visitor visitor,
-                                   const VisitorArgs&... args) {
-    m_impl.async_insert_exe_if_missing(
-        key, visitor, std::forward<const VisitorArgs>(args)...);
-  }
-
-  template <typename Visitor, typename... VisitorArgs>
-  void async_insert_exe_if_contains(const key_type& key, Visitor visitor,
-                                    const VisitorArgs&... args) {
-    m_impl.async_insert_exe_if_contains(
-        key, visitor, std::forward<const VisitorArgs>(args)...);
-  }
-
-  template <typename Visitor, typename... VisitorArgs>
-  void async_exe_if_missing(const key_type& key, Visitor visitor,
-                            const VisitorArgs&... args) {
-    m_impl.async_exe_if_missing(key, visitor,
-                                std::forward<const VisitorArgs>(args)...);
-  }
-
-  template <typename Visitor, typename... VisitorArgs>
-  void async_exe_if_contains(const key_type& key, Visitor visitor,
-                             const VisitorArgs&... args) {
-    m_impl.async_exe_if_contains(key, visitor,
-                                 std::forward<const VisitorArgs>(args)...);
-  }
-
-  template <typename Function>
-  void for_all(Function fn) {
-    m_impl.for_all(fn);
-  }
-
-  template <typename Function>
-  void consume_all(Function fn) {
-    m_impl.consume_all(fn);
-  }
-
-  void clear() { m_impl.clear(); }
-
-  size_type size() { return m_impl.size(); }
-
-  bool empty() { return m_impl.size() == 0; }
-
-  size_t count(const key_type& key) { return m_impl.count(key); }
-
-  void swap(self_type& s) { return m_impl.swap(s.m_impl); }
-
-  void serialize(const std::string& fname) { m_impl.serialize(fname); }
-  void deserialize(const std::string& fname) { m_impl.deserialize(fname); }
-
-  typename ygm::ygm_ptr<impl_type> get_ygm_ptr() const {
-    return m_impl.get_ygm_ptr();
-  }
-
-  template <typename Function>
-  void local_for_all(Function fn) {
-    m_impl.local_for_all(fn);
-  }
-
-  int owner(const key_type& key) const { return m_impl.owner(key); }
-
-  ygm::comm& comm() { return m_impl.comm(); }
-
- private:
-  impl_type m_impl;
+    ygm::comm                         &m_comm;
+    std::set<value_type>               m_local_set;
+    typename ygm::ygm_ptr<self_type>   pthis; 
 };
 
 }  // namespace ygm::container
