@@ -63,9 +63,13 @@ add_ygm_test(test_recursion_progress)
 
 if (Boost_FOUND)
     add_ygm_seq_test(test_cereal_boost_json)
+    add_ygm_seq_test(test_cereal_boost_container)
     add_ygm_test(test_ndjson_parser)
     target_include_directories(
         SEQ_test_cereal_boost_json PUBLIC ${Boost_INCLUDE_DIRS}
+    )
+    target_include_directories(
+            SEQ_test_cereal_boost_container PUBLIC ${Boost_INCLUDE_DIRS}
     )
     target_include_directories(
         MPI_test_ndjson_parser PUBLIC ${Boost_INCLUDE_DIRS}
