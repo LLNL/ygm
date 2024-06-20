@@ -27,7 +27,7 @@ jobs:
         uses: actions/cache@v4
         id: cache-boost
         with:
-          path: "~/boost_1_78_0"
+          path: "~/boost_1_77_0"
           key: ${{ runner.os }}-libboost1.77
       - name: Install boost
         if: steps.cache-boost.outputs.cache-hit != 'true'
