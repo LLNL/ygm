@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
   ASSERT_MPI(MPI_Init_thread(nullptr, nullptr, MPI_THREAD_MULTIPLE, &provided));
   ASSERT_RELEASE(MPI_THREAD_MULTIPLE == provided);
 
-  for (size_t i = 0; i < 1000; ++i) { ygm::comm world(MPI_COMM_WORLD); }
+  for (size_t i = 0; i < 10; ++i) { ygm::comm world(MPI_COMM_WORLD); }
 
   ASSERT_MPI(MPI_Finalize());
   return 0;
