@@ -864,7 +864,7 @@ inline void comm::queue_message_bytes(const std::vector<std::byte> &packed,
   m_send_buffer_bytes += packed.size();
 }
 
-inline void comm::handle_next_receive(std::shared_ptr<std::vector<std::byte>> buffer,
+inline void comm::handle_next_receive(std::shared_ptr<std::vector<std::byte>> &buffer,
                                       const size_t buffer_size) {
   cereal::YGMInputArchive iarchive(buffer.get()->data(), buffer_size);
   while (!iarchive.empty()) {
