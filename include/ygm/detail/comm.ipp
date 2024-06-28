@@ -124,6 +124,16 @@ inline void comm::stats_print(const std::string &name, std::ostream &os) {
 inline comm::~comm() {
   barrier();
 
+  for (int i = 0; i < m_layout.size(); i++) {
+    if (rank() == i) {
+      std::cout << rank() << ": send_buffer_count = " << send_buffer_count
+                << std::endl;
+      std::cout << rank() << ": receive_buffer_count = " << receive_buffer_count
+                << std::endl;
+      // std::cout << "send_buffer_count = " << send_buffer_count << std::endl;
+    }
+  }
+
   ASSERT_RELEASE(MPI_Barrier(m_comm_async) == MPI_SUCCESS);
 
   ASSERT_RELEASE(m_send_queue.empty());
@@ -572,6 +582,22 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
         // std::cout << m_layout.rank() << ": iallreduce_complete: " <<
         // global_counts[0] << " " << global_counts[1] << std::endl;
       } else {
+        receive_buffer_barrier_count++;
+        receive_buffer_count++;
+
+        if (config.trace) {
+          TimeResolution event_time = m_tracer.get_time();
+          std::unique_ptr<std::unordered_map<std::string, std::any>>
+              metadata_ptr =
+                  std::make_unique<std::unordered_map<std::string, std::any>>();
+          (*metadata_ptr)["type"] = "barrier_reduce_counts";
+
+          ConstEventType event_name = "mpi";
+          ConstEventType action     = "mpi_receive";
+
+          m_tracer.trace_event(0, action, event_name, rank(), event_time,
+                               metadata_ptr.get());
+        }
         mpi_irecv_request req_buffer = m_recv_queue.front();
         m_recv_queue.pop_front();
         int buffer_size{0};
@@ -610,6 +636,21 @@ inline void comm::flush_send_buffer(int dest) {
                            MPI_BYTE, dest, 0, m_comm_async,
                            &(request.request)));
     }
+
+    send_buffer_count++;
+    if (config.trace) {
+      TimeResolution event_time = m_tracer.get_time();
+      std::unique_ptr<std::unordered_map<std::string, std::any>> metadata_ptr =
+          std::make_unique<std::unordered_map<std::string, std::any>>();
+      (*metadata_ptr)["type"] = "mpi_send";
+
+      ConstEventType event_name = "mpi";
+      ConstEventType action     = "mpi_send";
+
+      m_tracer.trace_event(0, action, event_name, rank(), event_time,
+                           metadata_ptr.get());
+    }
+
     stats.isend(dest, request.buffer->size());
     m_pending_isend_bytes += request.buffer->size();
     m_send_buffer_bytes -= request.buffer->size();
@@ -956,21 +997,6 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
       }
 
       if (h.dest == m_layout.rank() || (h.dest == -1 && h.message_size == 0)) {
-        // TODO: load binary for tracing header if it exists
-        // if (config.trace) {
-        //   TimeResolution event_time = m_tracer.get_time();
-        //   std::unique_ptr<std::unordered_map<std::string, std::any>>
-        //       metadata_ptr =
-        //           std::make_unique<std::unordered_map<std::string,
-        //           std::any>>();
-        //   (*metadata_ptr)["event"] = " routing recieved ";
-
-        //   ConstEventType event_name = "async";
-
-        //   m_tracer.trace_event(trace_h.trace_id, 'n', event_name, rank(),
-        //                        event_time, metadata_ptr.get());
-        // }
-
         uint16_t lid;
         iarchive.loadBinary(&lid, sizeof(lid));
         m_lambda_map.execute(lid, this, &iarchive);
@@ -996,20 +1022,6 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
         }
 
       } else {
-        // if (config.trace) {
-        //   TimeResolution event_time = m_tracer.get_time();
-        //   std::unique_ptr<std::unordered_map<std::string, std::any>>
-        //       metadata_ptr =
-        //           std::make_unique<std::unordered_map<std::string,
-        //           std::any>>();
-        //   (*metadata_ptr)["event"]        = " routing step ";
-        //   (*metadata_ptr)["current_rank"] = rank();
-
-        //   ConstEventType event_name = "async";
-
-        //   m_tracer.trace_event(trace_h.trace_id, 'n', event_name, rank(),
-        //                        event_time, metadata_ptr.get());
-        // }
         int next_dest = m_router.next_hop(h.dest);
 
         if (m_vec_send_buffers[next_dest].empty()) {
@@ -1040,17 +1052,6 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
       if (config.trace) {
         event_time = m_tracer.get_time();
         iarchive.loadBinary(&trace_h, sizeof(trace_header_t));
-        // TimeResolution event_time = m_tracer.get_time();
-        // std::unique_ptr<std::unordered_map<std::string, std::any>>
-        //     metadata_ptr =
-        //         std::make_unique<std::unordered_map<std::string,
-        //         std::any>>();
-        // (*metadata_ptr)["event"] = "recieved ";
-
-        // ConstEventType event_name = "async";
-
-        // m_tracer.trace_event(trace_h.trace_id, 'n', event_name, rank(),
-        //                      event_time, metadata_ptr.get());
       }
 
       uint16_t lid;
@@ -1095,7 +1096,6 @@ inline bool comm::process_receive_queue() {
     m_in_process_receive_queue = false;
     return received_to_return;
   }
-
   //
   // if we have a pending iRecv, then we can issue a Testsome
   if (m_send_queue.size() > config.num_isends_wait) {
@@ -1127,6 +1127,8 @@ inline bool comm::process_receive_queue() {
         ASSERT_MPI(MPI_Get_count(&twin_status[i], MPI_BYTE, &buffer_size));
         stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
         handle_next_receive(req_buffer.buffer, buffer_size);
+
+        receive_buffer_count++;
       }
     }
   } else {
@@ -1159,6 +1161,21 @@ inline bool comm::local_process_incoming() {
     ASSERT_MPI(MPI_Test(&(m_recv_queue.front().request), &flag, &status));
     stats.irecv_test();
     if (flag) {
+      receive_buffer_count++;
+
+      if (config.trace) {
+        TimeResolution event_time = m_tracer.get_time();
+        std::unique_ptr<std::unordered_map<std::string, std::any>>
+            metadata_ptr =
+                std::make_unique<std::unordered_map<std::string, std::any>>();
+        (*metadata_ptr)["type"] = "local_process_incoming";
+
+        ConstEventType event_name = "mpi";
+        ConstEventType action     = "mpi_receive";
+
+        m_tracer.trace_event(0, action, event_name, rank(), event_time,
+                             metadata_ptr.get());
+      }
       received_to_return           = true;
       mpi_irecv_request req_buffer = m_recv_queue.front();
       m_recv_queue.pop_front();
