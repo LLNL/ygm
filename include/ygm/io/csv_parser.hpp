@@ -62,6 +62,15 @@ class csv_parser {
     m_has_headers    = true;
   }
 
+  /**
+   * @brief Checks for existence of a column label within headers
+   *
+   * @param label Header label to search for within headers
+   */
+  bool has_header(const std::string& label) {
+    return m_has_headers && (m_header_map.find(label) != m_header_map.end());
+  }
+
  private:
   line_parser m_lp;
 
