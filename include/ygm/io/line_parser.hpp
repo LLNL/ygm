@@ -48,7 +48,7 @@ class line_parser {
    * @param fn User function to execute
    */
   template <typename Function>
-  void for_all(Function fn) {
+  void for_all(Function fn, bool skip_first = false) {
     if (m_node_local_filesystem) {
       ASSERT_RELEASE(false);
       if (m_paths.empty()) return;
@@ -162,20 +162,40 @@ class line_parser {
         ASSERT_RELEASE(ifs.good());
         ifs.imbue(std::locale::classic());
         std::string line;
+        bool        first_line = false;
         // Throw away line containing bytes_begin as it was read by the previous
         // process (unless it corresponds to the beginning of a file)
         if (bytes_begin > 0) {
           ifs.seekg(bytes_begin);
           std::getline(ifs, line);
+        } else {
+          first_line = true;
         }
         // Keep reading until line containing bytes_end is read
         while (ifs.tellg() <= bytes_end && std::getline(ifs, line)) {
-          fn(line);
+          // Skip first line if necessary
+          if (not first_line || not skip_first) {
+            fn(line);
+          } else {
+          }
           // if(ifs.tellg() > bytes_end) break;
+          first_line = false;
         }
       }
       my_file_paths.clear();
     }
+  }
+
+  std::string read_first() {
+    std::string line;
+    if (m_comm.rank0()) {
+      std::ifstream ifs(m_paths[0]);
+      std::getline(ifs, line);
+    }
+
+    m_comm.mpi_bcast(line, 0, m_comm.get_mpi_comm());
+
+    return line;
   }
 
  private:
