@@ -87,7 +87,7 @@ class csv_line {
 
   void push_back(const csv_field &f) { m_csv_fields.push_back(f); }
 
-  size_type size() { return m_csv_fields.size(); }
+  size_type size() const { return m_csv_fields.size(); }
 
   reference operator[](size_type n) { return m_csv_fields[n]; }
 
