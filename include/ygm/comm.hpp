@@ -249,6 +249,7 @@ class comm {
   uint64_t receive_buffer_count         = 0;
   uint64_t receive_buffer_barrier_count = 0;
   uint64_t receive_buffer_other_count   = 0;
+  uint64_t request_count                = 0;
 
   detail::lambda_map<void (*)(comm *, cereal::YGMInputArchive *), uint16_t>
       m_lambda_map;

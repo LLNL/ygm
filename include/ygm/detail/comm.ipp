@@ -130,7 +130,7 @@ inline comm::~comm() {
                 << std::endl;
       std::cout << rank() << ": receive_buffer_count = " << receive_buffer_count
                 << std::endl;
-      // std::cout << "send_buffer_count = " << send_buffer_count << std::endl;
+      std::cout << "request = " << request_count << std::endl;
     }
   }
 
@@ -582,9 +582,7 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
         // std::cout << m_layout.rank() << ": iallreduce_complete: " <<
         // global_counts[0] << " " << global_counts[1] << std::endl;
       } else {
-        receive_buffer_barrier_count++;
         receive_buffer_count++;
-
         if (config.trace) {
           TimeResolution event_time = m_tracer.get_time();
           std::unique_ptr<std::unordered_map<std::string, std::any>>
@@ -1115,11 +1113,13 @@ inline bool comm::process_receive_queue() {
     }
     for (int i = 0; i < outcount; ++i) {
       if (twin_indices[i] == 0) {  // completed a iSend
+        std::cout << "hello" << std::endl;
         m_pending_isend_bytes -= m_send_queue.front().buffer->size();
         m_send_queue.front().buffer->clear();
         m_free_send_buffers.push_back(m_send_queue.front().buffer);
         m_send_queue.pop_front();
       } else {  // completed an iRecv -- COPIED FROM BELOW
+        receive_buffer_count++;
         received_to_return           = true;
         mpi_irecv_request req_buffer = m_recv_queue.front();
         m_recv_queue.pop_front();
@@ -1127,8 +1127,6 @@ inline bool comm::process_receive_queue() {
         ASSERT_MPI(MPI_Get_count(&twin_status[i], MPI_BYTE, &buffer_size));
         stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
         handle_next_receive(req_buffer.buffer, buffer_size);
-
-        receive_buffer_count++;
       }
     }
   } else {
@@ -1162,7 +1160,6 @@ inline bool comm::local_process_incoming() {
     stats.irecv_test();
     if (flag) {
       receive_buffer_count++;
-
       if (config.trace) {
         TimeResolution event_time = m_tracer.get_time();
         std::unique_ptr<std::unordered_map<std::string, std::any>>
