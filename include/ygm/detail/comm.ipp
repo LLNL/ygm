@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 #pragma once
+#include <iomanip>
 #include <ygm/detail/meta/functional.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
 
@@ -126,11 +127,15 @@ inline comm::~comm() {
 
   for (int i = 0; i < m_layout.size(); i++) {
     if (rank() == i) {
-      std::cout << rank() << ": send_buffer_count = " << send_buffer_count
+      std::cout << "Rank " << rank() << std::setw(30)
+                << "send_buffer_count = " << send_buffer_count << std::setw(30)
+                << "receive_buffer_count = " << receive_buffer_count
+                << std::setw(30)
+                << "receive_queue_completed = " << receive_queue_completed
+                << std::setw(30)
+                << "send_queue_completed = " << send_queue_completed
                 << std::endl;
-      std::cout << rank() << ": receive_buffer_count = " << receive_buffer_count
-                << std::endl;
-      std::cout << "request = " << request_count << std::endl;
+      // std::cout << "request = " << request_count << std::endl;
     }
   }
 
@@ -1113,13 +1118,14 @@ inline bool comm::process_receive_queue() {
     }
     for (int i = 0; i < outcount; ++i) {
       if (twin_indices[i] == 0) {  // completed a iSend
-        std::cout << "hello" << std::endl;
+        send_queue_completed++;
         m_pending_isend_bytes -= m_send_queue.front().buffer->size();
         m_send_queue.front().buffer->clear();
         m_free_send_buffers.push_back(m_send_queue.front().buffer);
         m_send_queue.pop_front();
       } else {  // completed an iRecv -- COPIED FROM BELOW
         receive_buffer_count++;
+        receive_queue_completed++;
         received_to_return           = true;
         mpi_irecv_request req_buffer = m_recv_queue.front();
         m_recv_queue.pop_front();
