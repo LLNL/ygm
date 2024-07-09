@@ -63,9 +63,13 @@ add_ygm_test(test_recursion_progress)
 
 if (Boost_FOUND)
     add_ygm_seq_test(test_cereal_boost_json)
+    add_ygm_seq_test(test_cereal_boost_container)
     add_ygm_test(test_ndjson_parser)
     target_include_directories(
         SEQ_test_cereal_boost_json PUBLIC ${Boost_INCLUDE_DIRS}
+    )
+    target_include_directories(
+            SEQ_test_cereal_boost_container PUBLIC ${Boost_INCLUDE_DIRS}
     )
     target_include_directories(
         MPI_test_ndjson_parser PUBLIC ${Boost_INCLUDE_DIRS}
@@ -73,19 +77,17 @@ if (Boost_FOUND)
 endif ()
 
 if (Arrow_FOUND AND Parquet_FOUND)
-    add_ygm_test(test_arrow_parquet_stream_reader)
-    target_link_libraries(MPI_test_arrow_parquet_stream_reader PUBLIC
-        Arrow::arrow_shared Parquet::parquet_shared)
+    add_ygm_test(test_parquet_reader)
+    link_arrow_parquet(MPI_test_parquet_reader)
 
     if (Boost_FOUND)
-        add_ygm_test(test_arrow_parquet_stream_reader_json)
-        target_include_directories(MPI_test_arrow_parquet_stream_reader_json
-            PUBLIC
-            ${Boost_INCLUDE_DIRS})
-        target_link_libraries(MPI_test_arrow_parquet_stream_reader_json PUBLIC
-            Arrow::arrow_shared Parquet::parquet_shared)
-    endif()
-endif()
+        add_ygm_test(test_parquet_reader_json)
+        target_include_directories(MPI_test_parquet_reader_json
+                PUBLIC
+                ${Boost_INCLUDE_DIRS})
+        link_arrow_parquet(MPI_test_parquet_reader_json)
+    endif ()
+endif ()
 
 #
 # Copy the testing data directory

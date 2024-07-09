@@ -8,15 +8,15 @@
 #include <filesystem>
 #include <ygm/comm.hpp>
 #include <ygm/detail/cereal_boost_json.hpp>
-#include <ygm/io/arrow_parquet_parser.hpp>
-#include <ygm/io/detail/arrow_parquet_json_converter.hpp>
+#include <ygm/io/detail/parquet2json.hpp>
+#include <ygm/io/parquet_parser.hpp>
 
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
 
   const std::string dir_name = "data/parquet_files_json/";
 
-  ygm::io::arrow_parquet_parser parquetp(world, {dir_name});
+  ygm::io::parquet_parser parquetp(world, {dir_name});
 
   static size_t cnt1 = 0;
   static size_t cnt2 = 0;

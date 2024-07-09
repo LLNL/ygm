@@ -11,9 +11,7 @@
 #include <vector>
 
 #include <ygm/comm.hpp>
-#include <ygm/io/arrow_parquet_parser.hpp>
-
-//#define NDEBUG
+#include <ygm/io/parquet_parser.hpp>
 
 namespace stdfs = std::filesystem;
 
@@ -25,10 +23,10 @@ int main(int argc, char** argv) {
   // assuming the build directory is inside the YGM root directory
   const std::string dir_name = "../test/data/parquet_files/";
 
-  // arrow_parquet_parser assumes files have identical scehma
-  ygm::io::arrow_parquet_parser parquetp(world, {dir_name});
+  // parquet_parser assumes files have identical scehma
+  ygm::io::parquet_parser parquetp(world, {dir_name});
 
-  world.cout0() << parquetp.local_file_count() << " files in " << dir_name
+  world.cout0() << parquetp.file_count() << " files in " << dir_name
                 << std::endl;
   world.cout0() << "#Fields: " << parquetp.schema().size() << std::endl;
   world.cout0() << "Schema: " << std::endl;

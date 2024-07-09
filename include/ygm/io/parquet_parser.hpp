@@ -48,21 +48,20 @@ std::ostream& operator<<(std::ostream& os, const parquet_data_type& t) {
 // Parquet file parser
 // Only supports the plain encoding.
 // Do not support nested or hierarchical columns.
-class arrow_parquet_parser {
+class parquet_parser {
  public:
-  using self_type = arrow_parquet_parser;
+  using self_type = parquet_parser;
   // 0: a column type, 1: column name
   using file_schema_container =
       std::vector<std::tuple<parquet_data_type, std::string>>;
   using parquet_stream_reader = parquet::StreamReader;
 
-  arrow_parquet_parser(ygm::comm& _comm) : m_comm(_comm), pthis(this) {
+  parquet_parser(ygm::comm& _comm) : m_comm(_comm), pthis(this) {
     pthis.check(m_comm);
   }
 
-  arrow_parquet_parser(ygm::comm&                      _comm,
-                       const std::vector<std::string>& stringpaths,
-                       bool                            recursive = false)
+  parquet_parser(ygm::comm& _comm, const std::vector<std::string>& stringpaths,
+                 bool recursive = false)
       : m_comm(_comm), pthis(this) {
     pthis.check(m_comm);
     check_paths(stringpaths, recursive);
@@ -70,7 +69,7 @@ class arrow_parquet_parser {
     m_comm.barrier();
   }
 
-  ~arrow_parquet_parser() { m_comm.barrier(); }
+  ~parquet_parser() { m_comm.barrier(); }
 
   // Returns a list of column schema information
   const file_schema_container& schema() { return m_schema; }
@@ -82,7 +81,11 @@ class arrow_parquet_parser {
     read_files(fn);
   }
 
-  size_t local_file_count() { return m_paths.size(); }
+  // Returns the number of total files
+  size_t file_count() { return m_paths.size(); }
+
+  // Returns the number of rows in all files
+  size_t row_count() { return count_all_rows(); }
 
  private:
   /// @brief Holds the information about the range of file data to be read by a
@@ -207,6 +210,16 @@ class arrow_parquet_parser {
       return false;
     }
     return true;
+  }
+
+  size_t count_all_rows() {
+    size_t total_rows = 0;
+    if (m_comm.rank0()) {
+      for (size_t i = 0; i < m_paths.size(); ++i) {
+        total_rows += count_rows(m_paths[i]);
+      }
+    }
+    return m_comm.all_reduce_sum(total_rows);
   }
 
   template <typename Function>

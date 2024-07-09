@@ -7,7 +7,7 @@
 
 #include <filesystem>
 #include <ygm/comm.hpp>
-#include <ygm/io/arrow_parquet_parser.hpp>
+#include <ygm/io/parquet_parser.hpp>
 
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
@@ -18,8 +18,8 @@ int main(int argc, char** argv) {
     // assuming the build directory is inside the YGM root directory
     const std::string dir_name = "data/parquet_files/";
 
-    // arrow_parquet_parser assumes files have identical scehma
-    ygm::io::arrow_parquet_parser parquetp(world, {dir_name});
+    // parquet_parser assumes files have identical scehma
+    ygm::io::parquet_parser parquetp(world, {dir_name});
 
     // count total number of rows in files
     size_t local_count = 0;
@@ -42,8 +42,8 @@ int main(int argc, char** argv) {
     // assuming the build directory is inside the YGM root directory
     const std::string dir_name = "data/parquet_files/";
 
-    // arrow_parquet_parser assumes files have identical scehma
-    ygm::io::arrow_parquet_parser parquetp(world, {dir_name});
+    // parquet_parser assumes files have identical scehma
+    ygm::io::parquet_parser parquetp(world, {dir_name});
 
     // read fields in each row
     struct columns {
@@ -99,15 +99,14 @@ int main(int argc, char** argv) {
     //
     // Every file contains 1 column, and thre are 11 items in total.
     // n-th item's value is 10^n, thus the sum of all value is 11,111,111,111.
-    ygm::io::arrow_parquet_parser parquetp(
-        world, {dir_name / "0.parquet",  // 0 item
-                dir_name / "1.parquet",  // 7 items
-                dir_name / "2.parquet",  // 0 item
-                dir_name / "3.parquet",  // 0 item
-                dir_name / "4.parquet",  // 2 items
-                dir_name / "5.parquet",  // 1 item
-                dir_name / "6.parquet",  // 1 item
-                dir_name / "7.parquet"}  // 0 item
+    ygm::io::parquet_parser parquetp(world, {dir_name / "0.parquet",  // 0 item
+                                             dir_name / "1.parquet",  // 7 items
+                                             dir_name / "2.parquet",  // 0 item
+                                             dir_name / "3.parquet",  // 0 item
+                                             dir_name / "4.parquet",  // 2 items
+                                             dir_name / "5.parquet",  // 1 item
+                                             dir_name / "6.parquet",  // 1 item
+                                             dir_name / "7.parquet"}  // 0 item
     );
 
     // count total number of rows in the files
