@@ -68,13 +68,13 @@ class tracer {
 
   void trace_event(int event_id, ConstEventType action,
                    ConstEventType event_name, int rank,
-                   TimeResolution                             start_time,
-                   std::unordered_map<std::string, std::any> *metadata_ptr,
-                   TimeResolution                             duration = 0) {
+                   TimeResolution                            start_time,
+                   std::unordered_map<std::string, std::any> metadata_ptr,
+                   TimeResolution                            duration = 0) {
     ConstEventType category   = "ygm";
     char           event_type = 'X';
 
-    std::string meta_str = stream_metadata(*metadata_ptr);
+    std::string meta_str = stream_metadata(metadata_ptr);
 
     size = snprintf(
         data, MAX_LINE_SIZE,

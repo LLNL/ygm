@@ -226,18 +226,17 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
   if (config.trace) {
     TimeResolution duration = m_tracer.get_time() - event_time;
     m_next_message_id += size();
-    std::unique_ptr<std::unordered_map<std::string, std::any>> metadata_ptr =
-        std::make_unique<std::unordered_map<std::string, std::any>>();
-    (*metadata_ptr)["from"]         = rank();
-    (*metadata_ptr)["to"]           = dest;
-    (*metadata_ptr)["event_id"]     = m_next_message_id;
-    (*metadata_ptr)["message_size"] = bytes;
+    std::unordered_map<std::string, std::any> metadata;
+    metadata["from"]         = rank();
+    metadata["to"]           = dest;
+    metadata["event_id"]     = m_next_message_id;
+    metadata["message_size"] = bytes;
 
     ConstEventType event_name = "async";
     ConstEventType action     = "send";
 
     m_tracer.trace_event(m_next_message_id, action, event_name, rank(),
-                         event_time, metadata_ptr.get(), duration);
+                         event_time, metadata, duration);
   }
 }
 
@@ -310,18 +309,17 @@ inline void comm::barrier() {
 
   if (config.trace) {
     m_next_message_id += size();
-    std::unique_ptr<std::unordered_map<std::string, std::any>> metadata_ptr =
-        std::make_unique<std::unordered_map<std::string, std::any>>();
-    (*metadata_ptr)["m_pending_isend_bytes"] = m_pending_isend_bytes;
-    (*metadata_ptr)["m_send_buffer_bytes"]   = m_send_buffer_bytes;
-    (*metadata_ptr)["m_recv_count"]          = m_recv_count;
-    (*metadata_ptr)["m_send_count"]          = m_send_count;
-    ConstEventType event_name                = "barrier";
-    ConstEventType action                    = "barrier";
-    TimeResolution duration                  = m_tracer.get_time() - start_time;
+    std::unordered_map<std::string, std::any> metadata;
+    metadata["m_pending_isend_bytes"] = m_pending_isend_bytes;
+    metadata["m_send_buffer_bytes"]   = m_send_buffer_bytes;
+    metadata["m_recv_count"]          = m_recv_count;
+    metadata["m_send_count"]          = m_send_count;
+    ConstEventType event_name         = "barrier";
+    ConstEventType action             = "barrier";
+    TimeResolution duration           = m_tracer.get_time() - start_time;
 
     m_tracer.trace_event(m_next_message_id, action, event_name, rank(),
-                         start_time, metadata_ptr.get(), duration);
+                         start_time, metadata, duration);
   }
 }
 
@@ -590,16 +588,14 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
         receive_buffer_count++;
         if (config.trace) {
           TimeResolution event_time = m_tracer.get_time();
-          std::unique_ptr<std::unordered_map<std::string, std::any>>
-              metadata_ptr =
-                  std::make_unique<std::unordered_map<std::string, std::any>>();
-          (*metadata_ptr)["type"] = "barrier_reduce_counts";
+          std::unordered_map<std::string, std::any> metadata;
+          metadata["type"] = "barrier_reduce_counts";
 
           ConstEventType event_name = "mpi";
           ConstEventType action     = "mpi_receive";
 
           m_tracer.trace_event(0, action, event_name, rank(), event_time,
-                               metadata_ptr.get());
+                               metadata);
         }
         mpi_irecv_request req_buffer = m_recv_queue.front();
         m_recv_queue.pop_front();
@@ -643,15 +639,13 @@ inline void comm::flush_send_buffer(int dest) {
     send_buffer_count++;
     if (config.trace) {
       TimeResolution event_time = m_tracer.get_time();
-      std::unique_ptr<std::unordered_map<std::string, std::any>> metadata_ptr =
-          std::make_unique<std::unordered_map<std::string, std::any>>();
-      (*metadata_ptr)["type"] = "mpi_send";
+      std::unordered_map<std::string, std::any> metadata;
+      metadata["type"] = "mpi_send";
 
       ConstEventType event_name = "mpi";
       ConstEventType action     = "mpi_send";
 
-      m_tracer.trace_event(0, action, event_name, rank(), event_time,
-                           metadata_ptr.get());
+      m_tracer.trace_event(0, action, event_name, rank(), event_time, metadata);
     }
 
     stats.isend(dest, request.buffer->size());
@@ -1009,19 +1003,17 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
         // TODO: IMPLEMENTING Async 'e'
         if (config.trace) {
           TimeResolution duration = m_tracer.get_time() - event_time;
-          std::unique_ptr<std::unordered_map<std::string, std::any>>
-              metadata_ptr =
-                  std::make_unique<std::unordered_map<std::string, std::any>>();
-          (*metadata_ptr)["from"]         = trace_h.from;
-          (*metadata_ptr)["to"]           = rank();
-          (*metadata_ptr)["event_id"]     = trace_h.trace_id;
-          (*metadata_ptr)["message_size"] = h.message_size;
+          std::unordered_map<std::string, std::any> metadata;
+          metadata["from"]         = trace_h.from;
+          metadata["to"]           = rank();
+          metadata["event_id"]     = trace_h.trace_id;
+          metadata["message_size"] = h.message_size;
 
           ConstEventType event_name = "async";
           ConstEventType action     = "reviece";
 
           m_tracer.trace_event(trace_h.trace_id, action, event_name, rank(),
-                               event_time, metadata_ptr.get(), duration);
+                               event_time, metadata, duration);
         }
 
       } else {
@@ -1066,18 +1058,16 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
       // TODO: IMPLEMENTING Async 'e'
       if (config.trace) {
         TimeResolution duration = m_tracer.get_time() - event_time;
-        std::unique_ptr<std::unordered_map<std::string, std::any>>
-            metadata_ptr =
-                std::make_unique<std::unordered_map<std::string, std::any>>();
-        (*metadata_ptr)["from"]     = trace_h.from;
-        (*metadata_ptr)["to"]       = rank();
-        (*metadata_ptr)["event_id"] = trace_h.trace_id;
+        std::unordered_map<std::string, std::any> metadata;
+        metadata["from"]     = trace_h.from;
+        metadata["to"]       = rank();
+        metadata["event_id"] = trace_h.trace_id;
 
         ConstEventType event_name = "async";
         ConstEventType action     = "reviece";
 
         m_tracer.trace_event(trace_h.trace_id, action, event_name, rank(),
-                             event_time, metadata_ptr.get(), duration);
+                             event_time, metadata, duration);
       }
     }
   }
@@ -1168,16 +1158,14 @@ inline bool comm::local_process_incoming() {
       receive_buffer_count++;
       if (config.trace) {
         TimeResolution event_time = m_tracer.get_time();
-        std::unique_ptr<std::unordered_map<std::string, std::any>>
-            metadata_ptr =
-                std::make_unique<std::unordered_map<std::string, std::any>>();
-        (*metadata_ptr)["type"] = "local_process_incoming";
+        std::unordered_map<std::string, std::any> metadata;
+        metadata["type"] = "local_process_incoming";
 
         ConstEventType event_name = "mpi";
         ConstEventType action     = "mpi_receive";
 
         m_tracer.trace_event(0, action, event_name, rank(), event_time,
-                             metadata_ptr.get());
+                             metadata);
       }
       received_to_return           = true;
       mpi_irecv_request req_buffer = m_recv_queue.front();
