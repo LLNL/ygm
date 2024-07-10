@@ -18,6 +18,7 @@ struct comm::mpi_irecv_request {
 struct comm::mpi_isend_request {
   std::shared_ptr<std::vector<std::byte>> buffer;
   MPI_Request                             request;
+  int32_t                                 id;
 };
 
 struct comm::header_t {
@@ -237,7 +238,7 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
     ConstEventType action     = "send";
 
     m_tracer.trace_event(m_next_message_id, action, event_name, rank(),
-                         event_time, metadata, duration);
+                         event_time, metadata, 'X', duration);
   }
 }
 
@@ -320,7 +321,7 @@ inline void comm::barrier() {
     TimeResolution duration           = m_tracer.get_time() - start_time;
 
     m_tracer.trace_event(m_next_message_id, action, event_name, rank(),
-                         start_time, metadata, duration);
+                         start_time, metadata, 'X', duration);
   }
 }
 
@@ -620,6 +621,10 @@ inline void comm::flush_send_buffer(int dest) {
   static size_t counter = 0;
   if (m_vec_send_buffers[dest].size() > 0) {
     mpi_isend_request request;
+
+    m_next_message_id += size();
+    request.id = m_next_message_id;
+
     if (m_free_send_buffers.empty()) {
       request.buffer = std::make_shared<std::vector<std::byte>>();
     } else {
@@ -646,7 +651,8 @@ inline void comm::flush_send_buffer(int dest) {
       ConstEventType event_name = "mpi";
       ConstEventType action     = "mpi_send";
 
-      m_tracer.trace_event(0, action, event_name, rank(), event_time, metadata);
+      m_tracer.trace_event(m_next_message_id, action, event_name, rank(),
+                           event_time, metadata, 'b');
     }
 
     stats.isend(dest, request.buffer->size());
@@ -1014,7 +1020,7 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
           ConstEventType action     = "reviece";
 
           m_tracer.trace_event(trace_h.trace_id, action, event_name, rank(),
-                               event_time, metadata, duration);
+                               event_time, metadata, 'X', duration);
         }
 
       } else {
@@ -1068,7 +1074,7 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
         ConstEventType action     = "reviece";
 
         m_tracer.trace_event(trace_h.trace_id, action, event_name, rank(),
-                             event_time, metadata, duration);
+                             event_time, metadata, 'X', duration);
       }
     }
   }
@@ -1110,12 +1116,21 @@ inline bool comm::process_receive_queue() {
     for (int i = 0; i < outcount; ++i) {
       if (twin_indices[i] == 0) {  // completed a iSend
         send_queue_completed++;
+        if (config.trace_mpi) {
+          TimeResolution event_time = m_tracer.get_time();
+          std::unordered_map<std::string, std::any> metadata;
+          metadata["type"]          = "mpi_send";
+          ConstEventType event_name = "mpi";
+          ConstEventType action     = "mpi_send";
+          m_tracer.trace_event(m_send_queue.front().id, action, event_name,
+                               rank(), event_time, metadata, 'e');
+        }
+
         m_pending_isend_bytes -= m_send_queue.front().buffer->size();
         m_send_queue.front().buffer->clear();
         m_free_send_buffers.push_back(m_send_queue.front().buffer);
         m_send_queue.pop_front();
       } else {  // completed an iRecv -- COPIED FROM BELOW
-        receive_buffer_count++;
         receive_queue_completed++;
         received_to_return           = true;
         mpi_irecv_request req_buffer = m_recv_queue.front();
@@ -1133,6 +1148,16 @@ inline bool comm::process_receive_queue() {
           MPI_Test(&(m_send_queue.front().request), &flag, MPI_STATUS_IGNORE));
       stats.isend_test();
       if (flag) {
+        send_queue_completed++;
+        if (config.trace_mpi) {
+          TimeResolution event_time = m_tracer.get_time();
+          std::unordered_map<std::string, std::any> metadata;
+          metadata["type"]          = "mpi_send";
+          ConstEventType event_name = "mpi";
+          ConstEventType action     = "mpi_send";
+          m_tracer.trace_event(m_send_queue.front().id, action, event_name,
+                               rank(), event_time, metadata, 'e');
+        }
         m_pending_isend_bytes -= m_send_queue.front().buffer->size();
         m_send_queue.front().buffer->clear();
         m_free_send_buffers.push_back(m_send_queue.front().buffer);

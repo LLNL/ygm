@@ -67,9 +67,8 @@ class tracer {
                    ConstEventType event_name, int rank,
                    TimeResolution                            start_time,
                    std::unordered_map<std::string, std::any> metadata_ptr,
-                   TimeResolution                            duration = 0) {
-    ConstEventType category   = "ygm";
-    char           event_type = 'X';
+                   char event_type = 'X', TimeResolution duration = 0) {
+    ConstEventType category = "ygm";
 
     std::string meta_str = stream_metadata(metadata_ptr);
 
