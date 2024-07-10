@@ -65,7 +65,7 @@ inline void comm::comm_setup(MPI_Comm c) {
     post_new_irecv(recv_buffer);
   }
 
-  if (config.trace) {
+  if (config.trace_ygm || config.trace_mpi) {
     if (rank0()) m_tracer.create_directory(config.trace_path);
     ASSERT_MPI(MPI_Barrier(c));
     m_tracer.open_file(config.trace_path, rank());
@@ -160,7 +160,7 @@ inline comm::~comm() {
 template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
   TimeResolution event_time;
-  if (config.trace) event_time = m_tracer.get_time();
+  if (config.trace_ygm) event_time = m_tracer.get_time();
 
   static_assert(std::is_trivially_copyable<AsyncFunction>::value &&
                     std::is_standard_layout<AsyncFunction>::value,
@@ -197,7 +197,8 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
 
   // TODO: Add tracing header
   size_t trace_header_bytes = 0;
-  if (config.trace) {
+  if (config.trace_ygm) {
+    m_next_message_id += size();
     trace_header_bytes = pack_tracing_header(m_vec_send_buffers[next_dest],
                                              m_next_message_id, 0);
     m_send_buffer_bytes += trace_header_bytes;
@@ -211,7 +212,7 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
   if (config.routing != detail::routing_type::NONE) {
     auto iter = m_vec_send_buffers[next_dest].end();
     iter -= (header_bytes + bytes);
-    if (config.trace) iter -= trace_header_bytes;
+    if (config.trace_ygm) iter -= trace_header_bytes;
 
     std::memcpy(&*iter, &bytes,
                 sizeof(header_t::dest));  // TODO:: TYPO? should it be
@@ -223,9 +224,9 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
     flush_to_capacity();
   }
 
-  if (config.trace) {
+  if (config.trace_ygm) {
     TimeResolution duration = m_tracer.get_time() - event_time;
-    m_next_message_id += size();
+
     std::unordered_map<std::string, std::any> metadata;
     metadata["from"]         = rank();
     metadata["to"]           = dest;
@@ -289,7 +290,7 @@ inline MPI_Comm comm::get_mpi_comm() const { return m_comm_other; }
  */
 inline void comm::barrier() {
   TimeResolution start_time;
-  if (config.trace) {
+  if (config.trace_ygm) {
     start_time = m_tracer.get_time();
   }
 
@@ -307,7 +308,7 @@ inline void comm::barrier() {
   ASSERT_RELEASE(m_pre_barrier_callbacks.empty());
   ASSERT_RELEASE(m_send_dest_queue.empty());
 
-  if (config.trace) {
+  if (config.trace_ygm) {
     m_next_message_id += size();
     std::unordered_map<std::string, std::any> metadata;
     metadata["m_pending_isend_bytes"] = m_pending_isend_bytes;
@@ -586,7 +587,7 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
         // global_counts[0] << " " << global_counts[1] << std::endl;
       } else {
         receive_buffer_count++;
-        if (config.trace) {
+        if (config.trace_mpi) {
           TimeResolution event_time = m_tracer.get_time();
           std::unordered_map<std::string, std::any> metadata;
           metadata["type"] = "barrier_reduce_counts";
@@ -637,7 +638,7 @@ inline void comm::flush_send_buffer(int dest) {
     }
 
     send_buffer_count++;
-    if (config.trace) {
+    if (config.trace_mpi) {
       TimeResolution event_time = m_tracer.get_time();
       std::unordered_map<std::string, std::any> metadata;
       metadata["type"] = "mpi_send";
@@ -988,7 +989,7 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
 
       trace_header_t trace_h;
       TimeResolution event_time;
-      if (config.trace) {
+      if (config.trace_ygm) {
         event_time = m_tracer.get_time();
         iarchive.loadBinary(&trace_h, sizeof(trace_header_t));
       }
@@ -1001,7 +1002,7 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
         stats.rpc_execute();
 
         // TODO: IMPLEMENTING Async 'e'
-        if (config.trace) {
+        if (config.trace_ygm) {
           TimeResolution duration = m_tracer.get_time() - event_time;
           std::unordered_map<std::string, std::any> metadata;
           metadata["from"]         = trace_h.from;
@@ -1044,7 +1045,7 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
       // TODO: load binary for tracing header if it exists
       trace_header_t trace_h;
       TimeResolution event_time;
-      if (config.trace) {
+      if (config.trace_ygm) {
         event_time = m_tracer.get_time();
         iarchive.loadBinary(&trace_h, sizeof(trace_header_t));
       }
@@ -1056,7 +1057,7 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
       stats.rpc_execute();
 
       // TODO: IMPLEMENTING Async 'e'
-      if (config.trace) {
+      if (config.trace_ygm) {
         TimeResolution duration = m_tracer.get_time() - event_time;
         std::unordered_map<std::string, std::any> metadata;
         metadata["from"]     = trace_h.from;
@@ -1156,7 +1157,7 @@ inline bool comm::local_process_incoming() {
     stats.irecv_test();
     if (flag) {
       receive_buffer_count++;
-      if (config.trace) {
+      if (config.trace_mpi) {
         TimeResolution event_time = m_tracer.get_time();
         std::unordered_map<std::string, std::any> metadata;
         metadata["type"] = "local_process_incoming";

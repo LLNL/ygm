@@ -61,9 +61,6 @@ class tracer {
       std::cerr << "Error opening " << file_path << " for writing!"
                 << std::endl;
     }
-
-    size = snprintf(data, MAX_LINE_SIZE, "[\n");
-    output_file.write(data, size);
   }
 
   void trace_event(int event_id, ConstEventType action,
