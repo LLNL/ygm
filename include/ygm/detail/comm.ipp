@@ -1017,7 +1017,7 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
           metadata["message_size"] = h.message_size;
 
           ConstEventType event_name = "async";
-          ConstEventType action     = "reviece";
+          ConstEventType action     = "receive";
 
           m_tracer.trace_event(trace_h.trace_id, action, event_name, rank(),
                                event_time, metadata, 'X', duration);
@@ -1071,7 +1071,7 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
         metadata["event_id"] = trace_h.trace_id;
 
         ConstEventType event_name = "async";
-        ConstEventType action     = "reviece";
+        ConstEventType action     = "receive";
 
         m_tracer.trace_event(trace_h.trace_id, action, event_name, rank(),
                              event_time, metadata, 'X', duration);
