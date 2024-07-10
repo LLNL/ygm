@@ -35,7 +35,11 @@ struct base_misc {
     return static_cast<const derived_type*>(this)->m_comm;
   }
 
-  typename ygm::ygm_ptr<derived_type> get_ygm_ptr() const {
+  typename ygm::ygm_ptr<derived_type> get_ygm_ptr() {
+    return static_cast<derived_type*>(this)->pthis;
+  }
+
+  const typename ygm::ygm_ptr<derived_type> get_ygm_ptr() const {
     return static_cast<const derived_type*>(this)->pthis;
   }
 };

@@ -27,7 +27,8 @@ class counting_set {
 
   const size_type count_cache_size = 1024 * 1024;
 
-  counting_set(ygm::comm &comm) : m_map(comm, mapped_type(0)), pthis(this) {
+  counting_set(ygm::comm &comm)
+      : m_map(comm /*, mapped_type(0)*/), pthis(this) {
     m_count_cache.resize(count_cache_size, {key_type(), -1});
   }
 
@@ -69,14 +70,14 @@ class counting_set {
     return m_map.topk(k, cfn);
   }
 
-  template <typename STLKeyContainer>
-  std::map<key_type, mapped_type> all_gather(const STLKeyContainer &keys) {
-    return m_map.all_gather(keys);
-  }
+  // template <typename STLKeyContainer>
+  // std::map<key_type, mapped_type> all_gather(const STLKeyContainer &keys) {
+  //   return m_map.all_gather(keys);
+  // }
 
-  std::map<key_type, mapped_type> all_gather(
+  std::map<key_type, mapped_type> key_gather(
       const std::vector<key_type> &keys) {
-    return m_map.all_gather(keys);
+    return m_map.key_gather(keys);
   }
 
   typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }
@@ -147,10 +148,10 @@ class counting_set {
   }
   counting_set() = delete;
 
-  std::vector<std::pair<Key, int32_t>>               m_count_cache;
-  bool                                               m_cache_empty = true;
-  map<Key, mapped_type, Partitioner, Compare, Alloc> m_map;
-  typename ygm::ygm_ptr<self_type>                   pthis;
+  std::vector<std::pair<Key, int32_t>> m_count_cache;
+  bool                                 m_cache_empty = true;
+  map<Key, mapped_type>                m_map;
+  typename ygm::ygm_ptr<self_type>     pthis;
 };
 
 }  // namespace ygm::container
