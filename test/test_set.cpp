@@ -31,7 +31,6 @@ int main(int argc, char **argv) {
   // Test Rank 0 async_insert
   { 
     ygm::container::set<std::string> sset(world);
-    world.cout("HERE");
     if (world.rank() == 0) {
       sset.async_insert("dog");
       sset.async_insert("apple");

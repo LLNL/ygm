@@ -38,13 +38,13 @@ class set : public detail::base_async_insert<set<Key>, std::tuple<Key>>,
       pthis.check(m_comm); // What is other.comm? Is this supposed to be other.comm()?
     }
 
-    // set(self_type &&other) noexcept
-    //     : m_comm(other.comm),
-    //       pthis(this),
-    //       partitioner(other.comm),
-    //       m_local_set(std::move(other.m_local_set)) {
-    //   pthis.check(m_comm);
-    // }
+    set(self_type &&other) noexcept
+        : m_comm(other.comm),
+          pthis(this),
+          partitioner(other.partitioner),
+          m_local_set(std::move(other.m_local_set)) {
+      pthis.check(m_comm);
+    }
 
     ~set() { m_comm.barrier(); }
 
