@@ -13,6 +13,7 @@ struct bag_tag;
 struct counting_set_tag;
 struct disjoint_set_tag;
 struct map_tag;
+struct multimap_tag;
 struct set_tag;
 
 // General template used as a base case
@@ -62,6 +63,11 @@ constexpr bool is_disjoint_set(Container &c) {
 template <class Container>
 constexpr bool is_map(Container &c) {
   return check_container_type<Container, map_tag>();
+}
+
+template <class Container>
+constexpr bool is_multimap(Container &c) {
+  return check_container_type<Container, multimap_tag>();
 }
 
 template <class Container>

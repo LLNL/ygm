@@ -17,9 +17,11 @@ class ygm_ptr {
  public:
   ygm_ptr(){};
 
-  T *operator->() const { return sptrs[idx]; }
+  T       *operator->() { return sptrs[idx]; }
+  const T *operator->() const { return sptrs[idx]; }
 
-  T &operator*() const { return *sptrs[idx]; }
+  T       &operator*() { return *sptrs[idx]; }
+  const T &operator*() const { return *sptrs[idx]; }
 
   /**
    * @brief Construct a new ygm ptr object

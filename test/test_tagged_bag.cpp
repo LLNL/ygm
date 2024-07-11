@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
 
     ASSERT_RELEASE(tagbag.size() == 3);
     // Test gather
-    auto gather = tagbag.all_gather(r0tags);
+    auto gather = tagbag.key_gather(r0tags);
     world.barrier();
     if (world.rank0()) {
       ASSERT_RELEASE(gather.size() == 3);
@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
 
     tagbag.for_all([](auto& k, auto& v) { v += "_added"; });
 
-    auto gatheradd = tagbag.all_gather(r0tags);
+    auto gatheradd = tagbag.key_gather(r0tags);
     if (world.rank0()) {
       for (auto r0tag : r0tags) {
         auto ga = gatheradd.at(r0tag);

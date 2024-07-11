@@ -16,7 +16,7 @@
 namespace ygm::container {
 
 template <typename Item>
-class bag : public detail::base_async_insert<bag<Item>, std::tuple<Item>>,
+class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
             public detail::base_misc<bag<Item>, std::tuple<Item>>,
             public detail::base_iteration<bag<Item>, std::tuple<Item>> {
   friend class detail::base_misc<bag<Item>, std::tuple<Item>>;
@@ -53,7 +53,7 @@ class bag : public detail::base_async_insert<bag<Item>, std::tuple<Item>>,
     return *this;
   }
 
-  using detail::base_async_insert<bag<Item>, for_all_args>::async_insert;
+  using detail::base_async_insert_value<bag<Item>, for_all_args>::async_insert;
 
   void async_insert(const Item &value, int dest) {
     auto inserter = [](auto pcont, const value_type &item) {
