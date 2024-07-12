@@ -13,6 +13,8 @@
 
 #include <arrow/io/file.h>
 #include <parquet/stream_writer.h>
+#include <boost/json.hpp>
+#include <cxxopts.hpp>
 
 #include <ygm/comm.hpp>
 #include <ygm/io/csv_parser.hpp>
@@ -37,84 +39,90 @@ static constexpr char const* const SCHEMA   = "schema";
 static constexpr char const* const DUMP     = "dump";
 static constexpr char const* const CONVERT  = "convert";
 
-bool parse_arguments(int argc, char** argv, options_t&, bool&);
-template <typename os_t>
-void show_usage(char** argv, os_t&);
-void count_rows(const options_t&, ygm::comm&);
-void dump(const options_t&, ygm::comm&);
-void convert(const options_t&, ygm::comm&);
+bool parse_arguments(int, char**, std::ostream&, options_t&, bool&);
+void show_usage(char** argv, std::ostream&);
+bool count_rows(const options_t&, ygm::comm&);
+bool show_schema(const options_t&, ygm::comm&);
+bool dump(const options_t&, ygm::comm&);
+bool convert(const options_t&, ygm::comm&);
 
 int main(int argc, char** argv) {
+  bool      ret = false;
   ygm::comm world(&argc, &argv);
   {
     options_t opt;
     bool      show_help = false;
-    if (!parse_arguments(argc, argv, opt, show_help)) {
-      world.cerr0() << "Invalid arguments." << std::endl;
-      if (world.rank0()) show_usage(argv, std::cerr);
+    if (!parse_arguments(argc, argv, world.cerr0(), opt, show_help)) {
+      return EXIT_FAILURE;
     }
     if (show_help) {
-      if (world.rank0()) show_usage(argv, std::cout);
+      show_usage(argv, world.cerr0());
       return 0;
     }
 
     if (opt.subcommand == ROWCOUNT) {
-      count_rows(opt, world);
+      ret = count_rows(opt, world);
     } else if (opt.subcommand == SCHEMA) {
-      world.cout0() << "Schema" << std::endl;
-      ygm::io::parquet_parser parquetp(world, {opt.input_path.c_str()});
-      world.cout0() << parquetp.schema_to_string() << std::endl;
+      ret = show_schema(opt, world);
     } else if (opt.subcommand == DUMP) {
-      dump(opt, world);
+      ret = dump(opt, world);
     } else if (opt.subcommand == CONVERT) {
-      convert(opt, world);
+      ret = convert(opt, world);
     } else {
       world.cerr0() << "Unknown subcommand: " << opt.subcommand << std::endl;
+      return EXIT_FAILURE;
     }
   }
   world.barrier();
 
-  return 0;
+  if (!ret) {
+    return EXIT_FAILURE;
+  }
+  return EXIT_SUCCESS;
 }
 
-bool parse_arguments(int argc, char** argv, options_t& options,
-                     bool& show_help) {
-  int opt;
-  while ((opt = getopt(argc, argv, "c:i:vjro:h")) != -1) {
-    switch (opt) {
-      case 'c':
-        options.subcommand = optarg;
-        break;
-      case 'i':
-        options.input_path = optarg;
-        break;
-      case 'r':
-        options.read_lines = true;
-        break;
-      case 'v':
-        options.read_lines = true;
-        options.variant    = true;
-        break;
-      case 'j':
-        options.read_lines = true;
-        options.json       = true;
-        break;
-      case 'o':
-        options.output_file_prefix = optarg;
-        break;
-      case 'h':
-        show_help = true;
-        break;
-      default:
-        return false;
+/// Parse command line arguments using cxxopts
+bool parse_arguments(int argc, char** argv, std::ostream& os,
+                     options_t& options, bool& show_help) {
+  try {
+    cxxopts::Options options_desc("parquet-tools",
+                                  "A tool for parquet file manipulation.");
+    options_desc.add_options()("c,command", "Subcommand name.",
+                               cxxopts::value(options.subcommand))(
+        "i,input", "Input file path.", cxxopts::value(options.input_path))(
+        "r,read-lines", "Read rows w/o converting.")(
+        "v,variant", "Read as variants.")("j,json", "Read as JSON objects.")(
+        "o,output", "Output file prefix.",
+        cxxopts::value(options.output_file_prefix))("h,help",
+                                                    "Show this help message.");
+
+    auto result = options_desc.parse(argc, argv);
+    if (result.count("help")) {
+      show_help = true;
+      return true;
     }
+
+    if (result.count("read-lines")) {
+      options.read_lines = true;
+    }
+
+    if (result.count("variant")) {
+      options.variant = true;
+    }
+
+    if (result.count("json")) {
+      options.json = true;
+    }
+  } catch (const cxxopts::exceptions::exception& e) {
+    os << "Error parsing options: " << e.what() << std::endl;
+    return false;
   }
+
   return true;
 }
 
 // Only for rank 0
-template <typename os_t>
-void show_usage(char** argv, os_t& os) {
+void show_usage(char** argv, std::ostream& os) {
   os << "[Usage]" << std::endl;
   os << "mpirun -np <#of ranks> ./parquet-tools [options]" << std::endl;
   os << std::endl;
@@ -160,7 +168,7 @@ void show_usage(char** argv, os_t& os) {
       os << "  Required arguments" << std::endl;
       for (const auto& req : entry_obj.at("req").as_array()) {
         auto& req_obj = req.as_object();
-        os << "    -" << format(req_obj.at("key").as_string()) << " ";
+        os << "    " << format(req_obj.at("key").as_string()) << " ";
         if (req_obj.contains("value")) {
           os << " <" << format(req_obj.at("value").as_string()) << "> ";
         }
@@ -173,7 +181,7 @@ void show_usage(char** argv, os_t& os) {
       for (const auto& op : entry_obj.at("opt").as_array()) {
         auto& op_obj = op.as_object();
         assert(op_obj.contains("key"));
-        os << "    -" << format(op_obj.at("key").as_string()) << " ";
+        os << "    " << format(op_obj.at("key").as_string()) << " ";
         if (op_obj.contains("value")) {
           assert(op_obj.contains("value"));
           os << " <" << format(op_obj.at("value").as_string()) << "> ";
@@ -186,7 +194,12 @@ void show_usage(char** argv, os_t& os) {
   }
 }
 
-void count_rows(const options_t& opt, ygm::comm& world) {
+bool count_rows(const options_t& opt, ygm::comm& world) {
+  if (opt.input_path.empty()) {
+    world.cerr0() << "Input file path is empty." << std::endl;
+    return false;
+  }
+
   if (opt.variant) {
     world.cout0() << "Read as variants." << std::endl;
   } else if (opt.json) {
@@ -235,9 +248,32 @@ void count_rows(const options_t& opt, ygm::comm& world) {
     world.cout0() << "#of conversion error lines = "
                   << world.all_reduce_sum(num_error_lines) << std::endl;
   }
+  return true;
 }
 
-void dump(const options_t& opt, ygm::comm& world) {
+bool show_schema(const options_t& opt, ygm::comm& world) {
+  if (opt.input_path.empty()) {
+    world.cerr0() << "Input file path is empty." << std::endl;
+    return false;
+  }
+
+  world.cout0() << "Schema" << std::endl;
+  ygm::io::parquet_parser parquetp(world, {opt.input_path.c_str()});
+  world.cout0() << parquetp.schema_to_string() << std::endl;
+  return true;
+}
+
+bool dump(const options_t& opt, ygm::comm& world) {
+  if (opt.input_path.empty()) {
+    world.cerr0() << "Input file path is empty." << std::endl;
+    return false;
+  }
+
+  if (opt.output_file_prefix.empty()) {
+    world.cerr0() << "Output file prefix is empty." << std::endl;
+    return false;
+  }
+
   if (opt.json) {
     world.cout0() << "Dump as JSON objects." << std::endl;
   } else {
@@ -256,7 +292,7 @@ void dump(const options_t& opt, ygm::comm& world) {
   if (!ofs) {
     world.cerr0() << "Failed to open the output file: " << output_path
                   << std::endl;
-    ::MPI_Abort(world.get_mpi_comm(), EXIT_FAILURE);
+    return false;
   }
 
   ygm::timer timer{};
@@ -293,7 +329,7 @@ void dump(const options_t& opt, ygm::comm& world) {
   if (!ofs) {
     world.cerr0() << "Failed to write the output file: " << output_path
                   << std::endl;
-    ::MPI_Abort(world.get_mpi_comm(), EXIT_FAILURE);
+    return false;
   }
   const auto elapsed_time = timer.elapsed();
   num_rows                = world.all_reduce_sum(num_rows);
@@ -304,9 +340,20 @@ void dump(const options_t& opt, ygm::comm& world) {
     world.cout0() << "#of conversion error lines = "
                   << world.all_reduce_sum(num_error_lines) << std::endl;
   }
+  return true;
 }
 
-void convert(const options_t& opt, ygm::comm& world) {
+bool convert(const options_t& opt, ygm::comm& world) {
+  if (opt.input_path.empty()) {
+    world.cerr0() << "Input file path is empty." << std::endl;
+    return false;
+  }
+
+  if (opt.output_file_prefix.empty()) {
+    world.cerr0() << "Output file prefix is empty." << std::endl;
+    return false;
+  }
+
   std::string output_path =
       std::string(opt.output_file_prefix) + "-" + std::to_string(world.rank());
   std::cout << "Output path: " << output_path << std::endl;
@@ -378,4 +425,5 @@ void convert(const options_t& opt, ygm::comm& world) {
   if (schema_defined) {
     parquet_writer << parquet::EndRowGroup;
   }
+  return true;
 }
