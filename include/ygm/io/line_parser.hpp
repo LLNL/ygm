@@ -193,7 +193,7 @@ class line_parser {
       std::getline(ifs, line);
     }
 
-    m_comm.mpi_bcast(line, 0, m_comm.get_mpi_comm());
+    line = m_comm.mpi_bcast(line, 0, m_comm.get_mpi_comm());
 
     return line;
   }
