@@ -8,6 +8,8 @@
 #include <ygm/container/container_traits.hpp>
 #include <ygm/container/container_traits.hpp>
 #include <ygm/container/detail/base_async_insert.hpp>
+#include <ygm/container/detail/base_async_erase.hpp>
+#include <ygm/container/detail/base_async_exe_if_contains.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_misc.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
@@ -15,31 +17,33 @@
 
 namespace ygm::container {
 
-template <typename Key>
-class set : public detail::base_async_insert<set<Key>, std::tuple<Key>>,
-            public detail::base_misc<set<Key>, std::tuple<Key>>,
-            public detail::base_iteration<set<Key>, std::tuple<Key>> { 
-  friend class detail::base_misc<set<Key>, std::tuple<Key>>;
+template <typename Value>
+class set : public detail::base_async_insert_value<set<Value>, std::tuple<Value>>,
+            public detail::base_async_erase<set<Value>, std::tuple<Value>>,
+            public detail::base_async_exe_if_contains<set<Value>, std::tuple<Value>>,
+            public detail::base_misc<set<Value>, std::tuple<Value>>,
+            public detail::base_iteration<set<Value>, std::tuple<Value>> { 
+  friend class detail::base_misc<set<Value>, std::tuple<Value>>;
 
   public:
 
-    using self_type         = set<Key>;
-    using key_type          = Key;
+    using self_type         = set<Value>;
+    using value_type          = Value;
     using size_type         = size_t;
-    using for_all_args      = std::tuple<Key>;
+    using for_all_args      = std::tuple<Value>;
     using container_type    = ygm::container::set_tag;
 
-    set(ygm::comm& comm) : m_comm(comm), pthis(this), partitioner(comm, std::hash<Key>()) {
+    set(ygm::comm& comm) : m_comm(comm), pthis(this), partitioner(comm, std::hash<value_type>()) {
       pthis.check(m_comm);
     }
 
     set(const self_type &other) 
-        : m_comm(other.comm), pthis(this), partitioner(other.comm, other.partitioner) {
+        : m_comm(other.comm()), pthis(this), partitioner(other.comm, other.partitioner) {
       pthis.check(m_comm); // What is other.comm? Is this supposed to be other.comm()?
     }
 
     set(self_type &&other) noexcept
-        : m_comm(other.comm),
+        : m_comm(other.comm()),
           pthis(this),
           partitioner(other.partitioner),
           m_local_set(std::move(other.m_local_set)) {
@@ -59,11 +63,14 @@ class set : public detail::base_async_insert<set<Key>, std::tuple<Key>>,
       return *this;
     }
 
-    using detail::base_async_insert<set<Key>, for_all_args>::async_insert;
 
-    void local_insert(const Key &val) { m_local_set.insert(val); }
+    void local_insert(const value_type &val) { m_local_set.insert(val); }
+
+    void local_erase(const value_type &val) { m_local_set.erase(val); }
 
     void local_clear() { m_local_set.clear(); }
+
+    size_t local_count(const value_type &val) { return m_local_set.count(val); }
 
     size_t local_size() const { return m_local_set.size(); }
 
@@ -77,9 +84,9 @@ class set : public detail::base_async_insert<set<Key>, std::tuple<Key>>,
       std::for_each(m_local_set.cbegin(), m_local_set.cend(), fn);
     }
 
-    size_t count(const key_type &key) {
+    size_t count(const value_type &val) {
       m_comm.barrier();
-      return m_comm.all_reduce_sum(m_local_set.count(key));
+      return m_comm.all_reduce_sum(m_local_set.count(val));
     }
 
     void serialize(const std::string &fname) {
@@ -88,7 +95,7 @@ class set : public detail::base_async_insert<set<Key>, std::tuple<Key>>,
     void deserialize(const std::string &fname) {
     }
 
-    detail::hash_partitioner<std::hash<Key>>  partitioner;
+    detail::hash_partitioner<std::hash<value_type>>  partitioner;
 
   private:
 
@@ -97,7 +104,7 @@ class set : public detail::base_async_insert<set<Key>, std::tuple<Key>>,
     }
 
     ygm::comm                         &m_comm;
-    std::set<key_type>                 m_local_set;
+    std::set<value_type>               m_local_set;
     typename ygm::ygm_ptr<self_type>   pthis; 
 };
 

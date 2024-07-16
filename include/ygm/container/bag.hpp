@@ -34,12 +34,12 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
   ~bag() { m_comm.barrier(); }
 
   bag(const self_type &other)
-      : m_comm(other.comm), pthis(this), partitioner(other.comm) {
+      : m_comm(other.comm()), pthis(this), partitioner(other.comm) {
     pthis.check(m_comm);
   }
 
   bag(self_type &&other) noexcept
-      : m_comm(other.comm),
+      : m_comm(other.comm()),
         pthis(this),
         partitioner(other.comm),
         m_local_bag(std::move(other.m_local_bag)) {
