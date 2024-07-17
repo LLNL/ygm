@@ -15,6 +15,7 @@
 #include <cstring>
 #include <vector>
 #include <ygm/detail/assert.hpp>
+#include <ygm/detail/byte_vector.hpp>
 
 namespace cereal {
 // ######################################################################
@@ -37,7 +38,11 @@ class YGMOutputArchive
   //! Construct, outputting to the provided stream
   /*! @param stream The stream to output to.  Can be a stringstream, a file
      stream, or even cout! */
-  YGMOutputArchive(std::vector<std::byte> &stream)
+  /*YGMOutputArchive(std::vector<std::byte> &stream)
+      : OutputArchive<YGMOutputArchive, AllowEmptyClassElision>(this),
+        vec_data(stream) {}*/
+
+  YGMOutputArchive(byte::byte_vector &stream)
       : OutputArchive<YGMOutputArchive, AllowEmptyClassElision>(this),
         vec_data(stream) {}
 
@@ -59,7 +64,7 @@ class YGMOutputArchive
   }
 
  private:
-  std::vector<std::byte> &vec_data;
+  byte::byte_vector &vec_data;
 };
 
 // ######################################################################
