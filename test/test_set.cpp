@@ -78,22 +78,22 @@ int main(int argc, char **argv) {
   }
 
   //
-  // Test async_insert_exe_if_contains
+  // Test async_insert_contains
   {
   }
 
   //
-  // Test async_exe_if_contains
+  // Test async_contains
   {
     static bool              set_contains;
     ygm::container::set<int> iset(world);
-    int val = 0;
+    int val = 42;
 
-    auto f = [](const int& i, const bool& contains) {
+    auto f = [](bool& contains, const int& i) {
       set_contains = contains;
     };   
 
-    iset.async_exe_if_contains(val, f);
+    iset.async_contains(val, f);
     world.barrier();
 
     bool g_set_contains = ygm::logical_or(set_contains, world);   
@@ -102,12 +102,22 @@ int main(int argc, char **argv) {
     iset.async_insert(val);
     world.barrier();
 
-    iset.async_exe_if_contains(val, f);
+    iset.async_contains(val, f);
     world.barrier();
 
     g_set_contains = ygm::logical_or(set_contains, world);   
     ASSERT_RELEASE(g_set_contains);
   }
+
+  //
+  // Test additional arguments of async_contains
+  {
+    ygm::container::set<std::string> sset(world);
+    sset.async_contains("howdy", [](bool c, const std::string s, int i, float f){}, 3, 3.14);
+    sset.async_contains("howdy", [](auto ptr_set, bool c, const std::string s){});
+    world.barrier();
+  }
+
 
   // //
   // // Test async_insert_exe_if_missing
@@ -152,8 +162,8 @@ int main(int argc, char **argv) {
   //   ASSERT_RELEASE(found);
   // }
 
-  // //
-  // // Test swap
+  //
+  // Test swap
   {
     ygm::container::set<std::string> sset(world);
     {

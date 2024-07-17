@@ -11,10 +11,10 @@
 namespace ygm::container::detail {
 
 template <typename derived_type, typename for_all_args>
-struct base_async_exe_if_contains {
+struct base_async_contains {
 
   template<typename Function, typename... FuncArgs>
-  void async_exe_if_contains(const std::tuple_element<0, for_all_args>::type& value,
+  void async_contains(const std::tuple_element<0, for_all_args>::type& value,
                              Function fn, const FuncArgs&... args) {
 
     derived_type* derived_this = static_cast<derived_type*>(this);
@@ -26,9 +26,9 @@ struct base_async_exe_if_contains {
                       const FuncArgs&... args) {
 
       Function* fn = nullptr;
-      const bool contains = static_cast<bool>(pcont->local_count(value));
+      bool contains = static_cast<bool>(pcont->local_count(value));
       ygm::meta::apply_optional(*fn, std::make_tuple(pcont),
-                                std::forward_as_tuple(value, contains, args...));
+                                std::forward_as_tuple(contains, value, args...));
     };
 
     // if constexpr (std::is_invocable<decltype(fn), typename const std::tuple_element<0, for_all_args>::type &,

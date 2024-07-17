@@ -9,7 +9,7 @@
 #include <ygm/container/container_traits.hpp>
 #include <ygm/container/detail/base_async_insert.hpp>
 #include <ygm/container/detail/base_async_erase.hpp>
-#include <ygm/container/detail/base_async_exe_if_contains.hpp>
+#include <ygm/container/detail/base_async_contains.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_misc.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
@@ -20,7 +20,7 @@ namespace ygm::container {
 template <typename Value>
 class set : public detail::base_async_insert_value<set<Value>, std::tuple<Value>>,
             public detail::base_async_erase<set<Value>, std::tuple<Value>>,
-            public detail::base_async_exe_if_contains<set<Value>, std::tuple<Value>>,
+            public detail::base_async_contains<set<Value>, std::tuple<Value>>,
             public detail::base_misc<set<Value>, std::tuple<Value>>,
             public detail::base_iteration<set<Value>, std::tuple<Value>> { 
   friend class detail::base_misc<set<Value>, std::tuple<Value>>;
