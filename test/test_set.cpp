@@ -40,6 +40,17 @@ int main(int argc, char **argv) {
     ASSERT_RELEASE(sset.count("red") == 1);
     ASSERT_RELEASE(sset.count("apple") == 1);
     ASSERT_RELEASE(sset.size() == 3);
+
+    ygm::container::set<int> iset(world);
+    if (world.rank() == 0) {
+      iset.async_insert(42);
+      iset.async_insert(7);
+      iset.async_insert(100);
+    }
+    ASSERT_RELEASE(iset.count(42) == 1);
+    ASSERT_RELEASE(iset.count(7) == 1);
+    ASSERT_RELEASE(iset.count(100) == 1);
+    ASSERT_RELEASE(iset.size() == 3);
   }
 
   //

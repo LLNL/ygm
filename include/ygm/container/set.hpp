@@ -11,6 +11,7 @@
 #include <ygm/container/detail/base_async_erase.hpp>
 #include <ygm/container/detail/base_async_contains.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
+#include <ygm/container/detail/base_count.hpp>
 #include <ygm/container/detail/base_misc.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
 // #include <ygm/container/detail/set_impl.hpp>
@@ -21,6 +22,7 @@ template <typename Value>
 class set : public detail::base_async_insert_value<set<Value>, std::tuple<Value>>,
             public detail::base_async_erase<set<Value>, std::tuple<Value>>,
             public detail::base_async_contains<set<Value>, std::tuple<Value>>,
+            public detail::base_count<set<Value>, std::tuple<Value>>,
             public detail::base_misc<set<Value>, std::tuple<Value>>,
             public detail::base_iteration<set<Value>, std::tuple<Value>> { 
   friend class detail::base_misc<set<Value>, std::tuple<Value>>;
@@ -28,7 +30,7 @@ class set : public detail::base_async_insert_value<set<Value>, std::tuple<Value>
   public:
 
     using self_type         = set<Value>;
-    using value_type          = Value;
+    using value_type        = Value;
     using size_type         = size_t;
     using for_all_args      = std::tuple<Value>;
     using container_type    = ygm::container::set_tag;
@@ -70,7 +72,7 @@ class set : public detail::base_async_insert_value<set<Value>, std::tuple<Value>
 
     void local_clear() { m_local_set.clear(); }
 
-    size_t local_count(const value_type &val) { return m_local_set.count(val); }
+    size_t local_count(const value_type &val) const { return m_local_set.count(val); }
 
     size_t local_size() const { return m_local_set.size(); }
 
@@ -84,10 +86,10 @@ class set : public detail::base_async_insert_value<set<Value>, std::tuple<Value>
       std::for_each(m_local_set.cbegin(), m_local_set.cend(), fn);
     }
 
-    size_t count(const value_type &val) {
-      m_comm.barrier();
-      return m_comm.all_reduce_sum(m_local_set.count(val));
-    }
+    // size_t count(const value_type &val) {
+    //   m_comm.barrier();
+    //   return m_comm.all_reduce_sum(m_local_set.count(val));
+    // }
 
     void serialize(const std::string &fname) {
     }

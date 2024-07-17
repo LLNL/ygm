@@ -35,6 +35,9 @@ int main(int argc, char** argv) {
       bbag.async_insert("apple");
       bbag.async_insert("red");
     }
+    ASSERT_RELEASE(bbag.count("dog") == 1);
+    ASSERT_RELEASE(bbag.count("apple") == 1);
+    ASSERT_RELEASE(bbag.count("red") == 1);
     ASSERT_RELEASE(bbag.size() == 3);
   }
 
@@ -46,6 +49,9 @@ int main(int argc, char** argv) {
     bbag.async_insert("apple");
     bbag.async_insert("red");
     ASSERT_RELEASE(bbag.size() == 3 * (size_t)world.size());
+    ASSERT_RELEASE(bbag.count("dog") == (size_t)world.size());
+    ASSERT_RELEASE(bbag.count("apple") == (size_t)world.size());
+    ASSERT_RELEASE(bbag.count("red") == (size_t)world.size());
 
     {
       std::vector<std::string> all_data;

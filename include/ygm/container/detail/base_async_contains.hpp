@@ -21,7 +21,7 @@ struct base_async_contains {
 
     int dest = derived_this->partitioner.owner(value);
 
-    auto flambda = [](auto pcont,
+    auto lambda = [](auto pcont,
                       const std::tuple_element<0, for_all_args>::type& value,
                       const FuncArgs&... args) {
 
@@ -44,7 +44,7 @@ struct base_async_contains {
     //                 "&value_type, const &bool, ...) or (ptr_container_type, const "
     //                 "&value_type, const &bool, ...) signatures");
     // } 
-    derived_this->comm().async(dest, flambda, derived_this->get_ygm_ptr(),
+    derived_this->comm().async(dest, lambda, derived_this->get_ygm_ptr(),
                               value, args...);
   }
 };
