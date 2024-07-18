@@ -10,6 +10,7 @@
 #include <ygm/container/detail/base_async_insert.hpp>
 #include <ygm/container/detail/base_async_erase.hpp>
 #include <ygm/container/detail/base_async_contains.hpp>
+#include <ygm/container/detail/base_async_insert_contains.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_count.hpp>
 #include <ygm/container/detail/base_misc.hpp>
@@ -22,6 +23,7 @@ template <typename Value>
 class set : public detail::base_async_insert_value<set<Value>, std::tuple<Value>>,
             public detail::base_async_erase<set<Value>, std::tuple<Value>>,
             public detail::base_async_contains<set<Value>, std::tuple<Value>>,
+            public detail::base_async_insert_contains<set<Value>, std::tuple<Value>>,
             public detail::base_count<set<Value>, std::tuple<Value>>,
             public detail::base_misc<set<Value>, std::tuple<Value>>,
             public detail::base_iteration<set<Value>, std::tuple<Value>> { 

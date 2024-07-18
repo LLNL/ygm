@@ -88,15 +88,11 @@ int main(int argc, char **argv) {
     ASSERT_RELEASE(sset.size() == 2);
   }
 
-  //
-  // Test async_insert_contains
-  {
-  }
 
   //
   // Test async_contains
   {
-    static bool              set_contains;
+    static bool              set_contains = false;
     ygm::container::set<int> iset(world);
     int val = 42;
 
@@ -104,74 +100,58 @@ int main(int argc, char **argv) {
       set_contains = contains;
     };   
 
-    iset.async_contains(val, f);
+    if (world.rank0()) {
+      iset.async_contains(val, f);
+    }
+    world.barrier();
+    // bool g_set_contains = ygm::logical_or(set_contains, world);   
+    ASSERT_RELEASE(not ygm::logical_or(set_contains, world));
+
+    if (world.rank0()) {
+      iset.async_insert(val);
+    }
     world.barrier();
 
-    bool g_set_contains = ygm::logical_or(set_contains, world);   
-    ASSERT_RELEASE(not g_set_contains);
-
-    iset.async_insert(val);
+    if (world.rank0()) {
+      iset.async_contains(val, f);
+    }
     world.barrier();
-
-    iset.async_contains(val, f);
-    world.barrier();
-
-    g_set_contains = ygm::logical_or(set_contains, world);   
-    ASSERT_RELEASE(g_set_contains);
+    ASSERT_RELEASE(ygm::logical_or(set_contains, world));
   }
 
   //
-  // Test additional arguments of async_contains
+  // Test async_insert_contains
   {
+    static bool              did_contain = false;
     ygm::container::set<std::string> sset(world);
-    sset.async_contains("howdy", [](bool c, const std::string s, int i, float f){}, 3, 3.14);
-    sset.async_contains("howdy", [](auto ptr_set, bool c, const std::string s){});
+
+    auto f = [](bool& contains, const std::string& s) {
+      did_contain = contains;
+    };   
+
+    if (world.rank0()) {
+      sset.async_insert_contains("dog", f);
+    }
     world.barrier();
+    ASSERT_RELEASE(not ygm::logical_or(did_contain, world));
+
+    if (world.rank0()) {
+      sset.async_insert_contains("dog", f);
+    }
+    world.barrier();
+    ASSERT_RELEASE(ygm::logical_or(did_contain, world));
   }
 
 
-  // //
-  // // Test async_insert_exe_if_missing
+  //
+  // Test additional arguments of async_contains
   // {
-  //   static bool              missing = false;
-  //   ygm::container::set<int> iset(world);
-  //   iset.async_insert_exe_if_missing(world.rank(), [](int) { missing = true; });
-  //   world.barrier();
-  //   ASSERT_RELEASE(missing);
-  // }
-
-  // //
-  // // Test async_exe_if_missing
-  // {
-  //   static bool              missing = false;
-  //   ygm::container::set<int> iset(world);
-  //   iset.async_exe_if_missing(world.rank(), [](int) { missing = true; });
-  //   world.barrier();
-  //   ASSERT_RELEASE(missing);
-
-  //   iset.async_insert(world.rank());
-  //   world.barrier();
-
-  //   iset.async_exe_if_missing(world.rank(), [](int) { ASSERT_RELEASE(false); });
+  //   ygm::container::set<std::string> sset(world);
+  //   sset.async_contains("howdy", [](bool c, const std::string s, int i, float f){}, 3, 3.14);
+  //   sset.async_contains("howdy", [](auto ptr_set, bool c, const std::string s){});
   //   world.barrier();
   // }
 
-  // //
-  // // Test async_exe_if_contains
-  // {
-  //   static bool              found = false;
-  //   ygm::container::set<int> iset(world);
-  //   iset.async_exe_if_contains(world.rank(), [](int) { found = true; });
-  //   world.barrier();
-  //   ASSERT_RELEASE(not found);
-
-  //   iset.async_insert(world.rank());
-  //   world.barrier();
-
-  //   iset.async_exe_if_contains(world.rank(), [](int) { found = true; });
-  //   world.barrier();
-  //   ASSERT_RELEASE(found);
-  // }
 
   //
   // Test swap
