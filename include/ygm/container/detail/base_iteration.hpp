@@ -56,7 +56,7 @@ struct base_iteration {
     ASSERT_RELEASE(derived_this->local_size() >
                    0);  // empty partition not handled yet
 
-    using value_type = std::tuple_element<0, for_all_args>::type;
+    using value_type = typename std::tuple_element<0, for_all_args>::type;
     bool first       = true;
 
     value_type to_return;

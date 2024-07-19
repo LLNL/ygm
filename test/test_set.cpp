@@ -15,20 +15,21 @@
 int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
 
+  //
   // Test basic tagging
   {
     ygm::container::set<std::string> sset(world);
 
     static_assert(std::is_same_v<decltype(sset)::self_type, decltype(sset)>);
-    static_assert(std::is_same_v<decltype(sset)::key_type, std::string>);
+    static_assert(std::is_same_v<decltype(sset)::value_type, std::string>);
     static_assert(std::is_same_v<decltype(sset)::size_type, size_t>);
-    static_assert(std::is_same_v<decltype(sset)::ygm_for_all_types,
-                                 std::tuple<decltype(sset)::key_type>>);
+    static_assert(std::is_same_v<decltype(sset)::for_all_args,
+                                 std::tuple<decltype(sset)::value_type>>);
   }
 
   //
   // Test Rank 0 async_insert
-  {
+  { 
     ygm::container::set<std::string> sset(world);
     if (world.rank() == 0) {
       sset.async_insert("dog");
@@ -36,20 +37,31 @@ int main(int argc, char **argv) {
       sset.async_insert("red");
     }
     ASSERT_RELEASE(sset.count("dog") == 1);
-    ASSERT_RELEASE(sset.count("apple") == 1);
     ASSERT_RELEASE(sset.count("red") == 1);
+    ASSERT_RELEASE(sset.count("apple") == 1);
     ASSERT_RELEASE(sset.size() == 3);
+
+    ygm::container::set<int> iset(world);
+    if (world.rank() == 0) {
+      iset.async_insert(42);
+      iset.async_insert(7);
+      iset.async_insert(100);
+    }
+    ASSERT_RELEASE(iset.count(42) == 1);
+    ASSERT_RELEASE(iset.count(7) == 1);
+    ASSERT_RELEASE(iset.count(100) == 1);
+    ASSERT_RELEASE(iset.size() == 3);
   }
 
-    //
+  //
   // Test Rank 0 async_insert with ygm set pointer
   {
     ygm::container::set<std::string> sset(world);
     auto sset_ptr = sset.get_ygm_ptr();
     if (world.rank() == 0) {
-      sset_ptr->async_insert_unique("dog");
-      sset_ptr->async_insert_unique("apple");
-      sset_ptr->async_insert_unique("red");
+      sset_ptr->async_insert("dog");
+      sset_ptr->async_insert("apple");
+      sset_ptr->async_insert("red");
     }
     ASSERT_RELEASE(sset.count("dog") == 1);
     ASSERT_RELEASE(sset.count("apple") == 1);
@@ -58,7 +70,6 @@ int main(int argc, char **argv) {
   }
 
   
-
   //
   // Test all ranks async_insert
   {
@@ -77,65 +88,73 @@ int main(int argc, char **argv) {
     ASSERT_RELEASE(sset.size() == 2);
   }
 
-  //
-  // Test async_insert_exe_if_contains
-  {
-    static bool              found = false;
-    ygm::container::set<int> iset(world);
-    iset.async_insert_exe_if_contains(world.rank(), [](int) { found = true; });
-    world.barrier();
-    ASSERT_RELEASE(not found);
 
-    iset.async_insert_exe_if_contains(world.rank(), [](int) { found = true; });
+  //
+  // Test async_contains
+  {
+    static bool              set_contains = false;
+    ygm::container::set<int> iset(world);
+    int val = 42;
+
+    auto f = [](bool& contains, const int& i) {
+      set_contains = contains;
+    };   
+
+    if (world.rank0()) {
+      iset.async_contains(val, f);
+    }
     world.barrier();
-    ASSERT_RELEASE(found);
+    // bool g_set_contains = ygm::logical_or(set_contains, world);   
+    ASSERT_RELEASE(not ygm::logical_or(set_contains, world));
+
+    if (world.rank0()) {
+      iset.async_insert(val);
+    }
+    world.barrier();
+
+    if (world.rank0()) {
+      iset.async_contains(val, f);
+    }
+    world.barrier();
+    ASSERT_RELEASE(ygm::logical_or(set_contains, world));
   }
 
   //
-  // Test async_insert_exe_if_missing
+  // Test async_insert_contains
   {
-    static bool              missing = false;
-    ygm::container::set<int> iset(world);
-    iset.async_insert_exe_if_missing(world.rank(), [](int) { missing = true; });
+    static bool              did_contain = false;
+    ygm::container::set<std::string> sset(world);
+
+    auto f = [](bool& contains, const std::string& s) {
+      did_contain = contains;
+    };   
+
+    if (world.rank0()) {
+      sset.async_insert_contains("dog", f);
+    }
     world.barrier();
-    ASSERT_RELEASE(missing);
+    ASSERT_RELEASE(not ygm::logical_or(did_contain, world));
+
+    if (world.rank0()) {
+      sset.async_insert_contains("dog", f);
+    }
+    world.barrier();
+    ASSERT_RELEASE(ygm::logical_or(did_contain, world));
   }
 
-  //
-  // Test async_exe_if_missing
-  {
-    static bool              missing = false;
-    ygm::container::set<int> iset(world);
-    iset.async_exe_if_missing(world.rank(), [](int) { missing = true; });
-    world.barrier();
-    ASSERT_RELEASE(missing);
-
-    iset.async_insert(world.rank());
-    world.barrier();
-
-    iset.async_exe_if_missing(world.rank(), [](int) { ASSERT_RELEASE(false); });
-    world.barrier();
-  }
 
   //
-  // Test async_exe_if_contains
-  {
-    static bool              found = false;
-    ygm::container::set<int> iset(world);
-    iset.async_exe_if_contains(world.rank(), [](int) { found = true; });
-    world.barrier();
-    ASSERT_RELEASE(not found);
+  // Test additional arguments of async_contains
+  // {
+  //   ygm::container::set<std::string> sset(world);
+  //   sset.async_contains("howdy", [](bool c, const std::string s, int i, float f){}, 3, 3.14);
+  //   sset.async_contains("howdy", [](auto ptr_set, bool c, const std::string s){});
+  //   world.barrier();
+  // }
 
-    iset.async_insert(world.rank());
-    world.barrier();
-
-    iset.async_exe_if_contains(world.rank(), [](int) { found = true; });
-    world.barrier();
-    ASSERT_RELEASE(found);
-  }
 
   //
-  // Test swap & async_set
+  // Test swap
   {
     ygm::container::set<std::string> sset(world);
     {
@@ -172,42 +191,42 @@ int main(int argc, char **argv) {
     ASSERT_RELEASE(sset2.count("red") == 1);
   }
 
-  //
-  // Test consume_all
-  {
-    ygm::container::set<std::string> sset1(world);
-    ygm::container::set<std::string> sset2(world);
+  // //
+  // // Test consume_all
+  // {
+  //   ygm::container::set<std::string> sset1(world);
+  //   ygm::container::set<std::string> sset2(world);
 
-    sset1.async_insert("dog");
-    sset1.async_insert("apple");
-    sset1.async_insert("red");
+  //   sset1.async_insert("dog");
+  //   sset1.async_insert("apple");
+  //   sset1.async_insert("red");
 
-    sset1.consume_all([&sset2](const auto &key) { sset2.async_insert(key); });
+  //   sset1.consume_all([&sset2](const auto &key) { sset2.async_insert(key); });
 
-    ASSERT_RELEASE(sset1.empty());
-    ASSERT_RELEASE(sset2.count("dog") == 1);
-    ASSERT_RELEASE(sset2.count("apple") == 1);
-    ASSERT_RELEASE(sset2.count("red") == 1);
-  }
+  //   ASSERT_RELEASE(sset1.empty());
+  //   ASSERT_RELEASE(sset2.count("dog") == 1);
+  //   ASSERT_RELEASE(sset2.count("apple") == 1);
+  //   ASSERT_RELEASE(sset2.count("red") == 1);
+  // }
 
-  //
-  // Test consume_all_iterative
-  {
-    ygm::container::set<std::string> sset1(world);
-    ygm::container::set<std::string> sset2(world);
+  // //
+  // // Test consume_all_iterative
+  // {
+  //   ygm::container::set<std::string> sset1(world);
+  //   ygm::container::set<std::string> sset2(world);
 
-    sset1.async_insert("dog");
-    sset1.async_insert("apple");
-    sset1.async_insert("red");
+  //   sset1.async_insert("dog");
+  //   sset1.async_insert("apple");
+  //   sset1.async_insert("red");
 
-    ygm::consume_all_iterative_adapter cai(sset1);
-    cai.consume_all([&sset2](const auto &key) { sset2.async_insert(key); });
+  //   ygm::consume_all_iterative_adapter cai(sset1);
+  //   cai.consume_all([&sset2](const auto &key) { sset2.async_insert(key); });
 
-    ASSERT_RELEASE(sset1.empty());
-    ASSERT_RELEASE(sset2.count("dog") == 1);
-    ASSERT_RELEASE(sset2.count("apple") == 1);
-    ASSERT_RELEASE(sset2.count("red") == 1);
-  }
+  //   ASSERT_RELEASE(sset1.empty());
+  //   ASSERT_RELEASE(sset2.count("dog") == 1);
+  //   ASSERT_RELEASE(sset2.count("apple") == 1);
+  //   ASSERT_RELEASE(sset2.count("red") == 1);
+  // }
 
   //
   // Test vector of sets

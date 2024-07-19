@@ -22,7 +22,7 @@ struct base_async_insert_value {
     int dest = derived_this->partitioner.owner(value);
 
     auto inserter = [](auto                                             pcont,
-                       const std::tuple_element<0, for_all_args>::type& item) {
+                       const typename std::tuple_element<0, for_all_args>::type& item) { 
       pcont->local_insert(item);
     };
 
