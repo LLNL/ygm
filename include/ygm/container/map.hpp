@@ -20,11 +20,15 @@ namespace ygm::container {
 
 template <typename Key, typename Value>
 class map
-    : public detail::base_async_insert<map<Key, Value>, std::tuple<Key, Value>>,
+    : public detail::base_async_insert_key_value<map<Key, Value>,
+                                                 std::tuple<Key, Value>>,
       public detail::base_async_insert_or_assign<map<Key, Value>,
                                                  std::tuple<Key, Value>>,
       public detail::base_misc<map<Key, Value>, std::tuple<Key, Value>>,
-      public detail::base_async_erase<map<Key, Value>, std::tuple<Key, Value>>,
+      public detail::base_async_erase_key<map<Key, Value>,
+                                          std::tuple<Key, Value>>,
+      public detail::base_async_erase_key_value<map<Key, Value>,
+                                                std::tuple<Key, Value>>,
       public detail::base_async_visit<map<Key, Value>, std::tuple<Key, Value>>,
       public detail::base_iteration<map<Key, Value>, std::tuple<Key, Value>> {
   friend class detail::base_misc<map<Key, Value>, std::tuple<Key, Value>>;
@@ -45,6 +49,11 @@ class map
   }
 
   ~map() { m_comm.barrier(); }
+
+  using detail::base_async_erase_key<map<Key, Value>,
+                                     for_all_args>::async_erase;
+  using detail::base_async_erase_key_value<map<Key, Value>,
+                                           for_all_args>::async_erase;
 
   void local_insert(const key_type& key) { m_local_map[key]; }
 
@@ -257,13 +266,15 @@ class map
 
 template <typename Key, typename Value>
 class multimap
-    : public detail::base_async_insert<multimap<Key, Value>,
-                                       std::tuple<Key, Value>>,
+    : public detail::base_async_insert_key_value<multimap<Key, Value>,
+                                                 std::tuple<Key, Value>>,
       public detail::base_async_insert_or_assign<multimap<Key, Value>,
                                                  std::tuple<Key, Value>>,
       public detail::base_misc<multimap<Key, Value>, std::tuple<Key, Value>>,
-      public detail::base_async_erase<multimap<Key, Value>,
-                                      std::tuple<Key, Value>>,
+      public detail::base_async_erase_key<multimap<Key, Value>,
+                                          std::tuple<Key, Value>>,
+      public detail::base_async_erase_key_value<multimap<Key, Value>,
+                                                std::tuple<Key, Value>>,
       public detail::base_async_visit<multimap<Key, Value>,
                                       std::tuple<Key, Value>>,
       public detail::base_iteration<multimap<Key, Value>,
@@ -278,6 +289,11 @@ class multimap
   using size_type      = size_t;
   using for_all_args   = std::tuple<Key, Value>;
   using container_type = ygm::container::multimap_tag;
+
+  using detail::base_async_erase_key<multimap<Key, Value>,
+                                     for_all_args>::async_erase;
+  using detail::base_async_erase_key_value<multimap<Key, Value>,
+                                           for_all_args>::async_erase;
 
   multimap() = delete;
 
