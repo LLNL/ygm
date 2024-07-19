@@ -7,6 +7,7 @@
 
 #include <tuple>
 #include <ygm/collective.hpp>
+#include <ygm/container/detail/base_concepts.hpp>
 
 namespace ygm::container::detail {
 
@@ -48,7 +49,7 @@ struct base_iteration {
 
   template <typename MergeFunction>
   std::tuple_element<0, for_all_args>::type reduce(MergeFunction merge) const
-    requires(std::tuple_size_v<for_all_args> == 1)
+    requires SingleItemTuple<for_all_args>
   {
     const derived_type* derived_this = static_cast<const derived_type*>(this);
     derived_this->comm().barrier();

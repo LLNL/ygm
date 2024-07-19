@@ -7,12 +7,15 @@
 
 #include <tuple>
 #include <utility>
+#include <ygm/container/detail/base_concepts.hpp>
 
 namespace ygm::container::detail {
 
 template <typename derived_type, typename for_all_args>
-struct base_async_insert_value {
-  void async_insert(const std::tuple_element<0, for_all_args>::type& value) {
+struct base_async_insert {
+  void async_insert(const std::tuple_element<0, for_all_args>::type& value)
+    requires SingleItemTuple<for_all_args>
+  {
     derived_type* derived_this = static_cast<derived_type*>(this);
 
     int dest = derived_this->partitioner.owner(value);
@@ -25,13 +28,10 @@ struct base_async_insert_value {
     derived_this->comm().async(dest, inserter, derived_this->get_ygm_ptr(),
                                value);
   }
-};
 
-template <typename derived_type, typename for_all_args>
-struct base_async_insert_key_value {
   void async_insert(const std::tuple_element<0, for_all_args>::type& key,
                     const std::tuple_element<1, for_all_args>::type& value)
-    requires requires(for_all_args f) { std::tuple_size_v<for_all_args> == 2; }
+    requires DoubleItemTuple<for_all_args>
   {
     derived_type* derived_this = static_cast<derived_type*>(this);
 
