@@ -20,8 +20,7 @@ namespace ygm::container {
 
 template <typename Key, typename Value>
 class map
-    : public detail::base_async_insert_key_value<map<Key, Value>,
-                                                 std::tuple<Key, Value>>,
+    : public detail::base_async_insert<map<Key, Value>, std::tuple<Key, Value>>,
       public detail::base_async_insert_or_assign<map<Key, Value>,
                                                  std::tuple<Key, Value>>,
       public detail::base_misc<map<Key, Value>, std::tuple<Key, Value>>,
@@ -258,8 +257,8 @@ class map
 
 template <typename Key, typename Value>
 class multimap
-    : public detail::base_async_insert_key_value<multimap<Key, Value>,
-                                                 std::tuple<Key, Value>>,
+    : public detail::base_async_insert<multimap<Key, Value>,
+                                       std::tuple<Key, Value>>,
       public detail::base_async_insert_or_assign<multimap<Key, Value>,
                                                  std::tuple<Key, Value>>,
       public detail::base_misc<multimap<Key, Value>, std::tuple<Key, Value>>,
