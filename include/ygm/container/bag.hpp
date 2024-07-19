@@ -16,7 +16,7 @@
 namespace ygm::container {
 
 template <typename Item>
-class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
+class bag : public detail::base_async_insert<bag<Item>, std::tuple<Item>>,
             public detail::base_misc<bag<Item>, std::tuple<Item>>,
             public detail::base_iteration<bag<Item>, std::tuple<Item>> {
   friend class detail::base_misc<bag<Item>, std::tuple<Item>>;
