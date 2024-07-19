@@ -25,15 +25,10 @@ struct hash_partitioner {
   hash_partitioner(ygm::comm &comm, Hash hash = Hash())
       : m_comm_size(comm.size()), m_hasher(hash) {}
   template <typename Key>
-<<<<<<< HEAD
-  int owner(const Key &key) {
-    return (m_hash(key) * 2654435769L >> 32) % m_comm_size;
-=======
   int owner(const Key &key) const {
     return (m_hasher(key) * 2654435769L >> 32) %
            m_comm_size;  // quick attempt to add salt to underlying hash
                          // function used by unordered_map
->>>>>>> b4ca7d43cd3ad6e8fcacf4d1cda0fdcb074ff7d8
   }
 
  private:

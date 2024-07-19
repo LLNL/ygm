@@ -16,7 +16,7 @@
 namespace ygm::container {
 
 template <typename Key>
-class set : public detail::base_async_insert<set<Key>, std::tuple<Key>>,
+class set : public detail::base_async_insert_value<set<Key>, std::tuple<Key>>,
             public detail::base_misc<set<Key>, std::tuple<Key>>,
             public detail::base_iteration<set<Key>, std::tuple<Key>> { 
   friend class detail::base_misc<set<Key>, std::tuple<Key>>;
@@ -58,8 +58,6 @@ class set : public detail::base_async_insert<set<Key>, std::tuple<Key>>,
       std::swap(m_local_set, other.m_local_set);
       return *this;
     }
-
-    using detail::base_async_insert<set<Key>, for_all_args>::async_insert;
 
     void local_insert(const Key &val) { m_local_set.insert(val); }
 
