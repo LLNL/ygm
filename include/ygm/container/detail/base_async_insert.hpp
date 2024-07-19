@@ -50,7 +50,8 @@ struct base_async_insert {
   void async_insert(
       const std::pair<typename std::tuple_element<0, for_all_args>::type,
                       typename std::tuple_element<1, for_all_args>::type>& kvp)
-    requires requires(for_all_args f) { std::tuple_size_v<for_all_args> == 2; }
+    // requires requires(for_all_args f) { std::tuple_size_v<for_all_args> == 2; }
+    requires DoubleItemTuple<for_all_args>
   {
     async_insert(kvp.first, kvp.second);
   }
