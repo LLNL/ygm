@@ -25,6 +25,8 @@ int main(int argc, char** argv) {
     static_assert(std::is_same_v<decltype(bbag)::for_all_args,
                                  std::tuple<decltype(bbag)::value_type>>);
   }
+  
+
 
   //
   // Test Rank 0 async_insert
@@ -40,6 +42,84 @@ int main(int argc, char** argv) {
     ASSERT_RELEASE(bbag.count("red") == 1);
     ASSERT_RELEASE(bbag.size() == 3);
   }
+
+  //
+  // Test copy constructor
+  {
+    // ygm::container::bag<std::string> bbag(world);
+    // if (world.rank0()) {
+    //   bbag.async_insert("dog");
+    //   bbag.async_insert("apple");
+    //   bbag.async_insert("red");
+    // }
+    // world.barrier();
+    // ASSERT_RELEASE(bbag.size() == 3);
+    // ygm::container::bag<std::string> bbag2(bbag);
+
+    // ASSERT_RELEASE(bbag.size() == 3);
+    // ASSERT_RELEASE(bbag2.size() == 3);
+
+    // if (world.rank0()) {
+    //   bbag2.async_insert("car");
+    // }
+    // world.barrier();
+    // ASSERT_RELEASE(bbag.size() == 3);
+    // ASSERT_RELEASE(bbag2.size() == 4);
+  }
+
+  //
+  // Test move constructor
+  {
+    ygm::container::bag<std::string> bbag(world);
+    if (world.rank0()) {
+      bbag.async_insert("dog");
+      bbag.async_insert("apple");
+      bbag.async_insert("red");
+    }
+    world.barrier();
+    ASSERT_RELEASE(bbag.size() == 3);
+    ygm::container::bag<std::string> bbag2(std::move(bbag));
+
+    ASSERT_RELEASE(bbag.size() == 0);
+    ASSERT_RELEASE(bbag2.size() == 3);
+
+    if (world.rank0()) {
+      bbag2.async_insert("car");
+    }
+    world.barrier();
+    ASSERT_RELEASE(bbag.size() == 0);
+    ASSERT_RELEASE(bbag2.size() == 4);
+  }
+
+  // Testing = operator
+  {
+    ygm::container::bag<std::string> bbag(world);
+    if (world.rank0()) {
+      bbag.async_insert("dog");
+      bbag.async_insert("apple");
+      bbag.async_insert("red");
+    }
+    world.barrier();
+    ASSERT_RELEASE(bbag.size() == 3);
+
+    // ygm::container::bag<std::string> bbag2 = bbag;
+
+    // ASSERT_RELEASE(bbag.size() == 3);
+    // ASSERT_RELEASE(bbag2.size() == 3);
+
+    // if (world.rank0()) {
+    //   bbag2.async_insert("car");
+    // }
+    // world.barrier();
+    // ASSERT_RELEASE(bbag.size() == 3);
+    // ASSERT_RELEASE(bbag2.size() == 4);
+
+    ygm::container::bag<std::string> bbag3 = std::move(bbag);
+    ASSERT_RELEASE(bbag.size() == 0);
+    ASSERT_RELEASE(bbag3.size() == 3);  
+  }
+
+
 
   //
   // Test all ranks async_insert
@@ -221,4 +301,54 @@ int main(int argc, char** argv) {
                      199);
     }
   }
+
+  //
+  // Test swap
+  {
+    ygm::container::bag<std::string> bbag(world);
+    {
+      ygm::container::bag<std::string> bbag2(world);
+      if (world.rank0()) {
+        bbag2.async_insert("dog");
+        bbag2.async_insert("apple");
+        bbag2.async_insert("red");
+      }
+      ASSERT_RELEASE(bbag2.size() == 3);
+      bbag2.swap(bbag);
+      ASSERT_RELEASE(bbag2.size() == 0);
+    }
+    ASSERT_RELEASE(bbag.size() == 3);
+    ASSERT_RELEASE(bbag.count("dog") == 1);
+    ASSERT_RELEASE(bbag.count("apple") == 1);
+    ASSERT_RELEASE(bbag.count("red") == 1);
+    if (world.rank0()) {
+      bbag.async_insert("car");
+    }
+    ASSERT_RELEASE(bbag.size() == 4);
+    ASSERT_RELEASE(bbag.count("car") == 1);
+  }
+
+  //
+  // Test vector of bags
+  {
+    int                                   num_bags = 4;
+    std::vector<ygm::container::bag<int>> vec_bags;
+
+    for (int i = 0; i < num_bags; ++i) {
+      vec_bags.emplace_back(world);
+    }
+
+    for (int bag_index = 0; bag_index < num_bags; ++bag_index) {
+      int item = world.rank() + bag_index;
+      vec_bags[bag_index].async_insert(item);
+      vec_bags[bag_index].async_insert(item + 1);
+    }
+
+    world.barrier();
+    for (int bag_index = 0; bag_index < num_bags; ++bag_index) {
+      ASSERT_RELEASE(vec_bags[bag_index].size() == world.size() * 2);
+    }
+  }
+
+
 }

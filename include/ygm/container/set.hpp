@@ -15,6 +15,7 @@
 #include <ygm/container/detail/base_count.hpp>
 #include <ygm/container/detail/base_misc.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
+#include <set>
 // #include <ygm/container/detail/set_impl.hpp>
 
 namespace ygm::container {
