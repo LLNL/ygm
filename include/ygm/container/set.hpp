@@ -21,8 +21,8 @@
 namespace ygm::container {
 
 template <typename Value>
-class set : public detail::base_async_insert<set<Value>, std::tuple<Value>>,
-            public detail::base_async_erase<set<Value>, std::tuple<Value>>,
+class set : public detail::base_async_insert_value<set<Value>, std::tuple<Value>>,
+            public detail::base_async_erase_key<set<Value>, std::tuple<Value>>,
             public detail::base_async_contains<set<Value>, std::tuple<Value>>,
             public detail::base_async_insert_contains<set<Value>, std::tuple<Value>>,
             public detail::base_count<set<Value>, std::tuple<Value>>,
