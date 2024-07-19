@@ -12,9 +12,7 @@
 namespace ygm::container::detail {
 
 template <typename derived_type, typename for_all_args>
-struct base_async_erase
-
-{
+struct base_async_erase_key {
   void async_erase(
       const typename std::tuple_element<0, for_all_args>::type& key)
     requires AtLeastOneItemTuple<for_all_args>
@@ -31,7 +29,10 @@ struct base_async_erase
 
     derived_this->comm().async(dest, updater, derived_this->get_ygm_ptr(), key);
   }
+};
 
+template <typename derived_type, typename for_all_args>
+struct base_async_erase_key_value {
   void async_erase(
       const typename std::tuple_element<0, for_all_args>::type& key,
       const typename std::tuple_element<1, for_all_args>::type& value)
