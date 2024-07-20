@@ -268,8 +268,6 @@ template <typename Key, typename Value>
 class multimap
     : public detail::base_async_insert_key_value<multimap<Key, Value>,
                                                  std::tuple<Key, Value>>,
-      public detail::base_async_insert_or_assign<multimap<Key, Value>,
-                                                 std::tuple<Key, Value>>,
       public detail::base_misc<multimap<Key, Value>, std::tuple<Key, Value>>,
       public detail::base_async_erase_key<multimap<Key, Value>,
                                           std::tuple<Key, Value>>,

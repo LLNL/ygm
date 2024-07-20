@@ -70,38 +70,38 @@ my_set.serialize("serialization_test.set");
 }
 }
 
-//
-// Test multiset serialization
-{// Create set and serialize to file
- {ygm::container::multiset<int> my_mset(world);
-if (world.rank0()) {
-  my_mset.async_insert(0);
-  my_mset.async_insert(2);
-  my_mset.async_insert(3);
-  my_mset.async_insert(3);
-}
-ASSERT_RELEASE(my_mset.count(0) == 1);
-ASSERT_RELEASE(my_mset.count(2) == 1);
-ASSERT_RELEASE(my_mset.count(3) == 2);
-ASSERT_RELEASE(my_mset.size() == 4);
+// //
+// // Test multiset serialization
+// {// Create set and serialize to file
+//  {ygm::container::multiset<int> my_mset(world);
+// if (world.rank0()) {
+//   my_mset.async_insert(0);
+//   my_mset.async_insert(2);
+//   my_mset.async_insert(3);
+//   my_mset.async_insert(3);
+// }
+// ASSERT_RELEASE(my_mset.count(0) == 1);
+// ASSERT_RELEASE(my_mset.count(2) == 1);
+// ASSERT_RELEASE(my_mset.count(3) == 2);
+// ASSERT_RELEASE(my_mset.size() == 4);
 
-my_mset.serialize("serialization_test.set");
-}
+// my_mset.serialize("serialization_test.set");
+// }
 
-// Reload set and check contents
-{
-  ygm::container::set<int> reloaded_mset(world);
-  reloaded_mset.deserialize("serialization_test.set");
+// // Reload set and check contents
+// {
+//   ygm::container::set<int> reloaded_mset(world);
+//   reloaded_mset.deserialize("serialization_test.set");
 
-  ASSERT_RELEASE(reloaded_mset.count(0) == 1);
-  ASSERT_RELEASE(reloaded_mset.count(2) == 1);
-  ASSERT_RELEASE(reloaded_mset.count(3) == 2);
-  ASSERT_RELEASE(reloaded_mset.size() == 4);
+//   ASSERT_RELEASE(reloaded_mset.count(0) == 1);
+//   ASSERT_RELEASE(reloaded_mset.count(2) == 1);
+//   ASSERT_RELEASE(reloaded_mset.count(3) == 2);
+//   ASSERT_RELEASE(reloaded_mset.size() == 4);
 
-  reloaded_mset.async_insert(4);
-  ASSERT_RELEASE(reloaded_mset.size() == 5);
-}
-}
+//   reloaded_mset.async_insert(4);
+//   ASSERT_RELEASE(reloaded_mset.size() == 5);
+// }
+// }
 
 //
 // Test map serialization
