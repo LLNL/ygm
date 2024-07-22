@@ -9,8 +9,16 @@
 #include <ygm/collective.hpp>
 #include <ygm/container/detail/base_concepts.hpp>
 
-
 namespace ygm::container::detail {
+
+template <typename derived_type, typename FilterFunction>
+class filter_proxy;
+
+template <typename derived_type, typename MapFunction>
+class map_proxy;
+
+template <typename derived_type>
+class flatten_proxy;
 
 template <typename derived_type, typename for_all_args>
 struct base_iteration {
@@ -78,6 +86,14 @@ struct base_iteration {
     return ::ygm::all_reduce(to_return, merge, derived_this->comm());
   }
 
+  template <typename MapFunction>
+  map_proxy<derived_type, MapFunction> map(MapFunction ffn);
+
+  flatten_proxy<derived_type> flatten();
+
+  template <typename FilterFunction>
+  filter_proxy<derived_type, FilterFunction> filter(FilterFunction ffn);
+
  private:
   template <typename STLContainer, typename Value>
     requires requires(STLContainer stc, Value v) { stc.push_back(v); }
@@ -96,5 +112,36 @@ struct base_iteration {
   // unpack()
   // collect()
 };
+
+}  // namespace ygm::container::detail
+
+#include <ygm/container/detail/filter_proxy.hpp>
+#include <ygm/container/detail/flatten_proxy.hpp>
+#include <ygm/container/detail/map_proxy.hpp>
+
+namespace ygm::container::detail {
+
+template <typename derived_type, typename for_all_args>
+template <typename MapFunction>
+map_proxy<derived_type, MapFunction> base_iteration<derived_type, for_all_args>::map(MapFunction ffn) {
+  derived_type* derived_this = static_cast<derived_type*>(this);
+  return map_proxy<derived_type, MapFunction>(*derived_this, ffn);
+}
+
+template <typename derived_type, typename for_all_args>
+inline flatten_proxy<derived_type> base_iteration<derived_type, for_all_args>::flatten() {
+  // static_assert(
+  //     type_traits::is_vector<std::tuple_element<0, for_all_args>>::value);
+  derived_type* derived_this = static_cast<derived_type*>(this);
+  return flatten_proxy<derived_type>(*derived_this);
+}
+
+template <typename derived_type, typename for_all_args>
+template <typename FilterFunction>
+filter_proxy<derived_type, FilterFunction> base_iteration<derived_type, for_all_args>::filter(
+    FilterFunction ffn) {
+  derived_type* derived_this = static_cast<derived_type*>(this);
+  return filter_proxy<derived_type, FilterFunction>(*derived_this, ffn);
+}
 
 }  // namespace ygm::container::detail
