@@ -9,6 +9,7 @@
 #include <ygm/collective.hpp>
 #include <ygm/container/detail/base_concepts.hpp>
 
+
 namespace ygm::container::detail {
 
 template <typename derived_type, typename for_all_args>
@@ -92,9 +93,6 @@ struct base_iteration {
 
   // * reduce_by_key   bag<int>.reduce_by_key -- invalid
   //                  bag<pair<string, int>>.reduce_by_key(merge(int, int));
-  // * map()
-  // * filter()
-  // * flatten()
   // unpack()
   // collect()
 };

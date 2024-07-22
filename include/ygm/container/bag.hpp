@@ -9,6 +9,7 @@
 #include <ygm/container/container_traits.hpp>
 #include <ygm/container/detail/base_async_insert.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
+#include <ygm/container/detail/base_iteration_tools.hpp>
 #include <ygm/container/detail/base_count.hpp>
 #include <ygm/container/detail/base_misc.hpp>
 #include <ygm/container/detail/round_robin_partitioner.hpp>
@@ -20,7 +21,8 @@ template <typename Item>
 class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
             public detail::base_count<bag<Item>, std::tuple<Item>>,
             public detail::base_misc<bag<Item>, std::tuple<Item>>,
-            public detail::base_iteration<bag<Item>, std::tuple<Item>> {
+            public detail::base_iteration<bag<Item>, std::tuple<Item>>,
+            public detail::base_iteration_tools<bag<Item>, std::tuple<Item>> {
   friend class detail::base_misc<bag<Item>, std::tuple<Item>>;
 
  public:
