@@ -103,6 +103,7 @@ int main(int argc, char **argv) {
     if (world.rank0()) {
       iset.async_contains(val, f);
     }
+    world.barrier();
     ASSERT_RELEASE(not ygm::logical_or(set_contains, world));
 
     if (world.rank0()) {
@@ -230,7 +231,7 @@ int main(int argc, char **argv) {
   // Test vector of sets
   {
     int                                   num_sets = 4;
-    std::vector<ygm::container::multiset<int>> vec_sets;
+    std::vector<ygm::container::set<int>> vec_sets;
 
     for (int i = 0; i < num_sets; ++i) {
       vec_sets.emplace_back(world);
