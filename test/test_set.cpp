@@ -104,7 +104,6 @@ int main(int argc, char **argv) {
       iset.async_contains(val, f);
     }
     world.barrier();
-    // bool g_set_contains = ygm::logical_or(set_contains, world);   
     ASSERT_RELEASE(not ygm::logical_or(set_contains, world));
 
     if (world.rank0()) {
