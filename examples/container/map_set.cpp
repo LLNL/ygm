@@ -20,9 +20,9 @@ int main(int argc, char **argv) {
     str_set.async_insert("years");
     str_set.async_insert("ago");
 
-    str_map.async_set("apple", "orange");
-    str_map.async_set("car", "truck");
-    str_map.async_set("strawberry", "raspberry");
+    str_map.async_insert_or_assign("apple", "orange");
+    str_map.async_insert_or_assign("car", "truck");
+    str_map.async_insert_or_assign("strawberry", "raspberry");
   }
 
   str_set.for_all([](auto k) { std::cout << "str_set: " << k << std::endl; });

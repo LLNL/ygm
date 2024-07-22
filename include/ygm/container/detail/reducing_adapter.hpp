@@ -41,7 +41,7 @@ class reducing_adapter {
 
   void cache_reduce(const key_type &key, const mapped_type &value) {
     // Bypass cache if current rank owns key
-    if (m_container.comm().rank() == m_container.owner(key)) {
+    if (m_container.comm().rank() == m_container.partitioner.owner(key)) {
       container_reduction(key, value);
     } else {
       if (m_cache_empty) {
