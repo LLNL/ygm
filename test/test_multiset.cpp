@@ -18,13 +18,17 @@ int main(int argc, char** argv) {
     ygm::container::multiset<std::string> sset(world);
     if (world.rank() == 0) {
       sset.async_insert("dog");
+      sset.async_insert("dog");
       sset.async_insert("apple");
       sset.async_insert("red");
     }
-    ASSERT_RELEASE(sset.count("dog") == 1);
+    ASSERT_RELEASE(sset.count("dog") == 2);
     ASSERT_RELEASE(sset.count("apple") == 1);
     ASSERT_RELEASE(sset.count("red") == 1);
-    sset.async_erase("dog");
+    ASSERT_RELEASE(sset.size() == 4);
+    if (world.rank() == 0) {
+      sset.async_erase("dog");
+    }
     ASSERT_RELEASE(sset.size() == 2);
     if (world.rank() == 0) {
       sset.async_erase("apple");
@@ -46,10 +50,66 @@ int main(int argc, char** argv) {
     ASSERT_RELEASE(sset.count("dog") == (size_t)world.size());
     ASSERT_RELEASE(sset.count("apple") == (size_t)world.size());
     ASSERT_RELEASE(sset.count("red") == (size_t)world.size());
+
+    sset.async_insert("dog");
+    ASSERT_RELEASE(sset.count("dog") == (size_t)world.size() * 2);
   }
 
   //
-  // Test swap & async_set
+  // Test async_contains
+  {
+    static bool              set_contains = false;
+    ygm::container::multiset<int> iset(world);
+    world.barrier();
+    int val = 42;
+
+    auto f = [](bool contains, const int& i) {
+      set_contains = contains;
+    };   
+
+    if (world.rank0()) {
+      iset.async_contains(val, f);
+    }
+    world.barrier();
+    ASSERT_RELEASE(not ygm::logical_or(set_contains, world));
+
+    if (world.rank0()) {
+      iset.async_insert(val);
+    }
+
+    if (world.rank0()) {
+      iset.async_contains(val, f);
+    }
+    world.barrier();
+    ASSERT_RELEASE(ygm::logical_or(set_contains, world));
+  }
+
+  //
+  // Test async_insert_contains
+  {
+    static bool              already_contains = false;
+    ygm::container::multiset<std::string> sset(world);
+    world.barrier();
+
+    auto f = [](bool& contains, const std::string& s) {
+      already_contains = contains;
+    };   
+
+    if (world.rank0()) {
+      sset.async_insert_contains("dog", f);
+    }
+    world.barrier();
+    ASSERT_RELEASE(not ygm::logical_or(already_contains, world));
+
+    if (world.rank0()) {
+      sset.async_insert_contains("dog", f);
+    }
+    world.barrier();
+    ASSERT_RELEASE(ygm::logical_or(already_contains, world));
+  }
+
+  //
+  // Test swap
   {
     ygm::container::multiset<std::string> sset(world);
     {
@@ -67,6 +127,45 @@ int main(int argc, char** argv) {
     sset.async_insert("car");
     ASSERT_RELEASE(sset.size() == 4 * (size_t)world.size());
     ASSERT_RELEASE(sset.count("car") == (size_t)world.size());
+  }
+
+  //
+  // Test for_all
+  {
+    ygm::container::multiset<std::string> sset1(world);
+    ygm::container::multiset<std::string> sset2(world);
+
+    sset1.async_insert("dog");
+    sset1.async_insert("apple");
+    sset1.async_insert("red");
+
+    sset1.for_all([&sset2](const auto &key) { sset2.async_insert(key); });
+
+    ASSERT_RELEASE(sset2.count("dog") == world.size());
+    ASSERT_RELEASE(sset2.count("apple") == world.size());
+    ASSERT_RELEASE(sset2.count("red") == world.size());
+  }
+
+  //
+  // Test vector of sets
+  {
+    int                                   num_sets = 4;
+    std::vector<ygm::container::multiset<int>> vec_sets;
+
+    for (int i = 0; i < num_sets; ++i) {
+      vec_sets.emplace_back(world);
+    }
+
+    for (int set_index = 0; set_index < num_sets; ++set_index) {
+      int item = world.rank() + set_index;
+      vec_sets[set_index].async_insert(item);
+      vec_sets[set_index].async_insert(item + 1);
+    }
+
+    world.barrier();
+    for (int set_index = 0; set_index < num_sets; ++set_index) {
+      ASSERT_RELEASE(vec_sets[set_index].size() == world.size() * 2);
+    }
   }
 
   return 0;
