@@ -35,8 +35,25 @@ class flatten_proxy
     m_rcontainer.for_all(flambda);
   }
 
+  template <typename Function>
+  void for_all(Function fn) const {
+    auto flambda =
+        [fn](std::tuple_element_t<0, typename Container::for_all_args>&
+                 stlcont) {
+          for (const auto& v : stlcont) {
+            fn(v);
+          }
+        };
+
+    m_rcontainer.for_all(flambda);
+  }
+
+  ygm::comm& comm() { return m_rcontainer.comm(); }
+
+  const ygm::comm& comm() const { return m_rcontainer.comm(); }
+
  private:
   Container& m_rcontainer;
 };
 
-}
+}  // namespace ygm::container::detail

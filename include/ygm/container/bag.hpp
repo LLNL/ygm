@@ -37,11 +37,23 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
 
   bag(ygm::comm &comm, std::initializer_list<Item> l)
       : m_comm(comm), pthis(this), partitioner(comm) {
+    m_comm.cout0("initializer_list assumes all ranks are equal");
     pthis.check(m_comm);
     if (m_comm.rank0()) {
       for (const Item &i : l) {
         async_insert(i);
       }
+    }
+  }
+
+  template <typename STLContainer>
+  bag(ygm::comm &comm, const STLContainer &cont)
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    m_comm.cout0("STLContainer assumes all ranks are different");
+    pthis.check(m_comm);
+
+    for (const Item &i : cont) {
+      async_insert(i);
     }
   }
 

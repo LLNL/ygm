@@ -51,7 +51,7 @@ class map_proxy
           map_proxy<Container, MapFunction>,
           typename type_traits::tuple_wrapper<decltype(std::apply(
               std::declval<MapFunction>(),
-              std::declval<typename Container::for_all_args>()))>::type>{
+              std::declval<typename Container::for_all_args>()))>::type> {
  private:
   using map_function_ret =
       decltype(std::apply(std::declval<MapFunction>(),
@@ -65,7 +65,7 @@ class map_proxy
 
   template <typename Function>
   void for_all(Function fn) {
-    auto mlambda = [fn, this](auto&&... xs) {
+    auto mlambda = [fn, this](auto&... xs) {
       auto map_result = m_map_fn(std::forward<decltype(xs)>(xs)...);
       if constexpr (type_traits::is_tuple<decltype(map_result)>::value) {
         std::apply(fn, map_result);
@@ -77,11 +77,27 @@ class map_proxy
     m_rcontainer.for_all(mlambda);
   }
 
+  template <typename Function>
+  void for_all(Function fn) const {
+    auto mlambda = [fn, this](const auto&... xs) {
+      auto map_result = m_map_fn(std::forward<decltype(xs)>(xs)...);
+      if constexpr (type_traits::is_tuple<decltype(map_result)>::value) {
+        std::apply(fn, std::move(map_result));
+      } else {
+        fn(std::move(map_result));
+      }
+    };
+
+    m_rcontainer.for_all(mlambda);
+  }
+
+  ygm::comm& comm() { return m_rcontainer.comm(); }
+
+  const ygm::comm& comm() const { return m_rcontainer.comm(); }
+
  private:
   Container&  m_rcontainer;
   MapFunction m_map_fn;
 };
-
-
 
 }  // namespace ygm::container::detail
