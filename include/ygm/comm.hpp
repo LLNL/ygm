@@ -162,7 +162,7 @@ class comm {
  private:
   void comm_setup(MPI_Comm comm);
 
-  size_t pack_header(byte::byte_vector &packed, const int dest,
+  size_t pack_header(ygm::detail::byte_vector &packed, const int dest,
                      size_t size);
 
   std::pair<uint64_t, uint64_t> barrier_reduce_counts();
@@ -175,23 +175,23 @@ class comm {
 
   void flush_to_capacity();
 
-  void post_new_irecv(std::shared_ptr<byte::byte_vector> &recv_buffer);
+  void post_new_irecv(std::shared_ptr<ygm::detail::byte_vector> &recv_buffer);
 
   template <typename Lambda, typename... PackArgs>
-  size_t pack_lambda(byte::byte_vector &packed, Lambda l,
+  size_t pack_lambda(ygm::detail::byte_vector &packed, Lambda l,
                      const PackArgs &...args);
 
   template <typename Lambda, typename... PackArgs>
   void pack_lambda_broadcast(Lambda l, const PackArgs &...args);
 
   template <typename Lambda, typename RemoteLogicLambda, typename... PackArgs>
-  size_t pack_lambda_generic(byte::byte_vector &packed, Lambda l,
+  size_t pack_lambda_generic(ygm::detail::byte_vector &packed, Lambda l,
                              RemoteLogicLambda rll, const PackArgs &...args);
 
-  void queue_message_bytes(const byte::byte_vector             &packed,
+  void queue_message_bytes(const ygm::detail::byte_vector             &packed,
                            const int                     dest);
 
-  void handle_next_receive(std::shared_ptr<byte::byte_vector> &buffer,
+  void handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> &buffer,
                            const size_t                 buffer_size);
 
   bool process_receive_queue();
@@ -214,13 +214,13 @@ class comm {
   MPI_Comm m_comm_barrier;
   MPI_Comm m_comm_other;
 
-  std::vector<byte::byte_vector> m_vec_send_buffers;
+  std::vector<ygm::detail::byte_vector> m_vec_send_buffers;
   size_t                              m_send_buffer_bytes = 0;
   std::deque<int>                     m_send_dest_queue;
 
   std::deque<mpi_irecv_request>                        m_recv_queue;
   std::deque<mpi_isend_request>                        m_send_queue;
-  std::vector<std::shared_ptr<byte::byte_vector>> m_free_send_buffers;
+  std::vector<std::shared_ptr<ygm::detail::byte_vector>> m_free_send_buffers;
 
   size_t m_pending_isend_bytes = 0;
 

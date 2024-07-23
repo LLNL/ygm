@@ -17,7 +17,7 @@ int main() {
       "our fathers brought forth on this continent",
       "a new nation conceived in liberty"};
 
-  byte::byte_vector buffer;
+  ygm::detail::byte_vector buffer;
   {
     cereal::YGMOutputArchive archive(buffer);
     for (const auto& s : vec_sentences) { archive(s); }

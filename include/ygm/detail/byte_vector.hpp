@@ -6,13 +6,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <errno.h>
+#include <iostream>
+#include <stdexcept>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <vector>
 
-namespace byte {
+namespace ygm::detail {
 class byte_vector {  
   using value_type        = std::byte;
   using pointer           = std::byte*;
@@ -23,7 +26,7 @@ public:
   public:
 
     Byte_Iterator()                      : m_bv(nullptr), i(0) {}
-    Byte_Iterator(byte_vector* v, int i) : m_bv(v), i(i) {}
+    Byte_Iterator(byte_vector* v, size_t i) : m_bv(v), i(i) {}
     
     reference       operator*()             { return (*m_bv)[i]; }
     const reference operator*()       const { return (*m_bv)[i]; }
@@ -51,7 +54,7 @@ public:
 
   private:
     const byte_vector* m_bv;
-    int i;
+    size_t i;
   };
 
   byte_vector() : m_data(nullptr), m_size(0), m_capacity(0) {}
@@ -59,21 +62,11 @@ public:
   byte_vector(size_t set_capacity) : m_size(0) {
     m_capacity = get_page_aligned_size(set_capacity);
     // now that the shm_file is the correct size we can memory map to it.
-    std::byte* m_data = (std::byte*) mmap(NULL, m_capacity, PROT_READ | PROT_WRITE, MAP_PRIVATE, MAP_ANONYMOUS, 0);
+    m_data = (pointer) mmap(NULL, m_capacity, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
     if (m_data == MAP_FAILED) {
+      std::cerr << strerror(errno) << std::endl;
       throw std::runtime_error("mmap failed");
     }
-  }
-
-  byte_vector(std::vector<std::byte> &stream) {
-    m_capacity = get_page_aligned_size(stream.capacity());
-    // now that the shm_file is the correct size we can memory map to it.
-    std::byte* m_data = (std::byte*) mmap(NULL, m_capacity, PROT_READ | PROT_WRITE, MAP_PRIVATE, MAP_ANONYMOUS, 0);
-    if (m_data == MAP_FAILED) {
-      throw std::runtime_error("mmap failed");
-    }
-    memcpy(m_data, stream.data(), stream.size());
-    m_size = stream.size();
   }
 
   ~byte_vector() {
@@ -86,6 +79,7 @@ public:
 
   const reference operator[](int i) const { return m_data[i]; }
   reference operator[](int i) { return m_data[i]; }
+  
   pointer data() const { return m_data; }
   bool empty() const { return m_size == 0; }
   void clear() { m_size = 0; } 
@@ -96,22 +90,63 @@ public:
   Byte_Iterator end()   { return Byte_Iterator(this, m_size); }
   
   void swap(byte_vector& other) {
-    using std::swap;
-    swap(*this, other);
+    std::swap(m_data, other.m_data);
+    std::swap(m_size, other.m_size);
+    std::swap(m_capacity, other.m_capacity);
   }
 
   void reserve(size_t cap) {
     size_t new_capacity = get_page_aligned_size(cap);
-    m_data = (std::byte*) mremap(m_data, m_capacity, new_capacity, MREMAP_MAYMOVE);
-    if(m_data == MAP_FAILED) {
-      throw std::runtime_error("mremap failed");
+    if(m_data == nullptr) {
+      m_capacity = new_capacity;
+      // now that the shm_file is the correct size we can memory map to it.
+      m_data = (pointer) mmap(NULL, m_capacity, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+      if (m_data == MAP_FAILED) {
+        throw std::runtime_error("mmap failed");
+      }
+      return;
     }
+    // if max osx handler
+    #if __APPLE__
+    pointer temp = (pointer) mmap(NULL, new_capacity, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+    if (temp == MAP_FAILED) {
+      std::cerr << strerror(errno) << std::endl;
+      throw std::runtime_error("mmap failed");
+    }  
+    memcpy(temp, m_data, m_size);
+    munmap(m_data, m_capacity);
+    m_data = temp;
+    #else
+      m_data = (pointer) mremap(m_data, m_capacity, new_capacity, MREMAP_MAYMOVE);
+      if(m_data == MAP_FAILED) { 
+        std::cerr << m_capacity << "," << cap << "," << new_capacity << ", " << strerror(errno) << std::endl;
+        throw std::runtime_error("mremap failed");
+      }
+    #endif
     m_capacity = new_capacity;
   } 
 
   void resize(size_t s) {
-    if(s < m_capacity) this->reserve(s);
+    if(s > m_capacity) this->reserve(s);
     m_size = s;
+  }
+
+  void push_bytes(const void* d, size_t s) {
+    if(s > m_capacity - m_size) {
+      size_t new_capacity = std::max(m_capacity * 2, m_size + s);
+      this->reserve(new_capacity);
+    } 
+    memcpy(m_data + m_size, d, s);
+    m_size += s;
+  }
+
+  void push_bytes(void* d, size_t s) {
+    if(s > m_capacity - m_size) {
+      size_t new_capacity = std::max(m_capacity * 2, m_size + s);
+      this->reserve(new_capacity);
+    } 
+    memcpy(m_data + m_size, d, s);
+    m_size += s;
   }
 
 private:
@@ -122,18 +157,9 @@ private:
     return num_pages * pagesize;
   }
 
-  friend void swap(byte_vector& first, byte_vector& second);
-
-  std::byte* m_data;
-  uint64_t m_size;
-  uint64_t m_capacity;
+  pointer m_data;
+  size_t m_size;
+  size_t m_capacity;
 };
-
-void swap(byte_vector& first, byte_vector& second) {
-  using std::swap;
-  swap(first.m_data, second.m_data);
-  swap(first.m_size, second.m_size);
-  swap(first.m_capacity, second.m_capacity);
-}
 
 } // end ygm namespace

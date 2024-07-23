@@ -136,7 +136,7 @@ void bcast(T &to_bcast, int root, comm &cm) {
     ASSERT_MPI(
         MPI_Bcast(&to_bcast, sizeof(T), MPI_BYTE, root, cm.get_mpi_comm()));
   } else {
-    std::vector<std::byte>   packed;
+    ygm::detail::byte_vector packed;
     cereal::YGMOutputArchive oarchive(packed);
     if (cm.rank() == root) {
       oarchive(to_bcast);
