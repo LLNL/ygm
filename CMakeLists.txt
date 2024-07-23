@@ -157,7 +157,7 @@ target_include_directories(
                   $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(
-    ygm INTERFACE MPI::MPI_CXX Threads::Threads stdc++fs ${YGM_CEREAL_TARGET}
+    ygm INTERFACE MPI::MPI_CXX Threads::Threads stdc++fs rt ${YGM_CEREAL_TARGET}
 )
 
 option(TEST_WITH_SLURM "Run tests with Slurm" OFF)

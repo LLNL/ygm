@@ -32,6 +32,7 @@ function (add_ygm_test test_name)
 endfunction ()
 
 add_ygm_seq_test(test_cereal_archive)
+add_ygm_seq_test(test_byte_vector)
 
 add_ygm_test(test_comm)
 add_ygm_test(test_comm_2)
@@ -61,7 +62,6 @@ add_ygm_test(test_traits)
 add_ygm_test(test_concepts)
 add_ygm_test(test_recursion_large_messages)
 add_ygm_test(test_recursion_progress)
-add_ygm_test(test_byte_vector)
 
 if (Boost_FOUND)
     add_ygm_seq_test(test_cereal_boost_json)

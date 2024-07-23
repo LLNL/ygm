@@ -43,7 +43,7 @@ class YGMOutputArchive
       : OutputArchive<YGMOutputArchive, AllowEmptyClassElision>(this),
         vec_data(stream) {}*/
 
-  YGMOutputArchive(byte::byte_vector &stream)
+  YGMOutputArchive(ygm::detail::byte_vector &stream)
       : OutputArchive<YGMOutputArchive, AllowEmptyClassElision>(this),
         vec_data(stream) {}
 
@@ -51,12 +51,7 @@ class YGMOutputArchive
 
   //! Writes size bytes of data to the output stream
   void saveBinary(const void *data, std::streamsize size) {
-    size_t vec_data_size_before = vec_data.size();
-    if (vec_data.capacity() < vec_data.size() + size) {
-      vec_data.reserve(vec_data.capacity() * 2);
-    }
-    vec_data.resize(vec_data.size() + size);
-    std::memcpy(vec_data.data() + vec_data_size_before, data, size);
+    vec_data.push_bytes(data, size);
 
     // if (writtenSize != size)
     //   throw Exception("Failed to write " + std::to_string(size) +
@@ -65,7 +60,7 @@ class YGMOutputArchive
   }
 
  private:
-  byte::byte_vector &vec_data;
+  ygm::detail::byte_vector &vec_data;
 };
 
 // ######################################################################
