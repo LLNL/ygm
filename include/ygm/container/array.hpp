@@ -64,11 +64,12 @@ class array
   }
 
   array(const self_type& rhs)
-      : m_global_size(rhs.m_global_size),
+      : m_comm(rhs.m_comm),
+        pthis(this),
+        m_global_size(rhs.m_global_size),
         m_default_value(rhs.m_default_value),
         m_local_vec(rhs.m_local_vec),
-        m_comm(rhs.m_comm),
-        partitioner(m_comm, m_global_size) {
+        partitioner(rhs.m_comm, rhs.m_global_size) {
     pthis.check(m_comm);
     resize(m_global_size);
   }
