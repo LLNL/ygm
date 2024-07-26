@@ -44,7 +44,7 @@ class multiset : public detail::base_async_insert_value<multiset<Value>, std::tu
 
     multiset(const self_type &other) 
         : m_comm(other.comm()), pthis(this), partitioner(other.comm, other.partitioner) {
-      pthis.check(m_comm); // What is other.comm? Is this supposed to be other.comm()?
+      pthis.check(m_comm); 
     }
 
     multiset(self_type &&other) noexcept
@@ -133,7 +133,7 @@ class set : public detail::base_async_insert_value<set<Value>, std::tuple<Value>
 
     set(const self_type &other) 
         : m_comm(other.comm()), pthis(this), partitioner(other.comm, other.partitioner) {
-      pthis.check(m_comm); // What is other.comm? Is this supposed to be other.comm()?
+      pthis.check(m_comm);
     }
 
     set(self_type &&other) noexcept
