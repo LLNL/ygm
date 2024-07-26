@@ -162,38 +162,38 @@ int main(int argc, char **argv) {
   //   }
   // }
 
-  // //
-  // // Test async_reduce
-  // {
-  //   ygm::container::map<std::string, int> smap(world);
+  //
+  // Test async_reduce
+  {
+    ygm::container::map<std::string, int> smap(world);
 
-  //   int num_reductions = 5;
-  //   for (int i = 0; i < num_reductions; ++i) {
-  //     smap.async_reduce("sum", i, std::plus<int>());
-  //     smap.async_reduce("min", i, [](const int &a, const int &b) {
-  //       return std::min<int>(a, b);
-  //     });
-  //     smap.async_reduce("max", i, [](const int &a, const int &b) {
-  //       return std::max<int>(a, b);
-  //     });
-  //   }
+    int num_reductions = 5;
+    for (int i = 0; i < num_reductions; ++i) {
+      smap.async_reduce("sum", i, std::plus<int>());
+      smap.async_reduce("min", i, [](const int &a, const int &b) {
+        return std::min<int>(a, b);
+      });
+      smap.async_reduce("max", i, [](const int &a, const int &b) {
+        return std::max<int>(a, b);
+      });
+    }
 
-  //   world.barrier();
+    world.barrier();
 
-  //   smap.for_all([&world, &num_reductions](const auto &key, const auto
-  //   &value) {
-  //     if (key == "sum") {
-  //       ASSERT_RELEASE(value == world.size() * num_reductions *
-  //                                   (num_reductions - 1) / 2);
-  //     } else if (key == "min") {
-  //       ASSERT_RELEASE(value == 0);
-  //     } else if (key == "max") {
-  //       ASSERT_RELEASE(value == num_reductions - 1);
-  //     } else {
-  //       ASSERT_RELEASE(false);
-  //     }
-  //   });
-  // }
+    smap.for_all([&world, &num_reductions](const auto &key, const auto
+    &value) {
+      if (key == "sum") {
+        ASSERT_RELEASE(value == world.size() * num_reductions *
+                                    (num_reductions - 1) / 2);
+      } else if (key == "min") {
+        ASSERT_RELEASE(value == 0);
+      } else if (key == "max") {
+        ASSERT_RELEASE(value == num_reductions - 1);
+      } else {
+        ASSERT_RELEASE(false);
+      }
+    });
+  }
 
   //
   // Test swap & async_insert_or_assign

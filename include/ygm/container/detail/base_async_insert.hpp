@@ -7,20 +7,25 @@
 
 #include <tuple>
 #include <utility>
+#include <ygm/container/detail/base_concepts.hpp>
 
 namespace ygm::container::detail {
 
 template <typename derived_type, typename for_all_args>
 struct base_async_insert_value {
-  void async_insert(const std::tuple_element<0, for_all_args>::type& value) {
+  void async_insert(
+      const typename std::tuple_element<0, for_all_args>::type& value)
+    requires SingleItemTuple<for_all_args>
+  {
     derived_type* derived_this = static_cast<derived_type*>(this);
 
     int dest = derived_this->partitioner.owner(value);
 
-    auto inserter = [](auto                                             pcont,
-                       const std::tuple_element<0, for_all_args>::type& item) {
-      pcont->local_insert(item);
-    };
+    auto inserter =
+        [](auto                                                      pcont,
+           const typename std::tuple_element<0, for_all_args>::type& item) {
+          pcont->local_insert(item);
+        };
 
     derived_this->comm().async(dest, inserter, derived_this->get_ygm_ptr(),
                                value);
@@ -29,9 +34,10 @@ struct base_async_insert_value {
 
 template <typename derived_type, typename for_all_args>
 struct base_async_insert_key_value {
-  void async_insert(const std::tuple_element<0, for_all_args>::type& key,
-                    const std::tuple_element<1, for_all_args>::type& value)
-    requires requires(for_all_args f) { std::tuple_size_v<for_all_args> == 2; }
+  void async_insert(
+      const typename std::tuple_element<0, for_all_args>::type& key,
+      const typename std::tuple_element<1, for_all_args>::type& value)
+    requires DoubleItemTuple<for_all_args>
   {
     derived_type* derived_this = static_cast<derived_type*>(this);
 
@@ -48,9 +54,9 @@ struct base_async_insert_key_value {
   }
 
   void async_insert(
-      const std::pair<typename std::tuple_element<0, for_all_args>::type,
+      const std::pair<const typename std::tuple_element<0, for_all_args>::type,
                       typename std::tuple_element<1, for_all_args>::type>& kvp)
-    requires requires(for_all_args f) { std::tuple_size_v<for_all_args> == 2; }
+    requires DoubleItemTuple<for_all_args>
   {
     async_insert(kvp.first, kvp.second);
   }
