@@ -1,34 +1,21 @@
 .. YGM documentation master file, created by
-   sphinx-quickstart on Thu Jul 25 15:54:59 2024.
+   sphinx-quickstart on Mon Apr  3 18:10:58 2023.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-YGM documentation
-=================
-
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
-
+YGM library documentation
+=====================================
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
+   ygm/comm
+   ygm/container
 
-API Reference
----------
+Indices and tables
+==================
 
-.. toctree::
-   :maxdepth: 1
-
-   api
-
-
-Documents for YGM developers
----------
-
-.. toctree::
-   :maxdepth: 1
-
-   dev
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
