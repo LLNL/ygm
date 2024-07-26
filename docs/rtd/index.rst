@@ -13,6 +13,14 @@ YGM library documentation
    ygm/comm
    ygm/container
 
+Documents for YGM developers
+---------
+
+.. toctree::
+   :maxdepth: 1
+
+   dev
+
 Indices and tables
 ==================
 
