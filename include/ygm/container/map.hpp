@@ -11,7 +11,9 @@
 #include <ygm/container/detail/base_async_erase.hpp>
 #include <ygm/container/detail/base_async_insert.hpp>
 #include <ygm/container/detail/base_async_insert_or_assign.hpp>
+#include <ygm/container/detail/base_async_reduce.hpp>
 #include <ygm/container/detail/base_async_visit.hpp>
+#include <ygm/container/detail/base_count.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_misc.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
@@ -25,6 +27,8 @@ class map
       public detail::base_async_insert_or_assign<map<Key, Value>,
                                                  std::tuple<Key, Value>>,
       public detail::base_misc<map<Key, Value>, std::tuple<Key, Value>>,
+      public detail::base_count<map<Key, Value>, std::tuple<Key, Value>>,
+      public detail::base_async_reduce<map<Key, Value>, std::tuple<Key, Value>>,
       public detail::base_async_erase_key<map<Key, Value>,
                                           std::tuple<Key, Value>>,
       public detail::base_async_erase_key_value<map<Key, Value>,
@@ -75,6 +79,16 @@ class map
   }
 
   void local_clear() { m_local_map.clear(); }
+
+  template <typename ReductionOp>
+  void local_reduce(const key_type& key, const mapped_type& value,
+                    ReductionOp reducer) {
+    if (m_local_map.count(key) == 0) {
+      m_local_map.insert({key, value});
+    } else {
+      m_local_map[key] = reducer(value, m_local_map[key]);
+    }
+  }
 
   size_t local_size() const { return m_local_map.size(); }
 
@@ -185,6 +199,20 @@ class map
     }
   }
 
+  template <typename Function>
+  void local_for_all(Function fn) const {
+    if constexpr (std::is_invocable<decltype(fn), const key_type,
+                                    mapped_type&>()) {
+      for (const std::pair<const key_type, mapped_type>& kv : m_local_map) {
+        fn(kv.first, kv.second);
+      }
+    } else {
+      static_assert(ygm::detail::always_false<>,
+                    "local map lambda signature must be invocable with (const "
+                    "&key_type, mapped_type&) signature");
+    }
+  }
+
   // void async_insert(const std::pair<key_type, mapped_type>& kv) {
   //   async_insert(kv.first, kv.second);
   // }
@@ -225,10 +253,8 @@ class map
   //   m_impl.for_all(fn);
   // }
 
-  size_t count(const key_type& key) const {
-    m_comm.barrier();
-    size_t local_count = m_local_map.count(key);
-    return ygm::sum(local_count, m_comm);
+  size_t local_count(const key_type& key) const {
+    return m_local_map.count(key);
   }
 
   // void serialize(const std::string& fname) { m_impl.serialize(fname); }
@@ -269,6 +295,7 @@ class multimap
     : public detail::base_async_insert_key_value<multimap<Key, Value>,
                                                  std::tuple<Key, Value>>,
       public detail::base_misc<multimap<Key, Value>, std::tuple<Key, Value>>,
+      public detail::base_count<multimap<Key, Value>, std::tuple<Key, Value>>,
       public detail::base_async_erase_key<multimap<Key, Value>,
                                           std::tuple<Key, Value>>,
       public detail::base_async_erase_key_value<multimap<Key, Value>,
@@ -452,23 +479,8 @@ class multimap
   //       key, value, visitor, std::forward<const VisitorArgs>(args)...);
   // }
 
-  // template <typename ReductionOp>
-  // void async_reduce(const key_type& key, const mapped_type& value,
-  //                   ReductionOp reducer) {
-  //   m_impl.async_reduce(key, value, reducer);
-  // }
-
-  // void async_erase(const key_type& key) { m_impl.async_erase(key); }
-
-  // template <typename Function>
-  // void for_all(Function fn) {
-  //   m_impl.for_all(fn);
-  // }
-
-  size_t count(const key_type& key) const {
-    m_comm.barrier();
-    size_t local_count = m_local_map.count(key);
-    return ygm::sum(local_count, m_comm);
+  size_t local_count(const key_type& key) const {
+    return m_local_map.count(key);
   }
 
   // void serialize(const std::string& fname) { m_impl.serialize(fname); }

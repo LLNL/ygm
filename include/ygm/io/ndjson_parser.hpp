@@ -12,6 +12,7 @@
 #include <ygm/comm.hpp>
 #include <ygm/detail/cereal_boost_json.hpp>
 #include <ygm/io/line_parser.hpp>
+#include <ygm/container/detail/base_iteration.hpp>
 
 namespace ygm::io {
 std::size_t json_erase(boost::json::object            &obj,
@@ -36,8 +37,9 @@ std::size_t json_filter(boost::json::object            &obj,
   return json_erase(obj, keys_to_erase);
 }
 
-class ndjson_parser {
+class ndjson_parser : public ygm::container::detail::base_iteration<ndjson_parser, std::tuple<boost::json::object>>{
  public:
+  using for_all_args = std::tuple<boost::json::object>;
   template <typename... Args>
   ndjson_parser(Args &&...args) : m_lp(std::forward<Args>(args)...) {}
 
