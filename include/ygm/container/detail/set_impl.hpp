@@ -14,15 +14,15 @@
 #include <ygm/detail/ygm_traits.hpp>
 
 namespace ygm::container::detail {
-template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
-          typename Compare = std::less<Key>,
-          class Alloc      = std::allocator<const Key>>
+template <
+    typename Key, typename Partitioner = detail::old_hash_partitioner<Key>,
+    typename Compare = std::less<Key>, class Alloc = std::allocator<const Key>>
 class set_impl {
  public:
-  using self_type          = set_impl<Key, Partitioner, Compare, Alloc>;
-  using key_type           = Key;
-  using size_type          = size_t;
-  using ygm_container_type = ygm::container::set_tag;
+  using self_type      = set_impl<Key, Partitioner, Compare, Alloc>;
+  using key_type       = Key;
+  using size_type      = size_t;
+  using container_type = ygm::container::set_tag;
 
   Partitioner partitioner;
 

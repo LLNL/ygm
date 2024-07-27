@@ -98,13 +98,13 @@ class tagged_bag {
     return m_tagged_bag.m_local_map.size();
   }
 
-  template <typename STLKeyContainer>
-  std::map<tag_type, value_type> all_gather(const STLKeyContainer &tags) {
-    return m_tagged_bag.all_gather(tags);
-  }
+  // template <typename STLKeyContainer>
+  // std::map<tag_type, value_type> key_gather(const STLKeyContainer &tags) {
+  //   return m_tagged_bag.all_gather(tags);
+  // }
 
-  std::map<tag_type, value_type> all_gather(const std::vector<tag_type> &tags) {
-    return m_tagged_bag.all_gather(tags);
+  std::map<tag_type, value_type> key_gather(const std::vector<tag_type> &tags) {
+    return m_tagged_bag.key_gather(tags);
   }
   template <typename Function>
   void local_for_all(Function fn) {

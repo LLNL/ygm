@@ -251,7 +251,9 @@ inline void comm::barrier() {
  * Only blocks the control flow until all processes in the communicator have
  * called it. See:  MPI_Barrier()
  */
-inline void comm::cf_barrier() { ASSERT_MPI(MPI_Barrier(m_comm_barrier)); }
+inline void comm::cf_barrier() const {
+  ASSERT_MPI(MPI_Barrier(m_comm_barrier));
+}
 
 template <typename T>
 inline ygm_ptr<T> comm::make_ygm_ptr(T &t) {

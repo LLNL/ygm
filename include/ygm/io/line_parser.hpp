@@ -9,6 +9,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <ygm/container/detail/base_iteration.hpp>
 
 namespace ygm::io {
 
@@ -18,8 +19,9 @@ namespace fs = std::filesystem;
  * @brief Distributed text file parsing.
  *
  */
-class line_parser {
+class line_parser: public ygm::container::detail::base_iteration<line_parser, std::tuple<std::string>> {
  public:
+  using for_all_args = std::tuple<std::string>;
   /**
    * @brief Construct a new line parser object
    *
@@ -54,46 +56,6 @@ class line_parser {
       if (m_paths.empty()) return;
     } else {
       static std::vector<std::tuple<fs::path, size_t, size_t>> my_file_paths;
-
-      // //
-      // // Working approach, but doesn't split by size
-      // m_comm.barrier();
-      // if (m_comm.rank0()) {
-      //   if (!m_paths.empty()) {
-      //     size_t ranks_per_file =
-      //         std::max(m_comm.size() / m_paths.size(), size_t(1));
-      //     // std::cout << "ranks_per_file = " << ranks_per_file << std::endl;
-      //     for (size_t i = 0; i < m_paths.size(); ++i) {
-      //       size_t fsize = fs::file_size(m_paths[i]);
-      //       // std::cout << "fize = " << fsize << std::endl;
-      //       size_t bytes_per_rank = (fsize / ranks_per_file) + 1;
-      //       // std::cout << "bytes_per_rank = " << bytes_per_rank <<
-      //       std::endl;
-
-      //       int dest0 = (i * ranks_per_file) % m_comm.size();
-      //       for (int d = 0; d < ranks_per_file; ++d) {
-      //         int dest = (dest0 + d) % m_comm.size();
-      //         ;
-      //         size_t bytes_begin = d * bytes_per_rank;
-
-      //         // std::cout << "bytes_begin = " << bytes_begin << std::endl;
-      //         size_t bytes_end = std::min(bytes_begin + bytes_per_rank,
-      //         fsize);
-      //         ;
-      //         // std::cout << "bytes_end = " << bytes_end << std::endl;
-      //         m_comm.async(
-      //             dest,
-      //             [](const std::string& fname, size_t bytes_begin,
-      //                size_t bytes_end) {
-      //               my_file_paths.push_back(
-      //                   {fs::path(fname), bytes_begin, bytes_end});
-      //             },
-      //             (std::string)m_paths[i], bytes_begin, bytes_end);
-      //       }
-      //     }
-      //   }
-      // }
-      // m_comm.barrier();
 
       //
       //  Splits files over ranks by file size.   8MB is smallest granularity.

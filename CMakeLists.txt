@@ -81,7 +81,7 @@ if (NOT cereal_FOUND)
     FetchContent_Declare(
         cereal
         GIT_REPOSITORY https://github.com/USCiLab/cereal.git
-        GIT_TAG af0700efb25e7dc7af637b9e6f970dbb94813bff
+        GIT_TAG v1.3.2
     )
     FetchContent_GetProperties(cereal)
     if (cereal_POPULATED)
@@ -151,7 +151,7 @@ find_arrow_parquet()
 #
 add_library(ygm INTERFACE)
 add_library(ygm::ygm ALIAS ygm)
-target_compile_features(ygm INTERFACE cxx_std_17)
+target_compile_features(ygm INTERFACE cxx_std_20)
 target_include_directories(
     ygm INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                   $<INSTALL_INTERFACE:include>

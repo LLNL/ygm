@@ -40,21 +40,20 @@ int main(int argc, char **argv) {
   }
 
   //
-  // Test all ranks default & async_visit_if_exists
+  // Test all ranks default & async_visit_if_contains
   {
-    ygm::container::multimap<std::string, std::string> smap(world,
-                                                            "default_string");
+    ygm::container::multimap<std::string, std::string> smap(world);
     smap.async_visit("dog",
                      [](const std::string &key, const std::string &value) {
                        ASSERT_RELEASE(key == "dog");
-                       ASSERT_RELEASE(value == "default_string");
+                       ASSERT_RELEASE(value == "");
                      });
     smap.async_visit("cat",
                      [](const std::string &key, const std::string &value) {
                        ASSERT_RELEASE(key == "cat");
-                       ASSERT_RELEASE(value == "default_string");
+                       ASSERT_RELEASE(value == "");
                      });
-    smap.async_visit_if_exists("red", [](const auto &key, const auto &value) {
+    smap.async_visit_if_contains("red", [](const auto &key, const auto &value) {
       ASSERT_RELEASE(false);
     });
 
@@ -76,19 +75,18 @@ int main(int argc, char **argv) {
   }
 
   //
-  // Test all ranks default & async_visit_if_exists (legacy)
+  // Test all ranks default & async_visit_if_contains (legacy)
   {
-    ygm::container::multimap<std::string, std::string> smap(world,
-                                                            "default_string");
+    ygm::container::multimap<std::string, std::string> smap(world);
     smap.async_visit("dog", [](const std::string &key, std::string &value) {
       ASSERT_RELEASE(key == "dog");
-      ASSERT_RELEASE(value == "default_string");
+      ASSERT_RELEASE(value == "");
     });
     smap.async_visit("cat", [](const std::string &key, std::string &value) {
       ASSERT_RELEASE(key == "cat");
-      ASSERT_RELEASE(value == "default_string");
+      ASSERT_RELEASE(value == "");
     });
-    smap.async_visit_if_exists(
+    smap.async_visit_if_contains(
         "red", [](const auto &k, const auto &v) { ASSERT_RELEASE(false); });
 
     ASSERT_RELEASE(smap.count("dog") == 1);
@@ -108,27 +106,28 @@ int main(int argc, char **argv) {
     ASSERT_RELEASE(smap.size() == 0);
   }
 
-  //
-  // Test async_visit_group
-  {
-    ygm::container::multimap<std::string, std::string> smap(world);
+  // //
+  // // Test async_visit_group
+  // {
+  //   ygm::container::multimap<std::string, std::string> smap(world);
 
-    // Insert from all ranks
-    smap.async_insert("dog", "bark");
-    smap.async_insert("dog", "woof");
-    smap.async_insert("cat", "meow");
+  //   // Insert from all ranks
+  //   smap.async_insert("dog", "bark");
+  //   smap.async_insert("dog", "woof");
+  //   smap.async_insert("cat", "meow");
 
-    world.barrier();
+  //   world.barrier();
 
-    smap.async_visit_group(
-        "dog", [](auto pmap, const auto begin, const auto end) {
-          ASSERT_RELEASE(std::distance(begin, end) == 2 * pmap->comm().size());
-        });
-    smap.async_visit_group(
-        "cat", [](auto pmap, const auto begin, const auto end) {
-          ASSERT_RELEASE(std::distance(begin, end) == pmap->comm().size());
-        });
-  }
+  //   smap.async_visit_group(
+  //       "dog", [](auto pmap, const auto begin, const auto end) {
+  //         ASSERT_RELEASE(std::distance(begin, end) == 2 *
+  //         pmap->comm().size());
+  //       });
+  //   smap.async_visit_group(
+  //       "cat", [](auto pmap, const auto begin, const auto end) {
+  //         ASSERT_RELEASE(std::distance(begin, end) == pmap->comm().size());
+  //       });
+  // }
 
   //
   // Test swap & async_set
@@ -161,7 +160,7 @@ int main(int argc, char **argv) {
     smap.async_insert("foo", "quux");
     world.barrier();
     auto values = smap.local_get("foo");
-    if (smap.is_mine("foo")) {
+    if (smap.partitioner.owner("foo") == world.rank()) {
       ASSERT_RELEASE(values.size() == 4 * (size_t)world.size());
     } else {
       ASSERT_RELEASE(values.size() == 0);
