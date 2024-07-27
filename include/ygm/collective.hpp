@@ -205,4 +205,48 @@ inline T all_reduce(const T &in, MergeFunction merge, const comm &cm) {
   return to_return;
 }
 
+/**
+ * @brief Tree based reduction, could be optimized significantly
+ *
+ * @tparam T
+ * @tparam MergeFunction
+ * @param in
+ * @param merge
+ * @return T
+ */
+template <typename T, typename MergeFunction>
+inline std::optional<T> all_reduce(std::optional<T> mine, MergeFunction merge, const comm &cm) {
+  int first_child  = 2 * cm.rank() + 1;
+  int second_child = 2 * (cm.rank() + 1);
+  int parent       = (cm.rank() - 1) / 2;
+
+  // Step 1: Receive from children, merge into tmp
+  if (first_child < cm.size()) {
+    std::optional<T> fc = cm.mpi_recv<std::optional<T>>(first_child, 0);
+    if (mine.has_value() && fc.has_value()) {
+      mine = merge(mine.value(), fc.value());
+    } else if (fc.has_value()) {
+      mine = fc;
+    }
+  }
+  if (second_child < cm.size()) {
+    std::optional<T> sc = cm.mpi_recv<std::optional<T>>(second_child, 0);
+    if (mine.has_value() && sc.has_value()) {
+      mine = merge(mine.value(), sc.value());
+    } else if (sc.has_value()) {
+      mine = sc;
+    }
+  }
+
+  // Step 2: Send merged to parent
+  if (cm.rank() != 0) {
+    cm.mpi_send(mine, parent, 0);
+  }
+
+  // Step 3:  Rank 0 bcasts
+  return cm.mpi_bcast(mine, 0);
+}
+
+
+
 }  // namespace ygm

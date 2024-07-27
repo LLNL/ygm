@@ -75,7 +75,7 @@ if (NOT cereal_FOUND)
     FetchContent_Declare(
         cereal
         GIT_REPOSITORY https://github.com/USCiLab/cereal.git
-        GIT_TAG af0700efb25e7dc7af637b9e6f970dbb94813bff
+        GIT_TAG v1.3.2
     )
     FetchContent_GetProperties(cereal)
     if (cereal_POPULATED)

@@ -12,9 +12,6 @@ class flatten_proxy
     : public base_iteration<flatten_proxy<Container>,
                             std::tuple<std::tuple_element_t<
                                 0, typename Container::for_all_args>>> {
-  // static_assert(
-  //     type_traits::is_vector<
-  //         std::tuple_element<0, typename Container::for_all_args>>::value);
 
  public:
   using for_all_args =

@@ -12,6 +12,7 @@
 #include <cereal/types/tuple.hpp>
 #include <cereal/types/utility.hpp>
 #include <cereal/types/vector.hpp>
+#include <cereal/types/optional.hpp>
 #include <cstring>
 #include <vector>
 #include <ygm/detail/assert.hpp>
