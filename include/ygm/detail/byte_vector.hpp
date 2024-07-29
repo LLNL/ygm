@@ -45,9 +45,9 @@ public:
 
     difference_type operator-(Byte_Iterator const& r) const { return i - r.i; }
 
-    bool operator<(Byte_Iterator const& r) const  { return i <  r.i; }
+    bool operator<(Byte_Iterator const& r)  const { return i <  r.i; }
     bool operator<=(Byte_Iterator const& r) const { return i <= r.i; }
-    bool operator>(Byte_Iterator const& r) const  { return i >  r.i; }
+    bool operator>(Byte_Iterator const& r)  const { return i >  r.i; }
     bool operator>=(Byte_Iterator const& r) const { return i >= r.i; }
     bool operator!=(Byte_Iterator const& r) const { return i != r.i; }
     bool operator==(Byte_Iterator const& r) const { return i == r.i; }
@@ -90,8 +90,8 @@ public:
   Byte_Iterator end()   { return Byte_Iterator(this, m_size); }
   
   void swap(byte_vector& other) {
-    std::swap(m_data, other.m_data);
-    std::swap(m_size, other.m_size);
+    std::swap(m_data,     other.m_data);
+    std::swap(m_size,     other.m_size);
     std::swap(m_capacity, other.m_capacity);
   }
 
