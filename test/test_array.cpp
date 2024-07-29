@@ -7,6 +7,11 @@
 
 #include <ygm/comm.hpp>
 #include <ygm/container/array.hpp>
+#include <ygm/container/bag.hpp>
+#include <ygm/container/map.hpp>
+
+#include <map>
+#include <vector>
 
 int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
@@ -24,7 +29,7 @@ int main(int argc, char **argv) {
     static_assert(
         std::is_same_v<
             decltype(arr)::for_all_args,
-            std::tuple<decltype(arr)::key_type, decltype(arr)::mapped_type> >);
+            std::tuple<decltype(arr)::key_type, decltype(arr)::mapped_type>>);
   }
 
   // Test async_set
@@ -326,6 +331,175 @@ int main(int argc, char **argv) {
 
     arr2.for_all([](const auto &index, const auto &value) {
       ASSERT_RELEASE(value == 2 * index);
+    });
+  }
+
+  // Test constructor with default value
+  {
+    int size          = 64;
+    int default_value = 3;
+
+    ygm::container::array<int> arr(world, size, default_value);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        if (i % 2 == 0) {
+          arr.async_set(i, 2 * i);
+        }
+      }
+    }
+
+    world.barrier();
+
+    arr.for_all([&default_value](const auto &index, const auto &value) {
+      if (index % 2 == 0) {
+        ASSERT_RELEASE(value == 2 * index);
+      } else {
+        ASSERT_RELEASE(value == default_value);
+      }
+    });
+  }
+
+  // Test constructor with initializer list of values
+  {
+    ygm::container::array<int> arr(world, {1, 3, 5, 7, 9, 11});
+
+    arr.for_all([](const auto &index, const auto &value) {
+      ASSERT_RELEASE(value == 2 * index + 1);
+    });
+  }
+
+  // Test constructor with initializer list of index, value pairs
+  {
+    ygm::container::array<int> arr(
+        world,
+        {std::make_pair(1, 2), std::make_pair(3, 6), std::make_pair(5, 10),
+         std::make_pair(7, 14), std::make_pair(9, 18), std::make_pair(11, 22)});
+
+    arr.for_all([](const auto &index, const auto &value) {
+      if (index % 2 == 1) {
+        ASSERT_RELEASE(value == 2 * index);
+      } else {
+        ASSERT_RELEASE(value == 0);
+      }
+    });
+  }
+
+  // Test constructor from bag
+  {
+    ygm::container::bag<int> b(world);
+    int                      bag_size = 10;
+    if (world.rank0()) {
+      for (int i = 0; i < bag_size; ++i) {
+        b.async_insert(1);
+      }
+    }
+
+    world.barrier();
+
+    ygm::container::array<int> arr(world, b);
+
+    arr.for_all([](const auto &index, const auto &value) {
+      ASSERT_RELEASE(value == 1);
+    });
+  }
+
+  // Test constructor from bag of tuples
+  {
+    ygm::container::bag<std::tuple<int, int>> b(world);
+    int                                       bag_size = 10;
+    if (world.rank0()) {
+      for (int i = 0; i < bag_size; ++i) {
+        b.async_insert(std::make_tuple(2 * i, i));
+      }
+    }
+
+    world.barrier();
+
+    ygm::container::array<int> arr(world, b);
+
+    ASSERT_RELEASE(arr.size() == 2 * bag_size - 1);
+    arr.for_all([](const auto &index, const auto &value) {
+      if (index % 2 == 0) {
+        ASSERT_RELEASE(value == index / 2);
+      } else {
+        ASSERT_RELEASE(value == 0);
+      }
+    });
+  }
+
+  // Test constructor from map
+  {
+    ygm::container::map<int, int> m(world);
+    int                           bag_size = 10;
+    if (world.rank0()) {
+      for (int i = 0; i < bag_size; ++i) {
+        m.async_insert(2 * i, i);
+      }
+    }
+
+    world.barrier();
+
+    ygm::container::array<int> arr(world, m);
+
+    ASSERT_RELEASE(arr.size() == 2 * bag_size - 1);
+    arr.for_all([](const auto &index, const auto &value) {
+      if (index % 2 == 0) {
+        ASSERT_RELEASE(value == index / 2);
+      } else {
+        ASSERT_RELEASE(value == 0);
+      }
+    });
+  }
+
+  // Test constructor from std::vector
+  {
+    std::vector<int> local_vec;
+    int              start_index = world.rank() * (world.rank() + 1) / 2;
+    for (int i = 0; i < world.rank() + 1; ++i) {
+      local_vec.push_back(start_index++);
+    }
+
+    ygm::container::array<int> arr(world, local_vec);
+
+    ASSERT_RELEASE(arr.size() == world.size() * (world.size() + 1) / 2);
+    arr.for_all([](const auto &index, const auto &value) {
+      ASSERT_RELEASE(value == index);
+    });
+  }
+
+  // Test constructor from std::vector of tuples
+  {
+    std::vector<std::tuple<int, float>> local_vec;
+    int                                 local_size = 10;
+
+    for (int i = 0; i < local_size; ++i) {
+      local_vec.push_back(std::make_tuple(world.size() * i + world.rank(),
+                                          float(world.rank())));
+    }
+
+    ygm::container::array<float> arr(world, local_vec);
+
+    ASSERT_RELEASE(arr.size() == world.size() * local_size);
+    arr.for_all([&world](const auto &index, const auto &value) {
+      ASSERT_RELEASE(value == float(index % world.size()));
+    });
+  }
+
+  // Test constructor from std::map
+  {
+    std::map<int, float> local_map;
+    int                  local_size = 10;
+
+    for (int i = 0; i < local_size; ++i) {
+      local_map[world.size() * i + world.rank()] = float(world.rank());
+    }
+
+    ygm::container::array<float> arr(world, local_map);
+
+    ASSERT_RELEASE(arr.size() == world.size() * local_size);
+    arr.for_all([&world](const auto &index, const auto &value) {
+      ASSERT_RELEASE(value == float(index % world.size()));
     });
   }
 
