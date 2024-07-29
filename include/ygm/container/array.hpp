@@ -128,7 +128,9 @@ class array
   array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
       detail::SingleItemTuple<typename T::for_all_args> &&
       std::same_as<typename T::for_all_args, std::tuple<mapped_type>>
-      : m_comm(comm), pthis(this), m_default_value{}, partitioner(m_comm, 0) {
+      : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    pthis.check(m_comm);
+
     resize(t.size());
 
     key_type local_index = prefix_sum(t.local_size(), m_comm);
@@ -152,7 +154,9 @@ class array
           std::tuple_element_t<
               1, std::tuple_element_t<0, typename T::for_all_args>>,
           mapped_type>
-      : m_comm(comm), pthis(this), m_default_value{}, partitioner(m_comm, 0) {
+      : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    pthis.check(m_comm);
+
     key_type max_index{0};
     t.for_all([&max_index](const auto& index_value) {
       max_index = std::max<mapped_type>(std::get<0>(index_value), max_index);
@@ -176,7 +180,9 @@ class array
           std::tuple_element_t<0, typename T::for_all_args>, key_type> &&
       std::convertible_to<std::tuple_element_t<0, typename T::for_all_args>,
                           mapped_type>
-      : m_comm(comm), pthis(this), m_default_value{}, partitioner(m_comm, 0) {
+      : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    pthis.check(m_comm);
+
     key_type max_index{0};
     t.for_all([&max_index](const auto& index, const auto& value) {
       max_index = std::max<mapped_type>(index, max_index);
@@ -197,7 +203,9 @@ class array
   array(ygm::comm& comm, const T& t) requires detail::STLContainer<T> &&
       (not detail::SingleItemTuple<typename T::value_type>)&&std::
           convertible_to<typename T::value_type, mapped_type>
-      : m_comm(comm), pthis(this), m_default_value{}, partitioner(m_comm, 0) {
+      : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    pthis.check(m_comm);
+
     auto global_size = sum(t.size(), m_comm);
     resize(global_size);
 
@@ -217,7 +225,9 @@ class array
           std::tuple_element_t<0, typename T::value_type>, key_type> &&
       std::convertible_to<std::tuple_element_t<1, typename T::value_type>,
                           mapped_type>
-      : m_comm(comm), pthis(this), m_default_value{}, partitioner(m_comm, 0) {
+      : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    pthis.check(m_comm);
+
     key_type max_index{0};
     std::for_each(t.begin(), t.end(), [&max_index](const auto& index_value) {
       max_index = std::max<key_type>(std::get<0>(index_value), max_index);
