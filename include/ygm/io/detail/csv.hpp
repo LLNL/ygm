@@ -18,6 +18,7 @@ class csv_field {
 
   bool is_integer() const {
     int64_t            test;
+    std::cout << m_f << std::endl;
     std::istringstream ss{m_f};
     ss >> test;
     return !ss.fail() && ss.eof();

@@ -626,6 +626,7 @@ inline void comm::flush_to_capacity() {
 }
 
 inline void comm::post_new_irecv(std::shared_ptr<ygm::detail::byte_vector> &recv_buffer) {
+  recv_buffer->clear();
   mpi_irecv_request recv_req;
   recv_req.buffer = recv_buffer;
 
@@ -814,8 +815,9 @@ inline size_t comm::pack_lambda_generic(ygm::detail::byte_vector &packed,
   if constexpr (!std::is_empty<Lambda>::value) {
     // oarchive.saveBinary(&l, sizeof(Lambda));
     size_t size_before = packed.size();
-    packed.resize(size_before + sizeof(Lambda));
-    std::memcpy(packed.data() + size_before, &l, sizeof(Lambda));
+    //packed.resize(size_before + sizeof(Lambda));
+    //std::memcpy(packed.data() + size_before, &l, sizeof(Lambda));
+    packed.push_bytes(&l, sizeof(lambda));
   }
 
   if constexpr (!std::is_empty<std::tuple<PackArgs...>>::value) {
