@@ -27,7 +27,7 @@ int main() {
   {
     std::vector<char> output(buffer.size());
     memcpy((void*)output.data(), (void*)buffer.data(), buffer.size());
-    auto str_it = output.begin(;)
+    auto str_it = output.begin();
     auto bv_it  = buffer.begin();
     for(const auto& s : vec_sentences) {
       for(int i = 0; i < s.size(); i++) {
