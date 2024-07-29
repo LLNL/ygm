@@ -13,11 +13,11 @@ namespace ygm::container::detail {
 template <typename Container, typename ReductionOp>
 class reducing_adapter {
  public:
-  using self_type         = reducing_adapter<Container, ReductionOp>;
-  using mapped_type       = typename Container::mapped_type;
-  using key_type          = typename Container::key_type;
-  //using value_type        = typename Container::value_type;
-  
+  using self_type   = reducing_adapter<Container, ReductionOp>;
+  using mapped_type = typename Container::mapped_type;
+  using key_type    = typename Container::key_type;
+  // using value_type        = typename Container::value_type;
+
   const size_t cache_size = 1024 * 1024;
 
   reducing_adapter(Container &c, ReductionOp reducer)
@@ -34,14 +34,14 @@ class reducing_adapter {
 
  private:
   struct cache_entry {
-    key_type      key;
-    mapped_type   value;
-    bool          occupied = false;
+    key_type    key;
+    mapped_type value;
+    bool        occupied = false;
   };
 
   void cache_reduce(const key_type &key, const mapped_type &value) {
     // Bypass cache if current rank owns key
-    if (m_container.comm().rank() == m_container.owner(key)) {
+    if (m_container.comm().rank() == m_container.partitioner.owner(key)) {
       container_reduction(key, value);
     } else {
       if (m_cache_empty) {
@@ -96,14 +96,12 @@ class reducing_adapter {
   }
 
   void container_reduction(const key_type &key, const mapped_type &value) {
-    if constexpr(ygm::container::check_ygm_container_type<
-                    Container, 
-                    ygm::container::map_tag>()) {
+    if constexpr (ygm::container::check_container_type<
+                      Container, ygm::container::map_tag>()) {
       m_container.async_reduce(key, value, m_reducer);
 
-    } else if constexpr(ygm::container::check_ygm_container_type<
-                    Container, 
-                    ygm::container::array_tag>()) {
+    } else if constexpr (ygm::container::check_container_type<
+                             Container, ygm::container::array_tag>()) {
       m_container.async_binary_op_update_value(key, value, m_reducer);
     } else {
       static_assert(ygm::detail::always_false<>,

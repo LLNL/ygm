@@ -6,75 +6,95 @@
 #pragma once
 
 #include <ygm/comm.hpp>
-#include <ygm/container/map.hpp>
-#include <ygm/detail/ygm_ptr.hpp>
 #include <ygm/container/container_traits.hpp>
+#include <ygm/container/map.hpp>
+#include <ygm/container/detail/base_iteration.hpp>
+#include <ygm/container/detail/base_count.hpp>
+#include <ygm/container/detail/base_misc.hpp>
+#include <ygm/detail/ygm_ptr.hpp>
+
 
 namespace ygm::container {
 
-template <typename Key, typename Partitioner = detail::hash_partitioner<Key>,
-          typename Compare = std::less<Key>,
-          class Alloc      = std::allocator<std::pair<const Key, size_t>>>
-class counting_set {
+template<typename Key>
+class counting_set : public detail::base_count<counting_set<Key>, std::tuple<Key,size_t>>,
+                     public detail::base_misc<counting_set<Key>, std::tuple<Key,size_t>>,
+                     public detail::base_iteration<counting_set<Key>, std::tuple<Key,size_t>>
+        {
+  friend class detail::base_misc<counting_set<Key>, std::tuple<Key,size_t>>;
+
  public:
-  using self_type           = counting_set<Key, Partitioner, Compare, Alloc>;
-  using mapped_type         = size_t;
-  using key_type            = Key;
-  using size_type           = size_t;
-  using ygm_for_all_types   = std::tuple< Key, size_t >;
-  using ygm_container_type  = ygm::container::counting_set_tag;
+  using self_type         = counting_set<Key>;
+  using mapped_type       = size_t;
+  using key_type          = Key;
+  using size_type         = size_t;
+  using for_all_args = std::tuple<Key, size_t>;
+  using container_type    = ygm::container::counting_set_tag;
 
   const size_type count_cache_size = 1024 * 1024;
 
-  counting_set(ygm::comm &comm) : m_map(comm, mapped_type(0)), pthis(this) {
+  counting_set(ygm::comm &comm)
+      : m_map(comm /*, mapped_type(0)*/), m_comm(comm), partitioner(m_map.partitioner), pthis(this) {
     m_count_cache.resize(count_cache_size, {key_type(), -1});
   }
+
+  counting_set() = delete;
 
   void async_insert(const key_type &key) { cache_insert(key); }
 
   // void async_erase(const key_type& key) { cache_erase(key); }
 
-  template <typename Function>
-  void for_all(Function fn) {
-    m_map.for_all(fn);
+  template <typename Function> 
+  void local_for_all(Function fn) {
+    m_map.local_for_all(fn);
   }
 
-  void clear() { m_map.clear(); }
+  void local_clear() { // What to do here
+    m_map.local_clear();
+    clear_cache();
+  }
+ 
+  using detail::base_misc<counting_set<Key>, for_all_args>::clear;
 
-  size_type size() { return m_map.size(); }
+  void clear() {
+    local_clear();
+    m_comm.barrier();
+  }
 
-  mapped_type count(const key_type &key) {
-    m_map.comm().barrier();
-    auto   vals = m_map.local_get(key);
+  size_t local_size() const { return m_map.local_size(); }
+
+  mapped_type local_count(const key_type &key) const {
+    auto        vals = m_map.local_get(key);
     mapped_type local_count{0};
     for (auto v : vals) {
       local_count += v;
     }
-    return m_map.comm().all_reduce_sum(local_count);
+    return local_count;
   }
 
   mapped_type count_all() {
     mapped_type local_count{0};
-    for_all(
+    local_for_all(
         [&local_count](const auto &key, auto &value) { local_count += value; });
-    return m_map.comm().all_reduce_sum(local_count);
+    return ygm::sum(local_count, m_map.comm());
   }
 
-  bool is_mine(const key_type &key) const { return m_map.is_mine(key); }
+  // bool is_mine(const key_type &key) const { return m_map.is_mine(key); }
 
   template <typename CompareFunction>
   std::vector<std::pair<key_type, mapped_type>> topk(size_t          k,
-                                                    CompareFunction cfn) {
+                                                     CompareFunction cfn) {
     return m_map.topk(k, cfn);
   }
 
-  template <typename STLKeyContainer>
-  std::map<key_type, mapped_type> all_gather(const STLKeyContainer &keys) {
-    return m_map.all_gather(keys);
-  }
+  // template <typename STLKeyContainer>
+  // std::map<key_type, mapped_type> all_gather(const STLKeyContainer &keys) {
+  //   return m_map.all_gather(keys);
+  // }
 
-  std::map<key_type, mapped_type> all_gather(const std::vector<key_type> &keys) {
-    return m_map.all_gather(keys);
+  std::map<key_type, mapped_type> key_gather(
+      const std::vector<key_type> &keys) {
+    return m_map.key_gather(keys);
   }
 
   typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }
@@ -82,7 +102,8 @@ class counting_set {
   void serialize(const std::string &fname) { m_map.serialize(fname); }
   void deserialize(const std::string &fname) { m_map.deserialize(fname); }
 
-  ygm::comm &comm() { return m_map.comm(); }
+  detail::hash_partitioner<std::hash<key_type>> partitioner;
+
 
  private:
   void cache_erase(const key_type &key) {
@@ -94,6 +115,7 @@ class counting_set {
     }
     m_map.async_erase(key);
   }
+
   void cache_insert(const key_type &key) {
     if (m_cache_empty) {
       m_cache_empty = false;
@@ -136,19 +158,30 @@ class counting_set {
   }
 
   void count_cache_flush_all() {
-    for (size_t i = 0; i < m_count_cache.size(); ++i) {
-      if (m_count_cache[i].second > 0) {
-        count_cache_flush(i);
+    if (!m_cache_empty) {
+      for (size_t i = 0; i < m_count_cache.size(); ++i) {
+        if (m_count_cache[i].second > 0) {
+          count_cache_flush(i);
+        }
       }
+      m_cache_empty = true;
+    }
+  }
+
+  void clear_cache() {
+    for (size_t i = 0; i < m_count_cache.size(); ++i) {
+      m_count_cache[i].first  = key_type();
+      m_count_cache[i].second = -1;
     }
     m_cache_empty = true;
   }
-  counting_set() = delete;
 
-  std::vector<std::pair<Key, int32_t>>                m_count_cache;
-  bool                                                m_cache_empty = true;
-  map<Key, mapped_type, Partitioner, Compare, Alloc>  m_map;
-  typename ygm::ygm_ptr<self_type>                    pthis;
+
+  ygm::comm                            &m_comm;
+  std::vector<std::pair<Key, int32_t>>  m_count_cache;
+  bool                                  m_cache_empty = true;
+  map<Key, mapped_type>                 m_map;
+  typename ygm::ygm_ptr<self_type>      pthis;
 };
 
 }  // namespace ygm::container

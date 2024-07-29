@@ -21,7 +21,7 @@ namespace ygm::io {
 namespace fs = std::filesystem;
 
 template <typename Partitioner =
-              ygm::container::detail::hash_partitioner<std::string>>
+              ygm::container::detail::old_hash_partitioner<std::string>>
 class multi_output {
  public:
   using self_type = multi_output<Partitioner>;
