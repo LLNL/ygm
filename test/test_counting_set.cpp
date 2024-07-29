@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
     static_assert(std::is_same_v<decltype(cset)::key_type, std::string>);
     static_assert(std::is_same_v<decltype(cset)::size_type, size_t>);
     static_assert(
-        std::is_same_v<decltype(cset)::ygm_for_all_types,
+        std::is_same_v<decltype(cset)::for_all_args,
                        std::tuple<decltype(cset)::key_type, size_t> >);
   }
 
@@ -91,6 +91,28 @@ int main(int argc, char **argv) {
     ASSERT_RELEASE(cset.count("cat") == 0);
 
     ASSERT_RELEASE(cset.count_all() == 3 * (size_t)world.size());
+  }
+
+  //
+  // Test clear
+  {
+    ygm::container::counting_set<std::string> cset(world);
+    if (world.rank() == 0) {
+      cset.async_insert("dog");
+      cset.async_insert("apple");
+      cset.async_insert("red");
+    }
+
+    ASSERT_RELEASE(cset.count("dog") == 1);
+    ASSERT_RELEASE(cset.count("apple") == 1);
+    ASSERT_RELEASE(cset.count("red") == 1);
+    ASSERT_RELEASE(cset.size() == 3);
+
+    cset.clear();
+    ASSERT_RELEASE(cset.size() == 0);
+    ASSERT_RELEASE(cset.count("dog") == 0);
+    ASSERT_RELEASE(cset.count("apple") == 0);
+    ASSERT_RELEASE(cset.count("red") == 0);
   }
 
   // //

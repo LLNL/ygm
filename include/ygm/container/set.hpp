@@ -5,196 +5,192 @@
 
 #pragma once
 
+#include <set>
 #include <ygm/container/container_traits.hpp>
-#include <ygm/container/container_traits.hpp>
-#include <ygm/container/detail/base_async_insert.hpp>
-#include <ygm/container/detail/base_async_erase.hpp>
 #include <ygm/container/detail/base_async_contains.hpp>
+#include <ygm/container/detail/base_async_erase.hpp>
+#include <ygm/container/detail/base_async_insert.hpp>
 #include <ygm/container/detail/base_async_insert_contains.hpp>
-#include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_count.hpp>
+#include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_misc.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
-#include <set>
 // #include <ygm/container/detail/set_impl.hpp>
 
 namespace ygm::container {
 
 template <typename Value>
-class multiset : public detail::base_async_insert_value<multiset<Value>, std::tuple<Value>>,
-            public detail::base_async_erase_key<multiset<Value>, std::tuple<Value>>,
-            public detail::base_async_contains<multiset<Value>, std::tuple<Value>>,
-            public detail::base_async_insert_contains<multiset<Value>, std::tuple<Value>>,
-            public detail::base_count<multiset<Value>, std::tuple<Value>>,
-            public detail::base_misc<multiset<Value>, std::tuple<Value>>,
-            public detail::base_iteration<multiset<Value>, std::tuple<Value>> { 
+class multiset
+    : public detail::base_async_insert_value<multiset<Value>,
+                                             std::tuple<Value>>,
+      public detail::base_async_erase_key<multiset<Value>, std::tuple<Value>>,
+      public detail::base_async_contains<multiset<Value>, std::tuple<Value>>,
+      public detail::base_async_insert_contains<multiset<Value>,
+                                                std::tuple<Value>>,
+      public detail::base_count<multiset<Value>, std::tuple<Value>>,
+      public detail::base_misc<multiset<Value>, std::tuple<Value>>,
+      public detail::base_iteration<multiset<Value>, std::tuple<Value>> {
   friend class detail::base_misc<multiset<Value>, std::tuple<Value>>;
 
-  public:
+ public:
+  using self_type      = multiset<Value>;
+  using value_type     = Value;
+  using size_type      = size_t;
+  using for_all_args   = std::tuple<Value>;
+  using container_type = ygm::container::set_tag;
 
-    using self_type         = multiset<Value>;
-    using value_type        = Value;
-    using size_type         = size_t;
-    using for_all_args      = std::tuple<Value>;
-    using container_type    = ygm::container::set_tag;
+  multiset(ygm::comm &comm)
+      : m_comm(comm), pthis(this), partitioner(comm, std::hash<value_type>()) {
+    pthis.check(m_comm);
+  }
 
-    multiset(ygm::comm& comm) : m_comm(comm), pthis(this), partitioner(comm, std::hash<value_type>()) {
-      pthis.check(m_comm);
-    }
+  multiset(const self_type &other)
+      : m_comm(other.comm()),
+        pthis(this),
+        partitioner(other.comm, other.partitioner) {
+    pthis.check(m_comm);
+  }
 
-    multiset(const self_type &other) 
-        : m_comm(other.comm()), pthis(this), partitioner(other.comm, other.partitioner) {
-      pthis.check(m_comm); // What is other.comm? Is this supposed to be other.comm()?
-    }
+  multiset(self_type &&other) noexcept
+      : m_comm(other.comm()),
+        pthis(this),
+        partitioner(other.partitioner),
+        m_local_set(std::move(other.m_local_set)) {
+    pthis.check(m_comm);
+  }
 
-    multiset(self_type &&other) noexcept
-        : m_comm(other.comm()),
-          pthis(this),
-          partitioner(other.partitioner),
-          m_local_set(std::move(other.m_local_set)) {
-      pthis.check(m_comm);
-    }
+  ~multiset() { m_comm.barrier(); }
 
-    ~multiset() { m_comm.barrier(); }
+  multiset() = delete;
 
-    multiset() = delete;
+  multiset &operator=(const self_type &other) {
+    return *this = multiset(other);
+  }
 
-    multiset &operator=(const self_type &other) {
-      return *this = multiset(other);
-    }
+  multiset &operator=(self_type &&other) noexcept {
+    std::swap(m_local_set, other.m_local_set);
+    return *this;
+  }
 
-    multiset &operator=(self_type &&other) noexcept {
-      std::swap(m_local_set, other.m_local_set);
-      return *this;
-    }
+  void local_insert(const value_type &val) { m_local_set.insert(val); }
 
+  void local_erase(const value_type &val) { m_local_set.erase(val); }
 
-    void local_insert(const value_type &val) { m_local_set.insert(val); }
+  void local_clear() { m_local_set.clear(); }
 
-    void local_erase(const value_type &val) { m_local_set.erase(val); }
+  size_t local_count(const value_type &val) const {
+    return m_local_set.count(val);
+  }
 
-    void local_clear() { m_local_set.clear(); }
+  size_t local_size() const { return m_local_set.size(); }
 
-    size_t local_count(const value_type &val) const { return m_local_set.count(val); }
+  template <typename Function>
+  void local_for_all(Function fn) {
+    std::for_each(m_local_set.begin(), m_local_set.end(), fn);
+  }
 
-    size_t local_size() const { return m_local_set.size(); }
+  template <typename Function>
+  void local_for_all(Function fn) const {
+    std::for_each(m_local_set.cbegin(), m_local_set.cend(), fn);
+  }
 
-    template <typename Function>
-    void local_for_all(Function fn) {
-      std::for_each(m_local_set.begin(), m_local_set.end(), fn);
-    }
+  void serialize(const std::string &fname) {}
 
-    template <typename Function>
-    void local_for_all(Function fn) const {
-      std::for_each(m_local_set.cbegin(), m_local_set.cend(), fn);
-    }
+  void deserialize(const std::string &fname) {}
 
-    void serialize(const std::string &fname) {
-    }
+  detail::hash_partitioner<std::hash<value_type>> partitioner;
 
-    void deserialize(const std::string &fname) {
-    }
+ private:
+  void local_swap(self_type &other) { m_local_set.swap(other.m_local_set); }
 
-    detail::hash_partitioner<std::hash<value_type>>  partitioner;
-
-  private:
-
-    void local_swap(self_type &other) {
-      m_local_set.swap(other.m_local_set);
-    }
-
-    ygm::comm                         &m_comm;
-    std::multiset<value_type>               m_local_set;
-    typename ygm::ygm_ptr<self_type>   pthis; 
+  ygm::comm                       &m_comm;
+  std::multiset<value_type>        m_local_set;
+  typename ygm::ygm_ptr<self_type> pthis;
 };
 
-
 template <typename Value>
-class set : public detail::base_async_insert_value<set<Value>, std::tuple<Value>>,
-            public detail::base_async_erase_key<set<Value>, std::tuple<Value>>,
-            public detail::base_async_contains<set<Value>, std::tuple<Value>>,
-            public detail::base_async_insert_contains<set<Value>, std::tuple<Value>>,
-            public detail::base_count<set<Value>, std::tuple<Value>>,
-            public detail::base_misc<set<Value>, std::tuple<Value>>,
-            public detail::base_iteration<set<Value>, std::tuple<Value>> { 
+class set
+    : public detail::base_async_insert_value<set<Value>, std::tuple<Value>>,
+      public detail::base_async_erase_key<set<Value>, std::tuple<Value>>,
+      public detail::base_async_contains<set<Value>, std::tuple<Value>>,
+      public detail::base_async_insert_contains<set<Value>, std::tuple<Value>>,
+      public detail::base_count<set<Value>, std::tuple<Value>>,
+      public detail::base_misc<set<Value>, std::tuple<Value>>,
+      public detail::base_iteration<set<Value>, std::tuple<Value>> {
   friend class detail::base_misc<set<Value>, std::tuple<Value>>;
 
-  public:
+ public:
+  using self_type      = set<Value>;
+  using value_type     = Value;
+  using size_type      = size_t;
+  using for_all_args   = std::tuple<Value>;
+  using container_type = ygm::container::set_tag;
 
-    using self_type         = set<Value>;
-    using value_type        = Value;
-    using size_type         = size_t;
-    using for_all_args      = std::tuple<Value>;
-    using container_type    = ygm::container::set_tag;
+  set(ygm::comm &comm)
+      : m_comm(comm), pthis(this), partitioner(comm, std::hash<value_type>()) {
+    pthis.check(m_comm);
+  }
 
-    set(ygm::comm& comm) : m_comm(comm), pthis(this), partitioner(comm, std::hash<value_type>()) {
-      pthis.check(m_comm);
-    }
+  set(const self_type &other)
+      : m_comm(other.comm()),
+        pthis(this),
+        partitioner(other.comm, other.partitioner) {
+    pthis.check(m_comm);
+  }
 
-    set(const self_type &other) 
-        : m_comm(other.comm()), pthis(this), partitioner(other.comm, other.partitioner) {
-      pthis.check(m_comm); // What is other.comm? Is this supposed to be other.comm()?
-    }
+  set(self_type &&other) noexcept
+      : m_comm(other.comm()),
+        pthis(this),
+        partitioner(other.partitioner),
+        m_local_set(std::move(other.m_local_set)) {
+    pthis.check(m_comm);
+  }
 
-    set(self_type &&other) noexcept
-        : m_comm(other.comm()),
-          pthis(this),
-          partitioner(other.partitioner),
-          m_local_set(std::move(other.m_local_set)) {
-      pthis.check(m_comm);
-    }
+  ~set() { m_comm.barrier(); }
 
-    ~set() { m_comm.barrier(); }
+  set() = delete;
 
-    set() = delete;
+  set &operator=(const self_type &other) { return *this = set(other); }
 
-    set &operator=(const self_type &other) {
-      return *this = set(other);
-    }
+  set &operator=(self_type &&other) noexcept {
+    std::swap(m_local_set, other.m_local_set);
+    return *this;
+  }
 
-    set &operator=(self_type &&other) noexcept {
-      std::swap(m_local_set, other.m_local_set);
-      return *this;
-    }
+  void local_insert(const value_type &val) { m_local_set.insert(val); }
 
+  void local_erase(const value_type &val) { m_local_set.erase(val); }
 
-    void local_insert(const value_type &val) { m_local_set.insert(val); }
+  void local_clear() { m_local_set.clear(); }
 
-    void local_erase(const value_type &val) { m_local_set.erase(val); }
+  size_t local_count(const value_type &val) const {
+    return m_local_set.count(val);
+  }
 
-    void local_clear() { m_local_set.clear(); }
+  size_t local_size() const { return m_local_set.size(); }
 
-    size_t local_count(const value_type &val) const { return m_local_set.count(val); }
+  template <typename Function>
+  void local_for_all(Function fn) {
+    std::for_each(m_local_set.begin(), m_local_set.end(), fn);
+  }
 
-    size_t local_size() const { return m_local_set.size(); }
+  template <typename Function>
+  void local_for_all(Function fn) const {
+    std::for_each(m_local_set.cbegin(), m_local_set.cend(), fn);
+  }
 
-    template <typename Function>
-    void local_for_all(Function fn) {
-      std::for_each(m_local_set.begin(), m_local_set.end(), fn);
-    }
+  void serialize(const std::string &fname) {}
 
-    template <typename Function>
-    void local_for_all(Function fn) const {
-      std::for_each(m_local_set.cbegin(), m_local_set.cend(), fn);
-    }
+  void deserialize(const std::string &fname) {}
 
-    void serialize(const std::string &fname) {
-    }
+  detail::hash_partitioner<std::hash<value_type>> partitioner;
 
-    void deserialize(const std::string &fname) {
-    }
+ private:
+  void local_swap(self_type &other) { m_local_set.swap(other.m_local_set); }
 
-    detail::hash_partitioner<std::hash<value_type>>  partitioner;
-
-  private:
-
-    void local_swap(self_type &other) {
-      m_local_set.swap(other.m_local_set);
-    }
-
-    ygm::comm                         &m_comm;
-    std::set<value_type>               m_local_set;
-    typename ygm::ygm_ptr<self_type>   pthis; 
+  ygm::comm                       &m_comm;
+  std::set<value_type>             m_local_set;
+  typename ygm::ygm_ptr<self_type> pthis;
 };
 
 }  // namespace ygm::container

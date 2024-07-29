@@ -174,7 +174,7 @@ class map
     return to_return;
   }
 
-  std::vector<mapped_type> local_get(const key_type& key) {
+  std::vector<mapped_type> local_get(const key_type& key) const {
     std::vector<mapped_type> to_return;
 
     auto range = m_local_map.equal_range(key);

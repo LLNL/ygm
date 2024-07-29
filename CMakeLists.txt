@@ -34,13 +34,19 @@ if (YGM_MAIN_PROJECT)
     # main CMakeLists.
     include(CTest)
 
-    # Docs only available if this is the main app
-    find_package(Doxygen)
-    if (Doxygen_FOUND)
-        # add_subdirectory(docs)
-    else ()
-        message(STATUS "Doxygen not found, not building docs")
-    endif ()
+    #
+    # Doxygen and Read the Docs (RTD) Documentation
+    #
+    option(YGM_DOXYGEN "Add targets for generating documentations" OFF)
+    # Generate documentation for Read the Docs
+    option(YGM_RTD_ONLY
+            "Run CMake for only generating documentations for Read the Docs" OFF)
+    if (YGM_DOXYGEN OR YGM_RTD_ONLY)
+        add_subdirectory(docs)
+        if (YGM_RTD_ONLY)
+            return()
+        endif ()
+    endif()
 endif ()
 
 # Require out-of-source builds
@@ -75,7 +81,7 @@ if (NOT cereal_FOUND)
     FetchContent_Declare(
         cereal
         GIT_REPOSITORY https://github.com/USCiLab/cereal.git
-        GIT_TAG af0700efb25e7dc7af637b9e6f970dbb94813bff
+        GIT_TAG v1.3.2
     )
     FetchContent_GetProperties(cereal)
     if (cereal_POPULATED)
