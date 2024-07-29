@@ -58,6 +58,7 @@ add_ygm_test(test_random)
 add_ygm_test(test_container_traits)
 #add_ygm_test(test_collective)
 add_ygm_test(test_traits)
+add_ygm_test(test_concepts)
 add_ygm_test(test_recursion_large_messages)
 add_ygm_test(test_recursion_progress)
 
