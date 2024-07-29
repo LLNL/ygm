@@ -215,7 +215,8 @@ inline T all_reduce(const T &in, MergeFunction merge, const comm &cm) {
  * @return T
  */
 template <typename T, typename MergeFunction>
-inline std::optional<T> all_reduce(std::optional<T> mine, MergeFunction merge, const comm &cm) {
+inline std::optional<T> all_reduce(std::optional<T> mine, MergeFunction merge,
+                                   const comm &cm) {
   int first_child  = 2 * cm.rank() + 1;
   int second_child = 2 * (cm.rank() + 1);
   int parent       = (cm.rank() - 1) / 2;
@@ -246,7 +247,5 @@ inline std::optional<T> all_reduce(std::optional<T> mine, MergeFunction merge, c
   // Step 3:  Rank 0 bcasts
   return cm.mpi_bcast(mine, 0);
 }
-
-
 
 }  // namespace ygm

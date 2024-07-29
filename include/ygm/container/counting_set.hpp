@@ -7,34 +7,37 @@
 
 #include <ygm/comm.hpp>
 #include <ygm/container/container_traits.hpp>
-#include <ygm/container/map.hpp>
-#include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_count.hpp>
+#include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_misc.hpp>
+#include <ygm/container/map.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
-
 
 namespace ygm::container {
 
-template<typename Key>
-class counting_set : public detail::base_count<counting_set<Key>, std::tuple<Key,size_t>>,
-                     public detail::base_misc<counting_set<Key>, std::tuple<Key,size_t>>,
-                     public detail::base_iteration<counting_set<Key>, std::tuple<Key,size_t>>
-        {
-  friend class detail::base_misc<counting_set<Key>, std::tuple<Key,size_t>>;
+template <typename Key>
+class counting_set
+    : public detail::base_count<counting_set<Key>, std::tuple<Key, size_t>>,
+      public detail::base_misc<counting_set<Key>, std::tuple<Key, size_t>>,
+      public detail::base_iteration<counting_set<Key>,
+                                    std::tuple<Key, size_t>> {
+  friend class detail::base_misc<counting_set<Key>, std::tuple<Key, size_t>>;
 
  public:
-  using self_type         = counting_set<Key>;
-  using mapped_type       = size_t;
-  using key_type          = Key;
-  using size_type         = size_t;
-  using for_all_args = std::tuple<Key, size_t>;
-  using container_type    = ygm::container::counting_set_tag;
+  using self_type      = counting_set<Key>;
+  using mapped_type    = size_t;
+  using key_type       = Key;
+  using size_type      = size_t;
+  using for_all_args   = std::tuple<Key, size_t>;
+  using container_type = ygm::container::counting_set_tag;
 
   const size_type count_cache_size = 1024 * 1024;
 
   counting_set(ygm::comm &comm)
-      : m_map(comm /*, mapped_type(0)*/), m_comm(comm), partitioner(m_map.partitioner), pthis(this) {
+      : m_map(comm /*, mapped_type(0)*/),
+        m_comm(comm),
+        partitioner(m_map.partitioner),
+        pthis(this) {
     m_count_cache.resize(count_cache_size, {key_type(), -1});
   }
 
@@ -44,16 +47,16 @@ class counting_set : public detail::base_count<counting_set<Key>, std::tuple<Key
 
   // void async_erase(const key_type& key) { cache_erase(key); }
 
-  template <typename Function> 
+  template <typename Function>
   void local_for_all(Function fn) {
     m_map.local_for_all(fn);
   }
 
-  void local_clear() { // What to do here
+  void local_clear() {  // What to do here
     m_map.local_clear();
     clear_cache();
   }
- 
+
   using detail::base_misc<counting_set<Key>, for_all_args>::clear;
 
   void clear() {
@@ -103,7 +106,6 @@ class counting_set : public detail::base_count<counting_set<Key>, std::tuple<Key
   void deserialize(const std::string &fname) { m_map.deserialize(fname); }
 
   detail::hash_partitioner<std::hash<key_type>> partitioner;
-
 
  private:
   void cache_erase(const key_type &key) {
@@ -176,12 +178,11 @@ class counting_set : public detail::base_count<counting_set<Key>, std::tuple<Key
     m_cache_empty = true;
   }
 
-
-  ygm::comm                            &m_comm;
-  std::vector<std::pair<Key, int32_t>>  m_count_cache;
-  bool                                  m_cache_empty = true;
-  map<Key, mapped_type>                 m_map;
-  typename ygm::ygm_ptr<self_type>      pthis;
+  ygm::comm                           &m_comm;
+  std::vector<std::pair<Key, int32_t>> m_count_cache;
+  bool                                 m_cache_empty = true;
+  map<Key, mapped_type>                m_map;
+  typename ygm::ygm_ptr<self_type>     pthis;
 };
 
 }  // namespace ygm::container

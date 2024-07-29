@@ -5,10 +5,14 @@
 
 #pragma once
 
+#include <concepts>
+
+#include <ygm/collective.hpp>
 #include <ygm/comm.hpp>
 #include <ygm/container/container_traits.hpp>
 #include <ygm/container/detail/base_async_insert.hpp>
 #include <ygm/container/detail/base_async_visit.hpp>
+#include <ygm/container/detail/base_concepts.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_misc.hpp>
 #include <ygm/container/detail/block_partitioner.hpp>
@@ -35,17 +39,19 @@ class array
   using container_type = ygm::container::array_tag;
   using ptr_type       = typename ygm::ygm_ptr<self_type>;
 
-  // Pull in async_visit for use within the array
+  // Pull in async_visit and async_insert for use within the array
   using detail::base_async_visit<array<Value, Index>,
                                  std::tuple<Index, Value>>::async_visit;
+  using detail::base_async_insert_key_value<array<Value, Index>,
+                                            for_all_args>::async_insert;
 
   array() = delete;
 
   array(ygm::comm& comm, const size_type size)
-      : m_global_size(size),
-        m_default_value{},
-        m_comm(comm),
+      : m_comm(comm),
         pthis(this),
+        m_global_size(size),
+        m_default_value{},
         partitioner(comm, size) {
     pthis.check(m_comm);
 
@@ -53,24 +59,187 @@ class array
   }
 
   array(ygm::comm& comm, const size_type size, const mapped_type& default_value)
-      : m_global_size(size),
-        m_default_value(default_value),
-        m_comm(comm),
+      : m_comm(comm),
         pthis(this),
+        m_global_size(size),
+        m_default_value(default_value),
         partitioner(comm, size) {
     pthis.check(m_comm);
 
     resize(size);
   }
 
+  array(ygm::comm& comm, std::initializer_list<mapped_type> l)
+      : m_comm(comm),
+        pthis(this),
+        m_global_size(l.size()),
+        m_default_value{},
+        partitioner(comm, l.size()) {
+    m_comm.cout0("initializer_list assumes all ranks are equal");
+    pthis.check(m_comm);
+
+    resize(l.size());
+    if (m_comm.rank0()) {
+      key_type index{0};
+      for (const mapped_type& value : l) {
+        async_insert(index++, value);
+      }
+    }
+
+    m_comm.barrier();
+  }
+
+  array(ygm::comm&                                               comm,
+        std::initializer_list<std::tuple<key_type, mapped_type>> l)
+      : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    m_comm.cout0("initializer_list assumes all ranks are equal");
+    pthis.check(m_comm);
+
+    key_type max_index{0};
+    for (const auto& [index, value] : l) {
+      ASSERT_RELEASE(index >= 0);
+      max_index = std::max<key_type>(max_index, index);
+    }
+
+    m_global_size = max_index + 1;
+    resize(max_index + 1);
+
+    if (m_comm.rank0()) {
+      for (const auto& [index, value] : l) {
+        async_insert(index, value);
+      }
+    }
+
+    m_comm.barrier();
+  }
+
   array(const self_type& rhs)
-      : m_global_size(rhs.m_global_size),
+      : m_comm(rhs.m_comm),
+        pthis(this),
+        m_global_size(rhs.m_global_size),
         m_default_value(rhs.m_default_value),
         m_local_vec(rhs.m_local_vec),
-        m_comm(rhs.m_comm),
-        partitioner(m_comm, m_global_size) {
+        partitioner(rhs.m_comm, rhs.m_global_size) {
     pthis.check(m_comm);
     resize(m_global_size);
+  }
+
+  template <typename T>
+  array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
+      detail::SingleItemTuple<typename T::for_all_args> &&
+      std::same_as<typename T::for_all_args, std::tuple<mapped_type>>
+      : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    pthis.check(m_comm);
+
+    resize(t.size());
+
+    key_type local_index = prefix_sum(t.local_size(), m_comm);
+
+    t.for_all([this, &local_index](const auto& value) {
+      async_insert(local_index++, value);
+    });
+
+    m_comm.barrier();
+  }
+
+  template <typename T>
+  array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
+      detail::SingleItemTuple<typename T::for_all_args> && detail::
+          DoubleItemTuple<std::tuple_element_t<0, typename T::for_all_args>> &&
+      std::convertible_to<
+          std::tuple_element_t<
+              0, std::tuple_element_t<0, typename T::for_all_args>>,
+          key_type> &&
+      std::convertible_to<
+          std::tuple_element_t<
+              1, std::tuple_element_t<0, typename T::for_all_args>>,
+          mapped_type>
+      : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    pthis.check(m_comm);
+
+    key_type max_index{0};
+    t.for_all([&max_index](const auto& index_value) {
+      max_index = std::max<mapped_type>(std::get<0>(index_value), max_index);
+    });
+
+    max_index = ygm::max(max_index, m_comm);
+
+    resize(max_index + 1);
+
+    t.for_all([this](const auto& index_value) {
+      async_insert(std::get<0>(index_value), std::get<1>(index_value));
+    });
+
+    m_comm.barrier();
+  }
+
+  template <typename T>
+  array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
+      detail::DoubleItemTuple<typename T::for_all_args> && std::convertible_to<
+
+          std::tuple_element_t<0, typename T::for_all_args>, key_type> &&
+      std::convertible_to<std::tuple_element_t<0, typename T::for_all_args>,
+                          mapped_type>
+      : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    pthis.check(m_comm);
+
+    key_type max_index{0};
+    t.for_all([&max_index](const auto& index, const auto& value) {
+      max_index = std::max<mapped_type>(index, max_index);
+    });
+
+    max_index = ygm::max(max_index, m_comm);
+
+    resize(max_index + 1);
+
+    t.for_all([this](const auto& index, const auto& value) {
+      async_insert(index, value);
+    });
+
+    m_comm.barrier();
+  }
+
+  template <typename T>
+  array(ygm::comm& comm, const T& t) requires detail::STLContainer<T> &&
+      (not detail::SingleItemTuple<typename T::value_type>)&&std::
+          convertible_to<typename T::value_type, mapped_type>
+      : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    pthis.check(m_comm);
+
+    auto global_size = sum(t.size(), m_comm);
+    resize(global_size);
+
+    key_type local_index = prefix_sum(t.size(), m_comm);
+
+    std::for_each(t.cbegin(), t.cend(),
+                  [this, &local_index](const auto& value) {
+                    async_insert(local_index++, value);
+                  });
+
+    m_comm.barrier();
+  }
+
+  template <typename T>
+  array(ygm::comm& comm, const T& t) requires detail::STLContainer<T> &&
+      detail::DoubleItemTuple<typename T::value_type> && std::convertible_to<
+          std::tuple_element_t<0, typename T::value_type>, key_type> &&
+      std::convertible_to<std::tuple_element_t<1, typename T::value_type>,
+                          mapped_type>
+      : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
+    pthis.check(m_comm);
+
+    key_type max_index{0};
+    std::for_each(t.begin(), t.end(), [&max_index](const auto& index_value) {
+      max_index = std::max<key_type>(std::get<0>(index_value), max_index);
+    });
+
+    max_index = ygm::max(max_index, m_comm);
+
+    resize(max_index + 1);
+
+    std::for_each(t.cbegin(), t.cend(), [this](const auto& index_value) {
+      async_insert(std::get<0>(index_value), std::get<1>(index_value));
+    });
   }
 
   ~array() { m_comm.barrier(); }
@@ -101,9 +270,7 @@ class array
   }
 
   void async_set(const key_type index, const mapped_type& value) {
-    detail::base_async_insert_key_value<array<Value, Index>,
-                                        for_all_args>::async_insert(index,
-                                                                    value);
+    async_insert(index, value);
   }
 
   template <typename BinaryOp>

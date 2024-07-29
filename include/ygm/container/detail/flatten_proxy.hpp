@@ -12,7 +12,6 @@ class flatten_proxy
     : public base_iteration<flatten_proxy<Container>,
                             std::tuple<std::tuple_element_t<
                                 0, typename Container::for_all_args>>> {
-
  public:
   using for_all_args =
       std::tuple<std::tuple_element_t<0, typename Container::for_all_args>>;

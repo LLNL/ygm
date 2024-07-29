@@ -115,7 +115,6 @@ int main(int argc, char **argv) {
     ASSERT_RELEASE(cset.count("red") == 0);
   }
 
-
   // //
   // // Test topk
   // {

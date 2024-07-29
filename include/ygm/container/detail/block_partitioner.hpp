@@ -67,8 +67,9 @@ struct block_partitioner {
   }
 
   index_type global_index(const index_type &local_index) {
-    index_type to_return;
-    return m_local_start_index + local_index;
+    index_type to_return = m_local_start_index + local_index;
+    ASSERT_RELEASE(to_return < m_partitioned_size);
+    return to_return;
   }
 
   index_type local_size() { return m_local_size; }
