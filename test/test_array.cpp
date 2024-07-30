@@ -197,6 +197,22 @@ int main(int argc, char **argv) {
     });
   }
 
+  // Test small array
+  {
+    int                        size = 1;
+    ygm::container::array<int> arr(world, size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        arr.async_set(i, i);
+      }
+    }
+
+    arr.for_all([](const auto index, const auto value) {
+      ASSERT_RELEASE(index == value);
+    });
+  }
+
   // Test copy constructor
   {
     int size = 64;
@@ -505,7 +521,7 @@ int main(int argc, char **argv) {
 
   // Test sort
   {
-    int                        num_values = 100;
+    int                        num_values = 91;
     ygm::container::array<int> arr(world, num_values);
 
     if (world.rank0()) {

@@ -21,7 +21,7 @@ struct block_partitioner {
         m_partitioned_size(partitioned_size) {
     m_small_block_size = partitioned_size / m_comm_size;
     m_large_block_size =
-        m_small_block_size + ((partitioned_size / m_comm_size) > 0);
+        m_small_block_size + ((partitioned_size % m_comm_size) > 0);
 
     if (m_comm_rank < (partitioned_size % m_comm_size)) {
       m_local_start_index = m_comm_rank * m_large_block_size;
@@ -48,8 +48,15 @@ struct block_partitioner {
     int to_return;
     // Owner depends on whether index is before switching to small blocks
     if (index < (m_partitioned_size % m_comm_size) * m_large_block_size) {
+      ASSERT_RELEASE(m_large_block_size > 0);
       to_return = index / m_large_block_size;
     } else {
+      if (m_small_block_size == 0) {
+        std::cout << m_small_block_size << "\t" << m_large_block_size << "\t"
+                  << m_partitioned_size << "\t" << m_comm_size << "\t" << index
+                  << std::endl;
+      }
+      ASSERT_RELEASE(m_small_block_size > 0);
       to_return =
           (m_partitioned_size % m_comm_size) +
           (index - (m_partitioned_size % m_comm_size) * m_large_block_size) /
