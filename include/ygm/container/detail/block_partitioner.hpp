@@ -74,6 +74,8 @@ struct block_partitioner {
 
   index_type local_size() { return m_local_size; }
 
+  index_type local_start() { return m_local_start_index; }
+
  private:
   int        m_comm_size;
   int        m_comm_rank;

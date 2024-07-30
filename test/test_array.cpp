@@ -503,5 +503,33 @@ int main(int argc, char **argv) {
     });
   }
 
+  // Test sort
+  {
+    int                        num_values = 100;
+    ygm::container::array<int> arr(world, num_values);
+
+    if (world.rank0()) {
+      std::vector<int> values;
+      for (int i = 0; i < num_values; ++i) {
+        values.push_back(i);
+      }
+      std::random_device rd;
+      std::shuffle(values.begin(), values.end(), rd);
+
+      int index{0};
+      for (const auto v : values) {
+        arr.async_insert(index++, v);
+      }
+    }
+
+    world.barrier();
+
+    arr.sort();
+
+    arr.for_all([](const auto index, const auto &value) {
+      ASSERT_RELEASE(index == value);
+    });
+  }
+
   return 0;
 }

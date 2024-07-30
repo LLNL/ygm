@@ -6,6 +6,7 @@
 #pragma once
 
 #include <concepts>
+#include <random>
 
 #include <ygm/collective.hpp>
 #include <ygm/comm.hpp>
@@ -410,6 +411,76 @@ class array
                     "key_type, mapped_type &) or "
                     "(mapped_type &) signatures");
     }
+  }
+
+  void sort() {
+    const key_type samples_per_pivot = std::max<key_type>(
+        std::min<key_type>(20, m_global_size / m_comm.size()), 1);
+    std::vector<mapped_type> to_sort;
+    to_sort.reserve(local_size() * 1.1f);
+
+    //
+    //  Choose pivots, uses index as 3rd sorting argument to solve issue with
+    //  lots of duplicate items
+    std::vector<std::pair<mapped_type, key_type>> samples;
+    std::vector<std::pair<mapped_type, key_type>> pivots;
+    static auto&                                  s_samples = samples;
+    static auto&                                  s_to_sort = to_sort;
+    samples.reserve((m_comm.size() - 1) * samples_per_pivot);
+
+    std::default_random_engine rng;
+
+    std::uniform_int_distribution<size_t> uintdist{0, size() - 1};
+
+    for (size_t i = 0; i < samples_per_pivot * (m_comm.size() - 1); ++i) {
+      size_t index = uintdist(rng);
+      if (index >= partitioner.local_start() &&
+          index < partitioner.local_start() + partitioner.local_size()) {
+        m_comm.async_bcast(
+            [](const std::pair<mapped_type, key_type>& sample) {
+              s_samples.push_back(sample);
+            },
+            std::make_pair(m_local_vec[index - partitioner.local_start()],
+                           index));
+      }
+    }
+    m_comm.barrier();
+
+    ASSERT_RELEASE(samples.size() == samples_per_pivot * (m_comm.size() - 1));
+    std::sort(samples.begin(), samples.end());
+    for (size_t i = samples_per_pivot - 1; i < samples.size();
+         i += samples_per_pivot) {
+      pivots.push_back(samples[i]);
+    }
+    samples.clear();
+    samples.shrink_to_fit();
+
+    ASSERT_RELEASE(pivots.size() == m_comm.size() - 1);
+
+    //
+    // Partition using pivots
+    for (size_t i = 0; i < m_local_vec.size(); ++i) {
+      auto itr = std::lower_bound(
+          pivots.begin(), pivots.end(),
+          std::make_pair(m_local_vec[i], partitioner.local_start() + i));
+      size_t owner = std::distance(pivots.begin(), itr);
+
+      m_comm.async(
+          owner, [](const mapped_type& val) { s_to_sort.push_back(val); },
+          m_local_vec[i]);
+    }
+    m_comm.barrier();
+
+    if (not to_sort.empty()) {
+      std::sort(to_sort.begin(), to_sort.end());
+    }
+
+    size_t my_prefix = ygm::prefix_sum(to_sort.size(), m_comm);
+    for (key_type i = 0; i < to_sort.size(); ++i) {
+      async_insert(my_prefix + i, to_sort[i]);
+    }
+
+    m_comm.barrier();
   }
 
   detail::block_partitioner<key_type> partitioner;
