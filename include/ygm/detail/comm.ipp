@@ -291,7 +291,7 @@ inline MPI_Comm comm::get_mpi_comm() const { return m_comm_other; }
  */
 inline void comm::barrier() {
   TimeResolution start_time;
-  if (config.trace_ygm) {
+  if (config.trace_ygm || config.trace_mpi) {
     start_time = m_tracer.get_time();
   }
 
@@ -309,7 +309,7 @@ inline void comm::barrier() {
   ASSERT_RELEASE(m_pre_barrier_callbacks.empty());
   ASSERT_RELEASE(m_send_dest_queue.empty());
 
-  if (config.trace_ygm) {
+  if (config.trace_ygm || config.trace_mpi) {
     m_next_message_id += size();
     std::unordered_map<std::string, std::any> metadata;
     metadata["m_pending_isend_bytes"] = m_pending_isend_bytes;
@@ -519,6 +519,13 @@ inline std::string comm::outstr(Args &&...args) const {
   std::stringstream ss;
   (ss << rank() << ": " << ... << args);
   return ss.str();
+}
+
+void comm::trace_message(std::string message){
+  if (config.trace_ygm || config.trace_mpi) {
+    m_next_message_id += size();
+    m_tracer.trace_message(m_next_message_id, rank(), message);
+  }
 }
 
 inline size_t comm::pack_routing_header(std::vector<std::byte> &packed,

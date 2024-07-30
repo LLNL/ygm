@@ -159,6 +159,8 @@ class comm {
   template <typename... Args>
   void cerr0(Args &&...args) const;
 
+  void trace_message(std::string message);
+
   // Private member functions
  private:
   void comm_setup(MPI_Comm comm);

@@ -83,6 +83,19 @@ class tracer {
     output_file.write(data, size);
   }
 
+  void trace_message(int event_id, int rank, std::string message) {
+    TimeResolution event_time = get_time();
+    std::string    meta_str   = " \"message\": \"" + message + "\"";
+    size                      = snprintf(
+        data, MAX_LINE_SIZE,
+        "{\"id\":\"%lu\",\"name\":\"message\",\"cat\":\"ygm\",\"pid\":\"%lu\","
+                             "\"tid\":\"message\",\"ts\":\"%llu\",\"dur\":\"0\",\"ph\":\"X\","
+                             "\"args\":{%s}},\n",
+        event_id, rank, event_time, meta_str.c_str());
+
+    output_file.write(data, size);
+  }
+
  private:
   std::ofstream output_file;
 
