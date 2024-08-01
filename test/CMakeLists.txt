@@ -35,6 +35,7 @@ add_ygm_seq_test(test_cereal_archive)
 
 add_ygm_test(test_comm)
 add_ygm_test(test_comm_2)
+add_ygm_test(test_barrier)
 add_ygm_test(test_layout)
 add_ygm_test(test_large_messages)
 add_ygm_test(test_map)

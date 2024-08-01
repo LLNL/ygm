@@ -244,6 +244,8 @@ inline void comm::barrier() {
   }
   ASSERT_RELEASE(m_pre_barrier_callbacks.empty());
   ASSERT_RELEASE(m_send_dest_queue.empty());
+
+  cf_barrier();
 }
 
 /**
