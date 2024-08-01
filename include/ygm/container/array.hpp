@@ -355,8 +355,10 @@ class array
     std::vector<std::pair<const key_type, const mapped_type>> tmp_values;
     tmp_values.reserve(local_size());
     local_for_all(
-        [&tmp_values](const key_type& index, const mapped_type& value) {
-          tmp_values.push_back(std::make_pair(index, value));
+        [&tmp_values, size](const key_type& index, const mapped_type& value) {
+          if (index < size) {
+            tmp_values.push_back(std::make_pair(index, value));
+          }
         });
 
     m_global_size = size;
@@ -368,13 +370,13 @@ class array
 
     // Repopulate array values
     for (const auto& [index, value] : tmp_values) {
-      if (index < size) {
-        async_set(index, value);
-      }
+      async_set(index, value);
     }
 
     m_comm.barrier();
   }
+
+  void resize(const size_type size) { resize(size, m_default_value); }
 
   size_t local_size() { return partitioner.local_size(); }
 
@@ -382,8 +384,6 @@ class array
     m_comm.barrier();
     return m_global_size;
   }
-
-  void resize(const size_type size) { resize(size, m_default_value); }
 
   void local_clear() { resize(0); }
 

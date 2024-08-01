@@ -21,7 +21,7 @@ struct block_partitioner {
         m_partitioned_size(partitioned_size) {
     m_small_block_size = partitioned_size / m_comm_size;
     m_large_block_size =
-        m_small_block_size + ((partitioned_size / m_comm_size) > 0);
+        m_small_block_size + ((partitioned_size % m_comm_size) > 0);
 
     if (m_comm_rank < (partitioned_size % m_comm_size)) {
       m_local_start_index = m_comm_rank * m_large_block_size;
@@ -62,7 +62,7 @@ struct block_partitioner {
 
   index_type local_index(const index_type &global_index) {
     index_type to_return = global_index - m_local_start_index;
-    ASSERT_RELEASE((to_return >= 0) && (to_return <= m_small_block_size));
+    ASSERT_RELEASE((to_return >= 0) && (to_return < m_local_size));
     return to_return;
   }
 
