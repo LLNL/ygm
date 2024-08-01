@@ -30,7 +30,9 @@ class line_parser {
    */
   line_parser(ygm::comm& comm, const std::vector<std::string>& stringpaths,
               bool node_local_filesystem = false, bool recursive = false)
-      : m_comm(comm), m_node_local_filesystem(node_local_filesystem) {
+      : m_comm(comm),
+        m_node_local_filesystem(node_local_filesystem),
+        m_skip_first_line(false) {
     if (node_local_filesystem) {
       ASSERT_RELEASE(false);
       check_paths(stringpaths, recursive);
@@ -48,7 +50,7 @@ class line_parser {
    * @param fn User function to execute
    */
   template <typename Function>
-  void for_all(Function fn, bool skip_first = false) {
+  void for_all(Function fn) {
     if (m_node_local_filesystem) {
       ASSERT_RELEASE(false);
       if (m_paths.empty()) return;
@@ -174,7 +176,7 @@ class line_parser {
         // Keep reading until line containing bytes_end is read
         while (ifs.tellg() <= bytes_end && std::getline(ifs, line)) {
           // Skip first line if necessary
-          if (not first_line || not skip_first) {
+          if (not first_line || not m_skip_first_line) {
             fn(line);
           } else {
           }
@@ -186,7 +188,7 @@ class line_parser {
     }
   }
 
-  std::string read_first() {
+  std::string read_first_line() {
     std::string line;
     if (m_comm.rank0()) {
       std::ifstream ifs(m_paths[0]);
@@ -197,6 +199,8 @@ class line_parser {
 
     return line;
   }
+
+  void set_skip_first_line(bool skip_first) { m_skip_first_line = skip_first; }
 
  private:
   /**
@@ -270,6 +274,7 @@ class line_parser {
   ygm::comm&            m_comm;
   std::vector<fs::path> m_paths;
   bool                  m_node_local_filesystem;
+  bool                  m_skip_first_line;
 };
 
 }  // namespace ygm::io

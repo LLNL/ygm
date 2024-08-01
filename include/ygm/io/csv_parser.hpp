@@ -32,8 +32,8 @@ class csv_parser {
 
     std::map<std::string, int>* header_map_ptr;
     bool                        skip_first;
-    auto handle_line_lambda = [fn, &header_map_ptr](const std::string& line) {
-      auto vfields = parse_csv_line(line, header_map_ptr);
+    auto handle_line_lambda = [fn, this](const std::string& line) {
+      auto vfields = parse_csv_line(line, m_header_map);
       // auto stypes    = convert_type_string(vfields);
       // todo, detect if types are inconsistent between records
       if (vfields.size() > 0) {
@@ -41,15 +41,7 @@ class csv_parser {
       }
     };
 
-    if (m_has_headers) {
-      header_map_ptr = &m_header_map;
-      m_lp.for_all(handle_line_lambda, true);
-    } else {
-      header_map_ptr = nullptr;
-      m_lp.for_all(handle_line_lambda);
-    }
-
-    m_lp.for_all([fn, header_map_ptr](const std::string& line) {});
+    m_lp.for_all(handle_line_lambda);
   }
 
   /**
@@ -57,9 +49,10 @@ class csv_parser {
    */
   void read_headers() {
     using namespace ygm::io::detail;
-    auto header_line = m_lp.read_first();
-    m_header_map     = parse_csv_headers(header_line);
-    m_has_headers    = true;
+    auto header_line = m_lp.read_first_line();
+    m_lp.set_skip_first_line(true);
+    m_header_map  = parse_csv_headers(header_line);
+    m_has_headers = true;
   }
 
   /**
