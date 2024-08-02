@@ -236,7 +236,7 @@ int main(int argc, char **argv) {
       gather_list.clear();
     }
 
-    auto gmap = smap.key_gather(gather_list);
+    auto gmap = smap.gather_keys(gather_list);
 
     if (world.rank0()) {
       YGM_ASSERT_RELEASE(gmap["foo"][0] == "bar");

@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(cset.count("red") == 1);
     YGM_ASSERT_RELEASE(cset.size() == 3);
 
-    auto count_map = cset.key_gather({"dog", "cat", "apple"});
+    auto count_map = cset.gather_keys({"dog", "cat", "apple"});
     YGM_ASSERT_RELEASE(count_map["dog"] == 1);
     YGM_ASSERT_RELEASE(count_map["apple"] == 1);
     YGM_ASSERT_RELEASE(count_map.count("cat") == 0);
@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(cset.count("red") == (size_t)world.size());
     YGM_ASSERT_RELEASE(cset.size() == 3);
 
-    auto count_map = cset.key_gather({"dog", "cat", "apple"});
+    auto count_map = cset.gather_keys({"dog", "cat", "apple"});
     YGM_ASSERT_RELEASE(count_map["dog"] == (size_t)world.size());
     YGM_ASSERT_RELEASE(count_map["apple"] == (size_t)world.size());
     YGM_ASSERT_RELEASE(cset.count("cat") == 0);
@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(cset.count("red") == (size_t)world.size());
     YGM_ASSERT_RELEASE(cset.size() == 3);
 
-    auto count_map = cset.key_gather({"dog", "cat", "apple"});
+    auto count_map = cset.gather_keys({"dog", "cat", "apple"});
     YGM_ASSERT_RELEASE(count_map["dog"] == (size_t)world.size());
     YGM_ASSERT_RELEASE(count_map["apple"] == (size_t)world.size());
     YGM_ASSERT_RELEASE(cset.count("cat") == 0);
