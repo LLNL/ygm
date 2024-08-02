@@ -106,7 +106,8 @@ YGM is distributed under the MIT license.
 
 All new contributions must be made under the MIT license.
 
-See [LICENSE-MIT](LICENSE-MIT), [NOTICE](NOTICE), and [COPYRIGHT](COPYRIGHT) for
+See `LICENSE-MIT <https://github.com/LLNL/ygm/blob/master/LICENSE-MIT>`_, `NOTICE
+<https://github.com/LLNL/ygm/blob/master/NOTICE>`_, and `COPYRIGHT <https://github.com/LLNL/ygm/blob/master/COPYRIGHT>`_ for
 details.
 
 SPDX-License-Identifier: MIT
