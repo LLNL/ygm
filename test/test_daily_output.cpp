@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
 
     if (world.rank0()) {
       std::string expected_path(prefix_path + "1970/1/1");
-      ASSERT_RELEASE(fs::exists(fs::path(expected_path)));
+      YGM_ASSERT_RELEASE(fs::exists(fs::path(expected_path)));
       fs::remove_all(fs::path(base_dir));
     }
   }
@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
       fs::remove_all(fs::path(base_dir));
     }
 
-    ASSERT_RELEASE(xor_write == xor_read);
+    YGM_ASSERT_RELEASE(xor_write == xor_read);
   }
 
   // Test appending
@@ -132,7 +132,7 @@ int main(int argc, char **argv) {
       fs::remove_all(fs::path(base_dir));
     }
 
-    ASSERT_RELEASE(xor_write == xor_read);
+    YGM_ASSERT_RELEASE(xor_write == xor_read);
   }
 
   return 0;

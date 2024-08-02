@@ -98,7 +98,7 @@ class array
 
     key_type max_index{0};
     for (const auto& [index, value] : l) {
-      ASSERT_RELEASE(index >= 0);
+      YGM_ASSERT_RELEASE(index >= 0);
       max_index = std::max<key_type>(max_index, index);
     }
 
@@ -278,7 +278,7 @@ class array
   void async_binary_op_update_value(const key_type     index,
                                     const mapped_type& value,
                                     const BinaryOp&    b) {
-    ASSERT_RELEASE(index < m_global_size);
+    YGM_ASSERT_RELEASE(index < m_global_size);
     auto updater = [](const key_type i, mapped_type& v,
                       const mapped_type& new_value) {
       BinaryOp* binary_op;
@@ -326,7 +326,7 @@ class array
 
   template <typename UnaryOp>
   void async_unary_op_update_value(const key_type index, const UnaryOp& u) {
-    ASSERT_RELEASE(index < m_global_size);
+    YGM_ASSERT_RELEASE(index < m_global_size);
     auto updater = [](const key_type i, mapped_type& v) {
       UnaryOp* u;
       v = (*u)(v);
@@ -446,7 +446,7 @@ class array
     }
     m_comm.barrier();
 
-    ASSERT_RELEASE(samples.size() == samples_per_pivot * (m_comm.size() - 1));
+    YGM_ASSERT_RELEASE(samples.size() == samples_per_pivot * (m_comm.size() - 1));
     std::sort(samples.begin(), samples.end());
     for (size_t i = samples_per_pivot - 1; i < samples.size();
          i += samples_per_pivot) {
@@ -455,7 +455,7 @@ class array
     samples.clear();
     samples.shrink_to_fit();
 
-    ASSERT_RELEASE(pivots.size() == m_comm.size() - 1);
+    YGM_ASSERT_RELEASE(pivots.size() == m_comm.size() - 1);
 
     //
     // Partition using pivots

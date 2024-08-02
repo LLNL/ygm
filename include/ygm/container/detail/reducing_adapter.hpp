@@ -61,7 +61,7 @@ class reducing_adapter {
           m_cache[slot].value = m_reducer(m_cache[slot].value, value);
         } else {
           cache_flush(slot);
-          ASSERT_DEBUG(m_cache[slot].occupied == false);
+          YGM_ASSERT_DEBUG(m_cache[slot].occupied == false);
           m_cache[slot].key      = key;
           m_cache[slot].value    = value;
           m_cache[slot].occupied = true;

@@ -168,12 +168,12 @@ class counting_set
       m_count_cache[slot].second = 1;
     } else {
       // flush slot, fill with key
-      ASSERT_DEBUG(m_count_cache[slot].second > 0);
+      YGM_ASSERT_DEBUG(m_count_cache[slot].second > 0);
       if (m_count_cache[slot].first == key) {
         m_count_cache[slot].second++;
       } else {
         count_cache_flush(slot);
-        ASSERT_DEBUG(m_count_cache[slot].second == -1);
+        YGM_ASSERT_DEBUG(m_count_cache[slot].second == -1);
         m_count_cache[slot].first  = key;
         m_count_cache[slot].second = 1;
       }
@@ -186,7 +186,7 @@ class counting_set
   void count_cache_flush(size_t slot) {
     auto key          = m_count_cache[slot].first;
     auto cached_count = m_count_cache[slot].second;
-    ASSERT_DEBUG(cached_count > 0);
+    YGM_ASSERT_DEBUG(cached_count > 0);
     m_map.async_visit(
         key,
         [](const key_type &key, size_t &count, int32_t to_add) {

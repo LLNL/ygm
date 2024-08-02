@@ -44,7 +44,7 @@ class ygm_ptr {
 
   template <typename Comm>
   void check(Comm &c) const {
-    ASSERT_RELEASE(idx == c.all_reduce_min(idx));
+    YGM_ASSERT_RELEASE(idx == c.all_reduce_min(idx));
   }
 
   template <class Archive>

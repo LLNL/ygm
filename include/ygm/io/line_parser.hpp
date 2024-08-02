@@ -36,7 +36,7 @@ class line_parser: public ygm::container::detail::base_iteration<line_parser, st
         m_node_local_filesystem(node_local_filesystem),
         m_skip_first_line(false) {
     if (node_local_filesystem) {
-      ASSERT_RELEASE(false);
+      YGM_ASSERT_RELEASE(false);
       check_paths(stringpaths, recursive);
     } else {
       if (m_comm.rank0()) {
@@ -54,7 +54,7 @@ class line_parser: public ygm::container::detail::base_iteration<line_parser, st
   template <typename Function>
   void for_all(Function fn) {
     if (m_node_local_filesystem) {
-      ASSERT_RELEASE(false);
+      YGM_ASSERT_RELEASE(false);
       if (m_paths.empty()) return;
     } else {
       static std::vector<std::tuple<fs::path, size_t, size_t>> my_file_paths;
@@ -123,7 +123,7 @@ class line_parser: public ygm::container::detail::base_iteration<line_parser, st
         // INCLUDING* bytes_end
         size_t bytes_begin = std::get<1>(fname);
         size_t bytes_end   = std::get<2>(fname);
-        ASSERT_RELEASE(ifs.good());
+        YGM_ASSERT_RELEASE(ifs.good());
         ifs.imbue(std::locale::classic());
         std::string line;
         bool        first_line = false;

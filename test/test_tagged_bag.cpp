@@ -30,14 +30,14 @@ int main(int argc, char** argv) {
       r0tags = std::vector<tag_type>{r0t1, r0t2, r0t3};
     }
 
-    ASSERT_RELEASE(tagbag.size() == 3);
+    YGM_ASSERT_RELEASE(tagbag.size() == 3);
     // Test gather
     auto gather = tagbag.key_gather(r0tags);
     world.barrier();
     if (world.rank0()) {
-      ASSERT_RELEASE(gather.size() == 3);
+      YGM_ASSERT_RELEASE(gather.size() == 3);
     } else {
-      ASSERT_RELEASE(gather.empty());
+      YGM_ASSERT_RELEASE(gather.empty());
     }
 
     tagbag.for_all([](auto& k, auto& v) { v += "_added"; });
@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
     if (world.rank0()) {
       for (auto r0tag : r0tags) {
         auto ga = gatheradd.at(r0tag);
-        ASSERT_RELEASE(ga.substr(ga.size() - 6) == "_added");
+        YGM_ASSERT_RELEASE(ga.substr(ga.size() - 6) == "_added");
       }
     }
   }
@@ -58,6 +58,6 @@ int main(int argc, char** argv) {
     sbag.async_insert("dog");
     sbag.async_insert("apple");
     sbag.async_insert("red");
-    ASSERT_RELEASE(sbag.size() == 3 * (size_t)world.size());
+    YGM_ASSERT_RELEASE(sbag.size() == 3 * (size_t)world.size());
   }
 }
