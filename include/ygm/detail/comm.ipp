@@ -130,7 +130,7 @@ inline comm::~comm() {
     if (rank() == i) {
       std::cout << "Rank " << rank() << std::setw(30)
                 << "send_buffer_count = " << send_buffer_count << std::setw(30)
-                << "receive_buffer_count = " << receive_buffer_count
+                << "i_recv_counts = " << stats.get_irecv_count() 
                 << std::setw(30)
                 << "receive_queue_completed = " << receive_queue_completed
                 << std::setw(30)
