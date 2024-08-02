@@ -136,7 +136,7 @@ inline comm::~comm() {
                 << std::setw(30)
                 << "send_queue_completed = " << send_queue_completed
                 << std::setw(30)
-                << "process_receive_queue = " << process_receive_queue
+                << "process_receive_queue = " << process_receive_queue_comm
                 << std::endl;
       // std::cout << "request = " << request_count << std::endl;
     }
@@ -523,7 +523,7 @@ inline std::string comm::outstr(Args &&...args) const {
   return ss.str();
 }
 
-void comm::trace_message(std::string message){
+void comm::trace_message(std::string message) {
   if (config.trace_ygm || config.trace_mpi) {
     m_next_message_id += size();
     m_tracer.trace_message(m_next_message_id, rank(), message);
@@ -597,11 +597,11 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
         // global_counts[0] << " " << global_counts[1] << std::endl;
       } else {
         receive_buffer_count++;
+        receive_queue_completed++;
         if (config.trace_mpi) {
           TimeResolution event_time = m_tracer.get_time();
           std::unordered_map<std::string, std::any> metadata;
           metadata["type"] = "barrier_reduce_counts";
-          receive_queue_completed++;
           ConstEventType event_name = "mpi";
           ConstEventType action     = "mpi_receive";
 
@@ -1140,7 +1140,7 @@ inline bool comm::process_receive_queue() {
         m_free_send_buffers.push_back(m_send_queue.front().buffer);
         m_send_queue.pop_front();
       } else {  // completed an iRecv -- COPIED FROM BELOW
-        process_recieve_queue_com++;
+        process_receive_queue_comm++;
         receive_queue_completed++;
         received_to_return           = true;
         mpi_irecv_request req_buffer = m_recv_queue.front();
@@ -1192,10 +1192,10 @@ inline bool comm::local_process_incoming() {
     stats.irecv_test();
     if (flag) {
       receive_buffer_count++;
+      receive_queue_completed++;
       if (config.trace_mpi) {
         TimeResolution event_time = m_tracer.get_time();
         std::unordered_map<std::string, std::any> metadata;
-        receive_queue_completed++;
         metadata["type"] = "local_process_incoming";
 
         ConstEventType event_name = "mpi";
