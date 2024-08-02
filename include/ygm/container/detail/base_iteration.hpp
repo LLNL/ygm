@@ -62,7 +62,7 @@ struct base_iteration {
   {
     const derived_type* derived_this = static_cast<const derived_type*>(this);
     derived_this->comm().barrier();
-    ASSERT_RELEASE(derived_this->local_size() >
+    YGM_ASSERT_RELEASE(derived_this->local_size() >
                    0);  // empty partition not handled yet
 
     using value_type = typename std::tuple_element<0, for_all_args>::type;

@@ -37,10 +37,10 @@ int main(int argc, char** argv) {
       bbag.async_insert("apple");
       bbag.async_insert("red");
     }
-    ASSERT_RELEASE(bbag.count("dog") == 1);
-    ASSERT_RELEASE(bbag.count("apple") == 1);
-    ASSERT_RELEASE(bbag.count("red") == 1);
-    ASSERT_RELEASE(bbag.size() == 3);
+    YGM_ASSERT_RELEASE(bbag.count("dog") == 1);
+    YGM_ASSERT_RELEASE(bbag.count("apple") == 1);
+    YGM_ASSERT_RELEASE(bbag.count("red") == 1);
+    YGM_ASSERT_RELEASE(bbag.size() == 3);
   }
 
   //
@@ -53,18 +53,18 @@ int main(int argc, char** argv) {
     //   bbag.async_insert("red");
     // }
     // world.barrier();
-    // ASSERT_RELEASE(bbag.size() == 3);
+    // YGM_ASSERT_RELEASE(bbag.size() == 3);
     // ygm::container::bag<std::string> bbag2(bbag);
 
-    // ASSERT_RELEASE(bbag.size() == 3);
-    // ASSERT_RELEASE(bbag2.size() == 3);
+    // YGM_ASSERT_RELEASE(bbag.size() == 3);
+    // YGM_ASSERT_RELEASE(bbag2.size() == 3);
 
     // if (world.rank0()) {
     //   bbag2.async_insert("car");
     // }
     // world.barrier();
-    // ASSERT_RELEASE(bbag.size() == 3);
-    // ASSERT_RELEASE(bbag2.size() == 4);
+    // YGM_ASSERT_RELEASE(bbag.size() == 3);
+    // YGM_ASSERT_RELEASE(bbag2.size() == 4);
   }
 
   //
@@ -77,18 +77,18 @@ int main(int argc, char** argv) {
       bbag.async_insert("red");
     }
     world.barrier();
-    ASSERT_RELEASE(bbag.size() == 3);
+    YGM_ASSERT_RELEASE(bbag.size() == 3);
     ygm::container::bag<std::string> bbag2(std::move(bbag));
 
-    ASSERT_RELEASE(bbag.size() == 0);
-    ASSERT_RELEASE(bbag2.size() == 3);
+    YGM_ASSERT_RELEASE(bbag.size() == 0);
+    YGM_ASSERT_RELEASE(bbag2.size() == 3);
 
     if (world.rank0()) {
       bbag2.async_insert("car");
     }
     world.barrier();
-    ASSERT_RELEASE(bbag.size() == 0);
-    ASSERT_RELEASE(bbag2.size() == 4);
+    YGM_ASSERT_RELEASE(bbag.size() == 0);
+    YGM_ASSERT_RELEASE(bbag2.size() == 4);
   }
 
   // Testing = operator
@@ -100,23 +100,23 @@ int main(int argc, char** argv) {
       bbag.async_insert("red");
     }
     world.barrier();
-    ASSERT_RELEASE(bbag.size() == 3);
+    YGM_ASSERT_RELEASE(bbag.size() == 3);
 
     // ygm::container::bag<std::string> bbag2 = bbag;
 
-    // ASSERT_RELEASE(bbag.size() == 3);
-    // ASSERT_RELEASE(bbag2.size() == 3);
+    // YGM_ASSERT_RELEASE(bbag.size() == 3);
+    // YGM_ASSERT_RELEASE(bbag2.size() == 3);
 
     // if (world.rank0()) {
     //   bbag2.async_insert("car");
     // }
     // world.barrier();
-    // ASSERT_RELEASE(bbag.size() == 3);
-    // ASSERT_RELEASE(bbag2.size() == 4);
+    // YGM_ASSERT_RELEASE(bbag.size() == 3);
+    // YGM_ASSERT_RELEASE(bbag2.size() == 4);
 
     ygm::container::bag<std::string> bbag3 = std::move(bbag);
-    ASSERT_RELEASE(bbag.size() == 0);
-    ASSERT_RELEASE(bbag3.size() == 3);  
+    YGM_ASSERT_RELEASE(bbag.size() == 0);
+    YGM_ASSERT_RELEASE(bbag3.size() == 3);  
   }
 
 
@@ -128,23 +128,23 @@ int main(int argc, char** argv) {
     bbag.async_insert("dog");
     bbag.async_insert("apple");
     bbag.async_insert("red");
-    ASSERT_RELEASE(bbag.size() == 3 * (size_t)world.size());
-    ASSERT_RELEASE(bbag.count("dog") == (size_t)world.size());
-    ASSERT_RELEASE(bbag.count("apple") == (size_t)world.size());
-    ASSERT_RELEASE(bbag.count("red") == (size_t)world.size());
+    YGM_ASSERT_RELEASE(bbag.size() == 3 * (size_t)world.size());
+    YGM_ASSERT_RELEASE(bbag.count("dog") == (size_t)world.size());
+    YGM_ASSERT_RELEASE(bbag.count("apple") == (size_t)world.size());
+    YGM_ASSERT_RELEASE(bbag.count("red") == (size_t)world.size());
 
     {
       std::vector<std::string> all_data;
       bbag.gather(all_data, 0);
       if (world.rank0()) {
-        ASSERT_RELEASE(all_data.size() == 3 * (size_t)world.size());
+        YGM_ASSERT_RELEASE(all_data.size() == 3 * (size_t)world.size());
       }
     }
     {
       std::set<std::string> all_data;
       bbag.gather(all_data, 0);
       if (world.rank0()) {
-        ASSERT_RELEASE(all_data.size() == 3);
+        YGM_ASSERT_RELEASE(all_data.size() == 3);
       }
     }
   }
@@ -156,7 +156,7 @@ int main(int argc, char** argv) {
     bbag.async_insert(1);
     bbag.async_insert(2);
     bbag.async_insert(3);
-    ASSERT_RELEASE(bbag.reduce(std::plus<int>()) == 6 * world.size());
+    YGM_ASSERT_RELEASE(bbag.reduce(std::plus<int>()) == 6 * world.size());
   }
 
   //
@@ -181,7 +181,7 @@ int main(int argc, char** argv) {
     bbag.local_shuffle();
     bbag.global_shuffle();
 
-    ASSERT_RELEASE(bbag.size() == num_of_items);
+    YGM_ASSERT_RELEASE(bbag.size() == num_of_items);
 
     std::vector<int> bag_content;
     bbag.gather(bag_content, 0);
@@ -189,7 +189,7 @@ int main(int argc, char** argv) {
       for (int i = 0; i < num_of_items; i++) {
         if (std::find(bag_content.begin(), bag_content.end(), i) ==
             bag_content.end()) {
-          ASSERT_RELEASE(false);
+          YGM_ASSERT_RELEASE(false);
         }
       }
     }
@@ -208,7 +208,7 @@ int main(int argc, char** argv) {
     bbag.for_all([&count](std::string& mstr) { ++count; });
     int global_count = world.all_reduce_sum(count);
     world.barrier();
-    ASSERT_RELEASE(global_count == 3);
+    YGM_ASSERT_RELEASE(global_count == 3);
   }
 
   //
@@ -225,7 +225,7 @@ int main(int argc, char** argv) {
         [&count](std::pair<std::string, int>& mstr) { count += mstr.second; });
     int global_count = world.all_reduce_sum(count);
     world.barrier();
-    ASSERT_RELEASE(global_count == 6);
+    YGM_ASSERT_RELEASE(global_count == 6);
   }
 
   // //
@@ -242,7 +242,7 @@ int main(int argc, char** argv) {
   //       [&count](std::string& first, int& second) { count += second; });
   //   int global_count = world.all_reduce_sum(count);
   //   world.barrier();
-  //   ASSERT_RELEASE(global_count == 6);
+  //   YGM_ASSERT_RELEASE(global_count == 6);
   // }
 
   //
@@ -252,7 +252,7 @@ int main(int argc, char** argv) {
     bbag.async_insert("begin", 0);
     bbag.async_insert("end", world.size() - 1);
     bbag.rebalance();
-    ASSERT_RELEASE(bbag.local_size() == 2);
+    YGM_ASSERT_RELEASE(bbag.local_size() == 2);
   }
 
   //
@@ -271,9 +271,9 @@ int main(int argc, char** argv) {
         bbag.size() / world.size() + (bbag.size() % world.size() > 0);
 
     if (world.rank() < remainder) {
-      ASSERT_RELEASE(bbag.local_size() == large_block_size);
+      YGM_ASSERT_RELEASE(bbag.local_size() == large_block_size);
     } else {
-      ASSERT_RELEASE(bbag.local_size() == small_block_size);
+      YGM_ASSERT_RELEASE(bbag.local_size() == small_block_size);
     }
   }
 
@@ -294,10 +294,10 @@ int main(int argc, char** argv) {
     std::set<int> value_set;
     bbag.gather(value_set, 0);
     if (world.rank0()) {
-      ASSERT_RELEASE(value_set.size() == 200);
-      ASSERT_RELEASE(*std::min_element(value_set.begin(), value_set.end()) ==
+      YGM_ASSERT_RELEASE(value_set.size() == 200);
+      YGM_ASSERT_RELEASE(*std::min_element(value_set.begin(), value_set.end()) ==
                      0);
-      ASSERT_RELEASE(*std::max_element(value_set.begin(), value_set.end()) ==
+      YGM_ASSERT_RELEASE(*std::max_element(value_set.begin(), value_set.end()) ==
                      199);
     }
   }
@@ -313,19 +313,19 @@ int main(int argc, char** argv) {
         bbag2.async_insert("apple");
         bbag2.async_insert("red");
       }
-      ASSERT_RELEASE(bbag2.size() == 3);
+      YGM_ASSERT_RELEASE(bbag2.size() == 3);
       bbag2.swap(bbag);
-      ASSERT_RELEASE(bbag2.size() == 0);
+      YGM_ASSERT_RELEASE(bbag2.size() == 0);
     }
-    ASSERT_RELEASE(bbag.size() == 3);
-    ASSERT_RELEASE(bbag.count("dog") == 1);
-    ASSERT_RELEASE(bbag.count("apple") == 1);
-    ASSERT_RELEASE(bbag.count("red") == 1);
+    YGM_ASSERT_RELEASE(bbag.size() == 3);
+    YGM_ASSERT_RELEASE(bbag.count("dog") == 1);
+    YGM_ASSERT_RELEASE(bbag.count("apple") == 1);
+    YGM_ASSERT_RELEASE(bbag.count("red") == 1);
     if (world.rank0()) {
       bbag.async_insert("car");
     }
-    ASSERT_RELEASE(bbag.size() == 4);
-    ASSERT_RELEASE(bbag.count("car") == 1);
+    YGM_ASSERT_RELEASE(bbag.size() == 4);
+    YGM_ASSERT_RELEASE(bbag.count("car") == 1);
   }
 
   //
@@ -346,7 +346,7 @@ int main(int argc, char** argv) {
 
     world.barrier();
     for (int bag_index = 0; bag_index < num_bags; ++bag_index) {
-      ASSERT_RELEASE(vec_bags[bag_index].size() == world.size() * 2);
+      YGM_ASSERT_RELEASE(vec_bags[bag_index].size() == world.size() * 2);
     }
   }
 

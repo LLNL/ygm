@@ -35,9 +35,9 @@ int main(int argc, char **argv) {
       smap.async_insert("apple", "orange");
       smap.async_insert("red", "green");
     }
-    ASSERT_RELEASE(smap.count("dog") == 1);
-    ASSERT_RELEASE(smap.count("apple") == 1);
-    ASSERT_RELEASE(smap.count("red") == 1);
+    YGM_ASSERT_RELEASE(smap.count("dog") == 1);
+    YGM_ASSERT_RELEASE(smap.count("apple") == 1);
+    YGM_ASSERT_RELEASE(smap.count("red") == 1);
   }
 
   //
@@ -49,9 +49,9 @@ int main(int argc, char **argv) {
     smap.async_insert("apple", "orange");
     smap.async_insert("red", "green");
 
-    ASSERT_RELEASE(smap.count("dog") == 1);
-    ASSERT_RELEASE(smap.count("apple") == 1);
-    ASSERT_RELEASE(smap.count("red") == 1);
+    YGM_ASSERT_RELEASE(smap.count("dog") == 1);
+    YGM_ASSERT_RELEASE(smap.count("apple") == 1);
+    YGM_ASSERT_RELEASE(smap.count("red") == 1);
   }
 
   //
@@ -70,20 +70,20 @@ int main(int argc, char **argv) {
     world.barrier();
 
     smap.async_visit("dog", [](const auto &key, auto &value) {
-      ASSERT_RELEASE(value == "cat");
+      YGM_ASSERT_RELEASE(value == "cat");
     });
 
     smap.async_visit_if_contains("apple", [](auto key, auto &value) {
-      ASSERT_RELEASE(value == "orange");
+      YGM_ASSERT_RELEASE(value == "orange");
     });
 
     const ygm::container::map<std::string, std::string> &csmap = smap;
     csmap.async_visit_if_contains(
-        "red", [](auto key, auto &value) { ASSERT_RELEASE(value == "green"); });
+        "red", [](auto key, auto &value) { YGM_ASSERT_RELEASE(value == "green"); });
 
     smap.async_visit_if_contains(
         "SHOULD_BE_MISSING",
-        [](auto key, auto &value) { ASSERT_RELEASE(false); });
+        [](auto key, auto &value) { YGM_ASSERT_RELEASE(false); });
   }
 
   //
@@ -92,31 +92,31 @@ int main(int argc, char **argv) {
     ygm::container::map<std::string, std::string> smap(world);
     smap.async_visit("dog",
                      [](const std::string &key, const std::string &value) {
-                       ASSERT_RELEASE(key == "dog");
-                       ASSERT_RELEASE(value == "");
+                       YGM_ASSERT_RELEASE(key == "dog");
+                       YGM_ASSERT_RELEASE(value == "");
                      });
     smap.async_visit("cat", [](const std::string &key, std::string &value) {
-      ASSERT_RELEASE(key == "cat");
-      ASSERT_RELEASE(value == "");
+      YGM_ASSERT_RELEASE(key == "cat");
+      YGM_ASSERT_RELEASE(value == "");
     });
     smap.async_visit_if_contains(
-        "red", [](const auto &k, const auto &v) { ASSERT_RELEASE(false); });
+        "red", [](const auto &k, const auto &v) { YGM_ASSERT_RELEASE(false); });
 
-    ASSERT_RELEASE(smap.count("dog") == 1);
-    ASSERT_RELEASE(smap.count("cat") == 1);
-    ASSERT_RELEASE(smap.count("red") == 0);
+    YGM_ASSERT_RELEASE(smap.count("dog") == 1);
+    YGM_ASSERT_RELEASE(smap.count("cat") == 1);
+    YGM_ASSERT_RELEASE(smap.count("red") == 0);
 
-    ASSERT_RELEASE(smap.size() == 2);
+    YGM_ASSERT_RELEASE(smap.size() == 2);
 
     if (world.rank() == 0) {
       smap.async_erase("dog");
     }
-    ASSERT_RELEASE(smap.count("dog") == 0);
-    ASSERT_RELEASE(smap.size() == 1);
+    YGM_ASSERT_RELEASE(smap.count("dog") == 0);
+    YGM_ASSERT_RELEASE(smap.size() == 1);
     smap.async_erase("cat");
-    ASSERT_RELEASE(smap.count("cat") == 0);
+    YGM_ASSERT_RELEASE(smap.count("cat") == 0);
 
-    ASSERT_RELEASE(smap.size() == 0);
+    YGM_ASSERT_RELEASE(smap.size() == 0);
   }
 
   // //
@@ -138,7 +138,7 @@ int main(int argc, char **argv) {
 
   //   world.barrier();
 
-  //   ASSERT_RELEASE(world.all_reduce_sum(dog_visit_counter) == world.size());
+  //   YGM_ASSERT_RELEASE(world.all_reduce_sum(dog_visit_counter) == world.size());
 
   //   static int apple_visit_counter{0};
 
@@ -150,14 +150,14 @@ int main(int argc, char **argv) {
 
   //   world.barrier();
 
-  //   ASSERT_RELEASE(world.all_reduce_sum(apple_visit_counter) ==
+  //   YGM_ASSERT_RELEASE(world.all_reduce_sum(apple_visit_counter) ==
   //                  world.size() - 1);
 
   //   if (world.rank0()) {
   //     smap.async_insert_else_visit(
   //         "red", "green",
   //         [](const auto &key, const auto &value, const auto &new_value) {
-  //           ASSERT_RELEASE(true == false);
+  //           YGM_ASSERT_RELEASE(true == false);
   //         });
   //   }
   // }
@@ -183,14 +183,14 @@ int main(int argc, char **argv) {
     smap.for_all([&world, &num_reductions](const auto &key, const auto
     &value) {
       if (key == "sum") {
-        ASSERT_RELEASE(value == world.size() * num_reductions *
+        YGM_ASSERT_RELEASE(value == world.size() * num_reductions *
                                     (num_reductions - 1) / 2);
       } else if (key == "min") {
-        ASSERT_RELEASE(value == 0);
+        YGM_ASSERT_RELEASE(value == 0);
       } else if (key == "max") {
-        ASSERT_RELEASE(value == num_reductions - 1);
+        YGM_ASSERT_RELEASE(value == num_reductions - 1);
       } else {
-        ASSERT_RELEASE(false);
+        YGM_ASSERT_RELEASE(false);
       }
     });
   }
@@ -205,15 +205,15 @@ int main(int argc, char **argv) {
       smap2.async_insert("apple", "orange");
       smap2.async_insert("red", "green");
       smap2.swap(smap);
-      ASSERT_RELEASE(smap2.size() == 0);
+      YGM_ASSERT_RELEASE(smap2.size() == 0);
     }
-    ASSERT_RELEASE(smap.size() == 3);
-    ASSERT_RELEASE(smap.count("dog") == 1);
-    ASSERT_RELEASE(smap.count("apple") == 1);
-    ASSERT_RELEASE(smap.count("red") == 1);
+    YGM_ASSERT_RELEASE(smap.size() == 3);
+    YGM_ASSERT_RELEASE(smap.count("dog") == 1);
+    YGM_ASSERT_RELEASE(smap.count("apple") == 1);
+    YGM_ASSERT_RELEASE(smap.count("red") == 1);
     smap.async_insert_or_assign("car", "truck");
-    ASSERT_RELEASE(smap.size() == 4);
-    ASSERT_RELEASE(smap.count("car") == 1);
+    YGM_ASSERT_RELEASE(smap.size() == 4);
+    YGM_ASSERT_RELEASE(smap.count("car") == 1);
   }
 
   //
@@ -239,10 +239,10 @@ int main(int argc, char **argv) {
     auto gmap = smap.key_gather(gather_list);
 
     if (world.rank0()) {
-      ASSERT_RELEASE(gmap["foo"][0] == "bar");
-      ASSERT_RELEASE(gmap["foo"][1] == "baz");
+      YGM_ASSERT_RELEASE(gmap["foo"][0] == "bar");
+      YGM_ASSERT_RELEASE(gmap["foo"][1] == "baz");
     } else {
-      ASSERT_RELEASE(gmap["foo"].empty());
+      YGM_ASSERT_RELEASE(gmap["foo"].empty());
     }
   }
 
@@ -260,9 +260,9 @@ int main(int argc, char **argv) {
       smap2.async_insert(key, value);
     });
 
-    ASSERT_RELEASE(smap2.count("dog") == 1);
-    ASSERT_RELEASE(smap2.count("apple") == 1);
-    ASSERT_RELEASE(smap2.count("red") == 1);
+    YGM_ASSERT_RELEASE(smap2.count("dog") == 1);
+    YGM_ASSERT_RELEASE(smap2.count("apple") == 1);
+    YGM_ASSERT_RELEASE(smap2.count("red") == 1);
   }
 
   return 0;

@@ -243,7 +243,7 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
 
  private:
   std::vector<value_type> local_pop(int n) {
-    ASSERT_RELEASE(n <= local_size());
+    YGM_ASSERT_RELEASE(n <= local_size());
 
     size_t                  new_size  = local_size() - n;
     auto                    pop_start = m_local_bag.begin() + new_size;

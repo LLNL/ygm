@@ -50,7 +50,7 @@ class disjoint_set_impl {
 
    private:
     void increase_rank(const rank_type new_rank) {
-      ASSERT_RELEASE(m_rank < new_rank);
+      YGM_ASSERT_RELEASE(m_rank < new_rank);
       m_rank = new_rank;
 
       // Only called on roots
@@ -184,12 +184,12 @@ class disjoint_set_impl {
       const auto &my_parent = item_data.second.get_parent();
       const auto  my_parent_rank_est =
           item_data.second.get_parent_rank_estimate();
-      ASSERT_RELEASE(my_rank >= merging_rank);
+      YGM_ASSERT_RELEASE(my_rank >= merging_rank);
 
       if (my_rank > merging_rank) {
         return;
       } else {
-        ASSERT_RELEASE(my_rank == merging_rank);
+        YGM_ASSERT_RELEASE(my_rank == merging_rank);
         if (my_parent ==
             my_item) {  // Merging new item onto root. Need to increase rank.
           item_data.second.increase_rank(merging_rank + 1);
@@ -331,12 +331,12 @@ class disjoint_set_impl {
       const auto &my_parent = item_data.second.get_parent();
       const auto  my_parent_rank_est =
           item_data.second.get_parent_rank_estimate();
-      ASSERT_RELEASE(my_rank >= merging_rank);
+      YGM_ASSERT_RELEASE(my_rank >= merging_rank);
 
       if (my_rank > merging_rank) {
         return;
       } else {
-        ASSERT_RELEASE(my_rank == merging_rank);
+        YGM_ASSERT_RELEASE(my_rank == merging_rank);
         if (my_parent == my_item) {  // Has not found new parent
           item_data.second.increase_rank(merging_rank + 1);
         } else {  // Tell merging item about new parent

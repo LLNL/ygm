@@ -17,16 +17,16 @@ int main(int argc, char** argv) {
   csvp.read_headers();
   csvp.for_all([&world](const auto& vfields) {
     // Test lookups by header names
-    ASSERT_RELEASE(vfields["zero"].as_integer() == 0);
-    ASSERT_RELEASE(vfields["two"].as_integer() == 2);
-    ASSERT_RELEASE(vfields["four"].as_integer() == 4);
-    ASSERT_RELEASE(vfields["six"].as_integer() == 6);
+    YGM_ASSERT_RELEASE(vfields["zero"].as_integer() == 0);
+    YGM_ASSERT_RELEASE(vfields["two"].as_integer() == 2);
+    YGM_ASSERT_RELEASE(vfields["four"].as_integer() == 4);
+    YGM_ASSERT_RELEASE(vfields["six"].as_integer() == 6);
 
     // Test lookup by column names agrees with positional lookups
-    ASSERT_RELEASE(vfields["zero"].as_integer() == vfields[0].as_integer());
-    ASSERT_RELEASE(vfields["two"].as_integer() == vfields[2].as_integer());
-    ASSERT_RELEASE(vfields["four"].as_integer() == vfields[1].as_integer());
-    ASSERT_RELEASE(vfields["six"].as_integer() == vfields[3].as_integer());
+    YGM_ASSERT_RELEASE(vfields["zero"].as_integer() == vfields[0].as_integer());
+    YGM_ASSERT_RELEASE(vfields["two"].as_integer() == vfields[2].as_integer());
+    YGM_ASSERT_RELEASE(vfields["four"].as_integer() == vfields[1].as_integer());
+    YGM_ASSERT_RELEASE(vfields["six"].as_integer() == vfields[3].as_integer());
   });
 
   world.barrier();

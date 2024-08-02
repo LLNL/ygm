@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
     }
 
     world.barrier();
-    ASSERT_RELEASE(counter == large_msg_size);
+    YGM_ASSERT_RELEASE(counter == large_msg_size);
   }
 
   return 0;

@@ -13,10 +13,10 @@ namespace ygm::detail {
 class mpi_init_finalize {
  public:
   mpi_init_finalize(int *argc, char ***argv) {
-    ASSERT_MPI(MPI_Init(argc, argv));
+    YGM_ASSERT_MPI(MPI_Init(argc, argv));
   }
   ~mpi_init_finalize() {
-    ASSERT_RELEASE(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
+    YGM_ASSERT_RELEASE(MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS);
     if (MPI_Finalize() != MPI_SUCCESS) {
       std::cerr << "ERROR:  MPI_Finilize() != MPI_SUCCESS" << std::endl;
       exit(-1);

@@ -240,7 +240,7 @@ bag<Item, Alloc>::gather_to_vector() {
 template <typename Item, typename Alloc>
 std::vector<typename bag<Item, Alloc>::value_type> bag<Item, Alloc>::local_pop(
     int n) {
-  ASSERT_RELEASE(n <= local_size());
+  YGM_ASSERT_RELEASE(n <= local_size());
 
   size_t                  new_size  = local_size() - n;
   auto                    pop_start = m_local_bag.begin() + new_size;

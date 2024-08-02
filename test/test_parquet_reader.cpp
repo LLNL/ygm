@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
 
     world.barrier();
     auto row_count = world.all_reduce_sum(local_count);
-    ASSERT_RELEASE(row_count == 12);
+    YGM_ASSERT_RELEASE(row_count == 12);
   }
 
   //
@@ -74,9 +74,9 @@ int main(int argc, char** argv) {
 
     world.barrier();
     auto row_count = world.all_reduce_sum(rows.size());
-    ASSERT_RELEASE(row_count == 12);
+    YGM_ASSERT_RELEASE(row_count == 12);
 
-    ASSERT_RELEASE(world.all_reduce_sum(strings.count("Hennessey Venom F5")) ==
+    YGM_ASSERT_RELEASE(world.all_reduce_sum(strings.count("Hennessey Venom F5")) ==
                    1);
   }
 
@@ -126,9 +126,9 @@ int main(int argc, char** argv) {
 
     world.barrier();
     const auto sum = world.all_reduce_sum(local_sum);
-    ASSERT_RELEASE(sum == 11111111111);
+    YGM_ASSERT_RELEASE(sum == 11111111111);
     const auto row_count = world.all_reduce_sum(local_count);
-    ASSERT_RELEASE(row_count == 11);
+    YGM_ASSERT_RELEASE(row_count == 11);
   }
 
   return 0;

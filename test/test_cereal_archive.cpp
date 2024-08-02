@@ -33,7 +33,7 @@ int main() {
       // std::cout << tmp << std::endl;
       out_sentences.push_back(tmp);
     }
-    ASSERT_RELEASE(vec_sentences == out_sentences);
+    YGM_ASSERT_RELEASE(vec_sentences == out_sentences);
   }
 
   return 0;

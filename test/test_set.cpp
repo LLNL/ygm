@@ -36,10 +36,10 @@ int main(int argc, char **argv) {
       sset.async_insert("apple");
       sset.async_insert("red");
     }
-    ASSERT_RELEASE(sset.count("dog") == 1);
-    ASSERT_RELEASE(sset.count("red") == 1);
-    ASSERT_RELEASE(sset.count("apple") == 1);
-    ASSERT_RELEASE(sset.size() == 3);
+    YGM_ASSERT_RELEASE(sset.count("dog") == 1);
+    YGM_ASSERT_RELEASE(sset.count("red") == 1);
+    YGM_ASSERT_RELEASE(sset.count("apple") == 1);
+    YGM_ASSERT_RELEASE(sset.size() == 3);
 
     ygm::container::set<int> iset(world);
     if (world.rank() == 0) {
@@ -47,10 +47,10 @@ int main(int argc, char **argv) {
       iset.async_insert(7);
       iset.async_insert(100);
     }
-    ASSERT_RELEASE(iset.count(42) == 1);
-    ASSERT_RELEASE(iset.count(7) == 1);
-    ASSERT_RELEASE(iset.count(100) == 1);
-    ASSERT_RELEASE(iset.size() == 3);
+    YGM_ASSERT_RELEASE(iset.count(42) == 1);
+    YGM_ASSERT_RELEASE(iset.count(7) == 1);
+    YGM_ASSERT_RELEASE(iset.count(100) == 1);
+    YGM_ASSERT_RELEASE(iset.size() == 3);
   }
 
   //
@@ -63,10 +63,10 @@ int main(int argc, char **argv) {
       sset_ptr->async_insert("apple");
       sset_ptr->async_insert("red");
     }
-    ASSERT_RELEASE(sset.count("dog") == 1);
-    ASSERT_RELEASE(sset.count("apple") == 1);
-    ASSERT_RELEASE(sset.count("red") == 1);
-    ASSERT_RELEASE(sset.size() == 3);
+    YGM_ASSERT_RELEASE(sset.count("dog") == 1);
+    YGM_ASSERT_RELEASE(sset.count("apple") == 1);
+    YGM_ASSERT_RELEASE(sset.count("red") == 1);
+    YGM_ASSERT_RELEASE(sset.size() == 3);
   }
 
   
@@ -79,13 +79,13 @@ int main(int argc, char **argv) {
     sset.async_insert("apple");
     sset.async_insert("red");
 
-    ASSERT_RELEASE(sset.count("dog") == 1);
-    ASSERT_RELEASE(sset.count("apple") == 1);
-    ASSERT_RELEASE(sset.count("red") == 1);
-    ASSERT_RELEASE(sset.size() == 3);
+    YGM_ASSERT_RELEASE(sset.count("dog") == 1);
+    YGM_ASSERT_RELEASE(sset.count("apple") == 1);
+    YGM_ASSERT_RELEASE(sset.count("red") == 1);
+    YGM_ASSERT_RELEASE(sset.size() == 3);
     sset.async_erase("dog");
-    ASSERT_RELEASE(sset.count("dog") == 0);
-    ASSERT_RELEASE(sset.size() == 2);
+    YGM_ASSERT_RELEASE(sset.count("dog") == 0);
+    YGM_ASSERT_RELEASE(sset.size() == 2);
   }
 
 
@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
       iset.async_contains(val, f);
     }
     world.barrier();
-    ASSERT_RELEASE(not ygm::logical_or(set_contains, world));
+    YGM_ASSERT_RELEASE(not ygm::logical_or(set_contains, world));
 
     if (world.rank0()) {
       iset.async_insert(val);
@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
       iset.async_contains(val, f);
     }
     world.barrier();
-    ASSERT_RELEASE(ygm::logical_or(set_contains, world));
+    YGM_ASSERT_RELEASE(ygm::logical_or(set_contains, world));
   }
 
   //
@@ -132,36 +132,36 @@ int main(int argc, char **argv) {
       sset.async_insert_contains("dog", f);
     }
     world.barrier();
-    ASSERT_RELEASE(not ygm::logical_or(did_contain, world));
+    YGM_ASSERT_RELEASE(not ygm::logical_or(did_contain, world));
 
     if (world.rank0()) {
       sset.async_insert_contains("dog", f);
     }
     world.barrier();
-    ASSERT_RELEASE(ygm::logical_or(did_contain, world));
+    YGM_ASSERT_RELEASE(ygm::logical_or(did_contain, world));
   }
 
 
   // Test from bag
   {
     ygm::container::bag<std::string> sbag(world, {"one", "two", "three", "one", "two"});
-    ASSERT_RELEASE(sbag.size() == 5);
+    YGM_ASSERT_RELEASE(sbag.size() == 5);
 
     ygm::container::set<std::string> sset(world, sbag);
-    ASSERT_RELEASE(sset.size() == 3);
+    YGM_ASSERT_RELEASE(sset.size() == 3);
   }
 
   // Test initializer list
   {
     ygm::container::set<std::string> sset(world, {"one", "two", "three", "one", "two"});
-    ASSERT_RELEASE(sset.size() == 3);
+    YGM_ASSERT_RELEASE(sset.size() == 3);
   }
 
   // Test from STL vector
   {
     std::vector<int> v({1,2,3,4,5,1,1,1,3});
     ygm::container::set<int> iset(world, v);
-    ASSERT_RELEASE(iset.size() == 5);
+    YGM_ASSERT_RELEASE(iset.size() == 5);
   }
 
 
@@ -185,15 +185,15 @@ int main(int argc, char **argv) {
       sset2.async_insert("apple");
       sset2.async_insert("red");
       sset2.swap(sset);
-      ASSERT_RELEASE(sset2.size() == 0);
+      YGM_ASSERT_RELEASE(sset2.size() == 0);
     }
-    ASSERT_RELEASE(sset.size() == 3);
-    ASSERT_RELEASE(sset.count("dog") == 1);
-    ASSERT_RELEASE(sset.count("apple") == 1);
-    ASSERT_RELEASE(sset.count("red") == 1);
+    YGM_ASSERT_RELEASE(sset.size() == 3);
+    YGM_ASSERT_RELEASE(sset.count("dog") == 1);
+    YGM_ASSERT_RELEASE(sset.count("apple") == 1);
+    YGM_ASSERT_RELEASE(sset.count("red") == 1);
     sset.async_insert("car");
-    ASSERT_RELEASE(sset.size() == 4);
-    ASSERT_RELEASE(sset.count("car") == 1);
+    YGM_ASSERT_RELEASE(sset.size() == 4);
+    YGM_ASSERT_RELEASE(sset.count("car") == 1);
   }
 
   //
@@ -208,9 +208,9 @@ int main(int argc, char **argv) {
 
     sset1.for_all([&sset2](const auto &key) { sset2.async_insert(key); });
 
-    ASSERT_RELEASE(sset2.count("dog") == 1);
-    ASSERT_RELEASE(sset2.count("apple") == 1);
-    ASSERT_RELEASE(sset2.count("red") == 1);
+    YGM_ASSERT_RELEASE(sset2.count("dog") == 1);
+    YGM_ASSERT_RELEASE(sset2.count("apple") == 1);
+    YGM_ASSERT_RELEASE(sset2.count("red") == 1);
   }
 
   // //
@@ -225,10 +225,10 @@ int main(int argc, char **argv) {
 
   //   sset1.consume_all([&sset2](const auto &key) { sset2.async_insert(key); });
 
-  //   ASSERT_RELEASE(sset1.empty());
-  //   ASSERT_RELEASE(sset2.count("dog") == 1);
-  //   ASSERT_RELEASE(sset2.count("apple") == 1);
-  //   ASSERT_RELEASE(sset2.count("red") == 1);
+  //   YGM_ASSERT_RELEASE(sset1.empty());
+  //   YGM_ASSERT_RELEASE(sset2.count("dog") == 1);
+  //   YGM_ASSERT_RELEASE(sset2.count("apple") == 1);
+  //   YGM_ASSERT_RELEASE(sset2.count("red") == 1);
   // }
 
   // //
@@ -244,10 +244,10 @@ int main(int argc, char **argv) {
   //   ygm::consume_all_iterative_adapter cai(sset1);
   //   cai.consume_all([&sset2](const auto &key) { sset2.async_insert(key); });
 
-  //   ASSERT_RELEASE(sset1.empty());
-  //   ASSERT_RELEASE(sset2.count("dog") == 1);
-  //   ASSERT_RELEASE(sset2.count("apple") == 1);
-  //   ASSERT_RELEASE(sset2.count("red") == 1);
+  //   YGM_ASSERT_RELEASE(sset1.empty());
+  //   YGM_ASSERT_RELEASE(sset2.count("dog") == 1);
+  //   YGM_ASSERT_RELEASE(sset2.count("apple") == 1);
+  //   YGM_ASSERT_RELEASE(sset2.count("red") == 1);
   // }
 
   //
@@ -268,7 +268,7 @@ int main(int argc, char **argv) {
 
     world.barrier();
     for (int set_index = 0; set_index < num_sets; ++set_index) {
-      ASSERT_RELEASE(vec_sets[set_index].size() == world.size() + 1);
+      YGM_ASSERT_RELEASE(vec_sets[set_index].size() == world.size() + 1);
     }
   }
 

@@ -90,7 +90,7 @@ class map_impl {
       if (range.first == range.second) {  // check if not in range
         pmap->m_local_map.insert(std::make_pair(key, pmap->m_default_value));
         range = pmap->m_local_map.equal_range(key);
-        ASSERT_DEBUG(range.first != range.second);
+        YGM_ASSERT_DEBUG(range.first != range.second);
       }
       Visitor *vis = nullptr;
       pmap->local_visit(key, *vis, args...);
@@ -110,7 +110,7 @@ class map_impl {
       if (range.first == range.second) {  // check if not in range
         pmap->m_local_map.insert(std::make_pair(key, pmap->m_default_value));
         range = pmap->m_local_map.equal_range(key);
-        ASSERT_DEBUG(range.first != range.second);
+        YGM_ASSERT_DEBUG(range.first != range.second);
       }
 
       ygm::detail::interrupt_mask mask(pmap->m_comm);
