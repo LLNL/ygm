@@ -135,6 +135,8 @@ inline comm::~comm() {
                 << "receive_queue_completed = " << receive_queue_completed
                 << std::setw(30)
                 << "send_queue_completed = " << send_queue_completed
+                << std::setw(30)
+                << "process_receive_queue = " << process_receive_queue
                 << std::endl;
       // std::cout << "request = " << request_count << std::endl;
     }
@@ -599,7 +601,7 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
           TimeResolution event_time = m_tracer.get_time();
           std::unordered_map<std::string, std::any> metadata;
           metadata["type"] = "barrier_reduce_counts";
-
+          receive_queue_completed++;
           ConstEventType event_name = "mpi";
           ConstEventType action     = "mpi_receive";
 
@@ -1138,6 +1140,7 @@ inline bool comm::process_receive_queue() {
         m_free_send_buffers.push_back(m_send_queue.front().buffer);
         m_send_queue.pop_front();
       } else {  // completed an iRecv -- COPIED FROM BELOW
+        process_recieve_queue_com++;
         receive_queue_completed++;
         received_to_return           = true;
         mpi_irecv_request req_buffer = m_recv_queue.front();
@@ -1192,6 +1195,7 @@ inline bool comm::local_process_incoming() {
       if (config.trace_mpi) {
         TimeResolution event_time = m_tracer.get_time();
         std::unordered_map<std::string, std::any> metadata;
+        receive_queue_completed++;
         metadata["type"] = "local_process_incoming";
 
         ConstEventType event_name = "mpi";
