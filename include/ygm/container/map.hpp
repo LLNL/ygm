@@ -186,7 +186,7 @@ class map
   }
 
   template <typename STLKeyContainer>
-  std::map<key_type, mapped_type> key_gather(const STLKeyContainer& keys) {
+  std::map<key_type, mapped_type> gather_keys(const STLKeyContainer& keys) {
     std::map<key_type, mapped_type>         to_return;
     static std::map<key_type, mapped_type>& sto_return = to_return;
 
@@ -475,7 +475,7 @@ class multimap
   }
 
   // template <typename STLKeyContainer>
-  // std::map<key_type, mapped_type> key_gather(const STLKeyContainer& keys) {
+  // std::map<key_type, mapped_type> gather_keys(const STLKeyContainer& keys) {
   //   std::map<key_type, mapped_type>         to_return;
   //   static std::map<key_type, mapped_type>& sto_return = to_return;
 

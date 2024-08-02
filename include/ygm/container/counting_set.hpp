@@ -133,9 +133,9 @@ class counting_set
   //   return m_map.all_gather(keys);
   // }
 
-  std::map<key_type, mapped_type> key_gather(
+  std::map<key_type, mapped_type> gather_keys(
       const std::vector<key_type> &keys) {
-    return m_map.key_gather(keys);
+    return m_map.gather_keys(keys);
   }
 
   typename ygm::ygm_ptr<self_type> get_ygm_ptr() const { return pthis; }
