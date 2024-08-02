@@ -10,7 +10,7 @@
 
 #include <ygm/comm.hpp>
 #include <ygm/container/set.hpp>
-#include <ygm/for_all_adapter.hpp>
+#include <ygm/container/bag.hpp>
 
 int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
@@ -139,6 +139,29 @@ int main(int argc, char **argv) {
     }
     world.barrier();
     ASSERT_RELEASE(ygm::logical_or(did_contain, world));
+  }
+
+
+  // Test from bag
+  {
+    ygm::container::bag<std::string> sbag(world, {"one", "two", "three", "one", "two"});
+    ASSERT_RELEASE(sbag.size() == 5);
+
+    ygm::container::set<std::string> sset(world, sbag);
+    ASSERT_RELEASE(sset.size() == 3);
+  }
+
+  // Test initializer list
+  {
+    ygm::container::set<std::string> sset(world, {"one", "two", "three", "one", "two"});
+    ASSERT_RELEASE(sset.size() == 3);
+  }
+
+  // Test from STL vector
+  {
+    std::vector<int> v({1,2,3,4,5,1,1,1,3});
+    ygm::container::set<int> iset(world, v);
+    ASSERT_RELEASE(iset.size() == 5);
   }
 
 
