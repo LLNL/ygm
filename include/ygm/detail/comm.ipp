@@ -129,7 +129,7 @@ inline comm::~comm() {
   for (int i = 0; i < m_layout.size(); i++) {
     if (rank() == i) {
       std::cout << "Rank " << rank() << std::setw(30)
-                << "send_buffer_count = " << send_buffer_count << std::setw(30)
+                << "i_send_counts = " << stats.get_isend_count() << std::setw(30)
                 << "i_recv_counts = " << stats.get_irecv_count() 
                 << std::setw(30)
                 << "receive_queue_completed = " << receive_queue_completed
