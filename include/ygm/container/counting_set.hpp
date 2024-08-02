@@ -34,7 +34,7 @@ class counting_set
   const size_type count_cache_size = 1024 * 1024;
 
   counting_set(ygm::comm &comm)
-      : m_map(comm /*, mapped_type(0)*/),
+      : m_map(comm ),
         m_comm(comm),
         partitioner(m_map.partitioner),
         pthis(this) {
@@ -43,9 +43,47 @@ class counting_set
 
   counting_set() = delete;
 
-  void async_insert(const key_type &key) { cache_insert(key); }
+  counting_set(ygm::comm &comm, std::initializer_list<Key> l)
+    : m_map(comm ),
+        m_comm(comm),
+        partitioner(m_map.partitioner),
+        pthis(this) {
+  pthis.check(m_comm);
+  if (m_comm.rank0()) {
+    for (const Key &i : l) {
+      async_insert(i);
+    }
+  }
+  m_comm.barrier();
+}
 
-  // void async_erase(const key_type& key) { cache_erase(key); }
+  template <typename STLContainer>
+  counting_set(ygm::comm &comm, const STLContainer &cont)
+    requires detail::STLContainer<STLContainer> &&
+                 std::convertible_to<typename STLContainer::value_type, Key>
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+
+    for (const Key &i : cont) {
+      this->async_insert(i);
+    }
+    m_comm.barrier();
+  }
+
+  template <typename YGMContainer>
+  counting_set(ygm::comm &comm, const YGMContainer &yc)
+    requires detail::HasForAll<YGMContainer> &&
+                 detail::SingleItemTuple<
+                     typename YGMContainer::for_all_args>  
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+
+    yc.for_all([this](const Key &value) { this->async_insert(value); });
+
+    m_comm.barrier();
+  }
+
+  void async_insert(const key_type &key) { cache_insert(key); }
 
   template <typename Function>
   void local_for_all(Function fn) {

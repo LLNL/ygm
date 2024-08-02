@@ -52,6 +52,42 @@ class map
     pthis.check(m_comm);
   }
 
+  map(ygm::comm& comm, std::initializer_list<std::pair<Key, Value>> l)
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+    if (m_comm.rank0()) {
+      for (const std::pair<Key, Value>& i : l) {
+        async_insert(i);
+      }
+    }
+  }
+
+  template <typename STLContainer>
+  map(ygm::comm &comm, const STLContainer &cont)
+    requires detail::STLContainer<STLContainer> &&
+                 std::convertible_to<typename STLContainer::value_type, std::pair<Key, Value>>
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+
+    for (const std::pair<Key, Value> &i : cont) {
+      this->async_insert(i);
+    }
+    m_comm.barrier();
+  }
+
+  template <typename YGMContainer>
+  map(ygm::comm &comm, const YGMContainer &yc)
+    requires detail::HasForAll<YGMContainer> &&
+                 detail::SingleItemTuple<
+                     typename YGMContainer::for_all_args>  
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+
+    yc.for_all([this](const std::pair<Key, Value> &value) { this->async_insert(value); });
+
+    m_comm.barrier();
+  }
+
   ~map() { m_comm.barrier(); }
 
   using detail::base_async_erase_key<map<Key, Value>,
@@ -324,6 +360,42 @@ class multimap
 
   multimap(ygm::comm& comm) : m_comm(comm), pthis(this), partitioner(comm) {
     pthis.check(m_comm);
+  }
+
+  multimap(ygm::comm& comm, std::initializer_list<std::pair<Key, Value>> l)
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+    if (m_comm.rank0()) {
+      for (const std::pair<Key, Value>& i : l) {
+        async_insert(i);
+      }
+    }
+  }
+
+  template <typename STLContainer>
+  multimap(ygm::comm &comm, const STLContainer &cont)
+    requires detail::STLContainer<STLContainer> &&
+                 std::convertible_to<typename STLContainer::value_type, std::pair<Key, Value>>
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+
+    for (const std::pair<Key, Value> &i : cont) {
+      this->async_insert(i);
+    }
+    m_comm.barrier();
+  }
+
+  template <typename YGMContainer>
+  multimap(ygm::comm &comm, const YGMContainer &yc)
+    requires detail::HasForAll<YGMContainer> &&
+                 detail::SingleItemTuple<
+                     typename YGMContainer::for_all_args>  
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+
+    yc.for_all([this](const std::pair<Key, Value> &value) { this->async_insert(value); });
+
+    m_comm.barrier();
   }
 
   ~multimap() { m_comm.barrier(); }

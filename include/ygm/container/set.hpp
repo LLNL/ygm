@@ -15,7 +15,6 @@
 #include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_misc.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
-// #include <ygm/container/detail/set_impl.hpp>
 
 namespace ygm::container {
 
@@ -57,6 +56,46 @@ class multiset
         partitioner(other.partitioner),
         m_local_set(std::move(other.m_local_set)) {
     pthis.check(m_comm);
+  }
+
+  multiset(ygm::comm &comm, std::initializer_list<Value> l)
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+    if (m_comm.rank0()) {
+      for (const Value &i : l) {
+        async_insert(i);
+      }
+    }
+
+    m_comm.barrier();
+  }
+
+  template <typename STLContainer>
+  multiset(ygm::comm &comm, const STLContainer &cont)
+    requires detail::STLContainer<STLContainer> &&
+                 std::convertible_to<typename STLContainer::value_type, Value>
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+
+    for (const Value &i : cont) {
+      this->async_insert(i);
+    }
+
+    m_comm.barrier();
+  }
+
+  template <typename YGMContainer>
+  multiset(ygm::comm &comm, const YGMContainer &yc)
+    requires detail::HasForAll<YGMContainer> &&
+                 detail::SingleItemTuple<
+                     typename YGMContainer::for_all_args>  //&&
+      // std::same_as<typename TYGMContainer::for_all_args, std::tuple<Value>>
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+
+    yc.for_all([this](const Value &value) { this->async_insert(value); });
+
+    m_comm.barrier();
   }
 
   ~multiset() { m_comm.barrier(); }
@@ -144,6 +183,44 @@ class set
         partitioner(other.partitioner),
         m_local_set(std::move(other.m_local_set)) {
     pthis.check(m_comm);
+  }
+
+  set(ygm::comm &comm, std::initializer_list<Value> l)
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+    if (m_comm.rank0()) {
+      for (const Value &i : l) {
+        this->async_insert(i);
+      }
+    }
+    m_comm.barrier();
+  }
+
+  template <typename STLContainer>
+  set(ygm::comm &comm, const STLContainer &cont)
+    requires detail::STLContainer<STLContainer> &&
+                 std::convertible_to<typename STLContainer::value_type, Value>
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+
+    for (const Value &i : cont) {
+      this->async_insert(i);
+    }
+    m_comm.barrier();
+  }
+
+  template <typename YGMContainer>
+  set(ygm::comm &comm, const YGMContainer &yc)
+    requires detail::HasForAll<YGMContainer> &&
+                 detail::SingleItemTuple<
+                     typename YGMContainer::for_all_args>  //&&
+      // std::same_as<typename TYGMContainer::for_all_args, std::tuple<Value>>
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+
+    yc.for_all([this](const Value &value) { this->async_insert(value); });
+
+    m_comm.barrier();
   }
 
   ~set() { m_comm.barrier(); }
