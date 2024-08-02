@@ -44,7 +44,7 @@ class counting_set
   counting_set() = delete;
 
   counting_set(ygm::comm &comm, std::initializer_list<Key> l)
-    : m_map(comm ),
+    : m_map(comm),
         m_comm(comm),
         partitioner(m_map.partitioner),
         pthis(this) {
@@ -61,7 +61,7 @@ class counting_set
   counting_set(ygm::comm &comm, const STLContainer &cont)
     requires detail::STLContainer<STLContainer> &&
                  std::convertible_to<typename STLContainer::value_type, Key>
-      : m_comm(comm), pthis(this), partitioner(comm) {
+      : m_map(comm), m_comm(comm), pthis(this), partitioner(comm) {
     pthis.check(m_comm);
 
     for (const Key &i : cont) {
@@ -75,7 +75,7 @@ class counting_set
     requires detail::HasForAll<YGMContainer> &&
                  detail::SingleItemTuple<
                      typename YGMContainer::for_all_args>  
-      : m_comm(comm), pthis(this), partitioner(comm) {
+      : m_map(comm), m_comm(comm), pthis(this), partitioner(comm) {
     pthis.check(m_comm);
 
     yc.for_all([this](const Key &value) { this->async_insert(value); });
