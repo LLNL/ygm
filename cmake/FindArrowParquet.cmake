@@ -28,12 +28,18 @@ function(find_arrow_parquet_config)
             message(STATUS "Parquet version: ${PARQUET_VERSION}")
             message(STATUS "Parquet SO version: ${PARQUET_FULL_SO_VERSION}")
         endif ()
-    else ()
-        if (YGM_REQUIRE_ARROW_PARQUET)
-            message(FATAL_ERROR "${PROJECT_NAME} requires Arrow Parquet >= 8.0 but Arrow Parquet was not found.")
-        else ()
-            message(WARNING "${PROJECT_NAME} did not find Arrow Parquet >= 8.0. Building without Arrow Parquet.")
-        endif ()
+    endif ()
+endfunction()
+
+
+# Find the directory where pyarrow is installed.
+# Output:
+# PYARROW_ROOT is set to the root of the pyarrow installation.
+include(FindPython3Module)
+function(find_pyarrow_root)
+    find_python3_module(pyarrow)
+    if (PYTHON3_MODULE_PATH)
+        get_filename_component(PYARROW_ROOT ${PYTHON3_MODULE_PATH} DIRECTORY)
     endif ()
 endfunction()
 
@@ -114,12 +120,6 @@ function(find_pyarrow)
             endif ()
 
             message(STATUS "Arrow include dir: ${Arrow_INCLUDE_DIRS}")
-        else () # Arrow or Parquet not found
-            if (YGM_REQUIRE_ARROW_PARQUET)
-                message(FATAL_ERROR "${PROJECT_NAME} requires Arrow Parquet but Arrow Parquet was not found.")
-            else ()
-                message(WARNING "${PROJECT_NAME} did not find Arrow Parquet. Building without Arrow Parquet.")
-            endif ()
         endif ()
     else ()
         message(FATAL_ERROR "PIP_PYARROW_ROOT is not set. PIP_PYARROW_ROOT must be set to the root of the pyarrow installation.")
@@ -128,19 +128,40 @@ function(find_pyarrow)
 endfunction()
 
 
-# Find Arrow and Parquet using find_arrow or find_pyarrow
-# If PIP_PYARROW_ROOT is set, find_pyarrow is used.
+# Find Arrow and Parquet using find_arrow and/or find_pyarrow functions.
+# If PIP_PYARROW_ROOT is set, find_pyarrow() is used first.
+# If Arrow or Parquet is not found, find_arrow_parquet_config() is used.
+# If Arrow or Parquet is not found still,
+# find a Python 3 interpreter and a pyarrow module,
+# and then find Arrow and Parquet based on the pyarrow module location.
 #
 # Output:
 # Arrow_FOUND and Parquet_FOUND are set to TRUE if Arrow and Parquet are found.
 function(find_arrow_parquet)
     if (PIP_PYARROW_ROOT)
         find_pyarrow()
-    else ()
+    endif ()
+
+    if (NOT PIP_PYARROW_ROOT OR NOT Arrow_FOUND OR NOT Parquet_FOUND)
         find_arrow_parquet_config()
     endif ()
+
+    find_pyarrow_root()
+    if (PYARROW_ROOT)
+        set(PIP_PYARROW_ROOT ${PYARROW_ROOT})
+        find_pyarrow()
+    endif ()
+
     set(Arrow_FOUND ${Arrow_FOUND} PARENT_SCOPE)
     set(Parquet_FOUND ${Parquet_FOUND} PARENT_SCOPE)
+
+    if (NOT Arrow_FOUND OR NOT Parquet_FOUND)
+        if (YGM_REQUIRE_ARROW_PARQUET)
+            message(FATAL_ERROR "${PROJECT_NAME} requires Arrow Parquet but Arrow Parquet was not found.")
+        else ()
+            message(WARNING "${PROJECT_NAME} did not find Arrow Parquet. Building without Arrow Parquet.")
+        endif ()
+    endif ()
 endfunction()
 
 
