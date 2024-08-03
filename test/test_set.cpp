@@ -137,7 +137,7 @@ int main(int argc, char** argv) {
     YGM_ASSERT_RELEASE(ygm::logical_or(did_contain, world));
   }
 
-  // Test batch erase
+  // Test batch erase from set
   {
     int                      num_items   = 100;
     int                      remove_size = 20;
@@ -158,6 +158,41 @@ int main(int argc, char** argv) {
     if (world.rank0()) {
       for (int i = 0; i < remove_size; ++i) {
         to_remove.async_insert(i);
+      }
+    }
+
+    world.barrier();
+
+    iset.erase(to_remove);
+
+    iset.for_all([remove_size, &world](const auto& item) {
+      YGM_ASSERT_RELEASE(item >= remove_size);
+    });
+
+    YGM_ASSERT_RELEASE(iset.size() == num_items - remove_size);
+  }
+
+  // Test batch erase from vector
+  {
+    int                      num_items   = 100;
+    int                      remove_size = 20;
+    ygm::container::set<int> iset(world);
+
+    if (world.rank0()) {
+      for (int i = 0; i < num_items; ++i) {
+        iset.async_insert(i);
+      }
+    }
+
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(iset.size() == num_items);
+
+    std::vector<int> to_remove;
+
+    if (world.rank0()) {
+      for (int i = 0; i < remove_size; ++i) {
+        to_remove.push_back(i);
       }
     }
 

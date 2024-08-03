@@ -26,5 +26,19 @@ struct base_batch_erase_key {
 
     derived_this->comm().barrier();
   }
+
+  template <typename Container>
+  void erase(const Container &cont) requires detail::STLContainer<Container> &&
+      detail::AtLeastOneItemTuple<for_all_args> &&
+      std::convertible_to<typename Container::value_type,
+                          std::tuple_element_t<0, for_all_args>> {
+    derived_type *derived_this = static_cast<derived_type *>(this);
+
+    for (const auto &key : cont) {
+      derived_this->async_erase(key);
+    }
+
+    derived_this->comm().barrier();
+  }
 };
 }  // namespace ygm::container::detail
