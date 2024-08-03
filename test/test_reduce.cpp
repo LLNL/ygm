@@ -20,12 +20,11 @@ int main(int argc, char** argv) {
     ygm::container::bag<int> ibag(world, {42, 1, 8, 16, 32, 3, 4, 5, 6, 7});
 
     int sum = ibag.reduce(std::plus<int>());
-
-    world.cout0(sum);
     YGM_ASSERT_RELEASE(sum = 124);
 
 
     int even_sum = ibag.filter([](int i){return i%2==0;}).reduce(std::plus<int>());
+    YGM_ASSERT_RELEASE(even_sum = 108);
   }
 
 }

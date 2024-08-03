@@ -124,12 +124,12 @@ struct base_iteration<derived_type, for_all_args> {
     derived_this->for_all(rlambda);
 
     std::optional<value_type> to_reduce;
-    if (first) {  // local partition was empty!
-      to_reduce = std::move(local_reduce);
-    }
+    if (!first) {  
+      to_reduce = local_reduce;
+    } 
 
     std::optional<value_type> to_return =
-        ::ygm::all_reduce(to_return, merge, derived_this->comm());
+        ::ygm::all_reduce(to_reduce, merge, derived_this->comm());
     YGM_ASSERT_RELEASE(to_return.has_value());
     return to_return.value();
   }
@@ -282,12 +282,12 @@ struct base_iteration<derived_type, for_all_args> {
     derived_this->for_all(rlambda);
 
     std::optional<std::pair<key_type, mapped_type>> to_reduce;
-    if (first) {  // local partition was empty!
+    if (!first) {  // local partition was empty!
       to_reduce = std::move(local_reduce);
     }
 
     std::optional<std::pair<key_type, mapped_type>> to_return =
-        ::ygm::all_reduce(to_return, merge, derived_this->comm());
+        ::ygm::all_reduce(to_reduce, merge, derived_this->comm());
     YGM_ASSERT_RELEASE(to_return.has_value());
     return to_return.value();
   }
