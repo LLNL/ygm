@@ -75,6 +75,29 @@ struct base_batch_erase<derived_type, for_all_args>
   }
 
   template <typename Container>
+  void erase(const Container &cont) requires HasForAll<Container> &&
+      SingleItemTuple<typename Container::for_all_args> && DoubleItemTuple<
+          std::tuple_element_t<0, typename Container::for_all_args>> &&
+      std::convertible_to<
+          std::tuple_element_t<
+              0, std::tuple_element_t<0, typename Container::for_all_args>>,
+          key_type> &&
+      std::convertible_to<
+          std::tuple_element_t<
+              1, std::tuple_element_t<0, typename Container::for_all_args>>,
+          mapped_type> {
+    derived_type *derived_this = static_cast<derived_type *>(this);
+
+    cont.for_all([derived_this](const auto &key_value) {
+      const auto &[key, value] = key_value;
+
+      derived_this->async_erase(key, value);
+    });
+
+    derived_this->comm().barrier();
+  }
+
+  template <typename Container>
   void erase(const Container &cont) requires STLContainer<Container> &&
       DoubleItemTuple<typename Container::value_type> && std::convertible_to<
           std::tuple_element_t<0, typename Container::value_type>, key_type> &&
