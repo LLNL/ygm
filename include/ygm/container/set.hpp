@@ -24,7 +24,7 @@ class multiset
     : public detail::base_async_insert_value<multiset<Value>,
                                              std::tuple<Value>>,
       public detail::base_async_erase_key<multiset<Value>, std::tuple<Value>>,
-      public detail::base_batch_erase_key<multiset<Value>, std::tuple<Value>>,
+      public detail::base_batch_erase<multiset<Value>, std::tuple<Value>>,
       public detail::base_async_contains<multiset<Value>, std::tuple<Value>>,
       public detail::base_async_insert_contains<multiset<Value>,
                                                 std::tuple<Value>>,
@@ -152,7 +152,7 @@ template <typename Value>
 class set
     : public detail::base_async_insert_value<set<Value>, std::tuple<Value>>,
       public detail::base_async_erase_key<set<Value>, std::tuple<Value>>,
-      public detail::base_batch_erase_key<set<Value>, std::tuple<Value>>,
+      public detail::base_batch_erase<set<Value>, std::tuple<Value>>,
       public detail::base_async_contains<set<Value>, std::tuple<Value>>,
       public detail::base_async_insert_contains<set<Value>, std::tuple<Value>>,
       public detail::base_count<set<Value>, std::tuple<Value>>,

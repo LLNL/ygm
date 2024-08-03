@@ -145,6 +145,43 @@ int main(int argc, char** argv) {
                        num_insertion_rounds * (num_items - remove_size));
   }
 
+  // Test batch erase from vector
+  {
+    int                           num_items            = 100;
+    int                           num_insertion_rounds = 5;
+    int                           remove_size          = 20;
+    ygm::container::multiset<int> iset(world);
+
+    if (world.rank0()) {
+      for (int round = 0; round < num_insertion_rounds; ++round) {
+        for (int i = 0; i < num_items; ++i) {
+          iset.async_insert(i);
+        }
+      }
+    }
+
+    YGM_ASSERT_RELEASE(iset.size() == num_items * num_insertion_rounds);
+
+    std::vector<int> to_remove;
+
+    if (world.rank0()) {
+      for (int i = 0; i < remove_size; ++i) {
+        to_remove.push_back(i);
+      }
+    }
+
+    world.barrier();
+
+    iset.erase(to_remove);
+
+    iset.for_all([remove_size, &world](const auto& item) {
+      YGM_ASSERT_RELEASE(item >= remove_size);
+    });
+
+    YGM_ASSERT_RELEASE(iset.size() ==
+                       num_insertion_rounds * (num_items - remove_size));
+  }
+
   //
   // Test swap
   {

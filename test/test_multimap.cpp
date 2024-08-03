@@ -7,6 +7,7 @@
 #include <string>
 #include <ygm/comm.hpp>
 #include <ygm/container/map.hpp>
+#include <ygm/container/set.hpp>
 
 int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
@@ -125,7 +126,8 @@ int main(int argc, char **argv) {
   //       });
   //   smap.async_visit_group(
   //       "cat", [](auto pmap, const auto begin, const auto end) {
-  //         YGM_ASSERT_RELEASE(std::distance(begin, end) == pmap->comm().size());
+  //         YGM_ASSERT_RELEASE(std::distance(begin, end) ==
+  //         pmap->comm().size());
   //       });
   // }
 
@@ -203,6 +205,170 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(smap2.count("dog") == (size_t)world.size());
     YGM_ASSERT_RELEASE(smap2.count("apple") == (size_t)world.size());
     YGM_ASSERT_RELEASE(smap2.count("red") == (size_t)world.size());
+  }
+
+  // Test batch erase from set
+  {
+    int                                num_items            = 100;
+    int                                remove_size          = 20;
+    int                                num_insertion_rounds = 5;
+    ygm::container::multimap<int, int> imap(world);
+
+    if (world.rank0()) {
+      for (int round = 0; round < num_insertion_rounds; ++round) {
+        for (int i = 0; i < num_items; ++i) {
+          imap.async_insert(i, round);
+        }
+      }
+    }
+
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(imap.size() == num_insertion_rounds * num_items);
+
+    ygm::container::set<int> to_remove(world);
+
+    if (world.rank0()) {
+      for (int i = 0; i < remove_size; ++i) {
+        to_remove.async_insert(i);
+      }
+    }
+
+    world.barrier();
+
+    imap.erase(to_remove);
+
+    imap.for_all([remove_size, &world](const auto &key, const auto &value) {
+      YGM_ASSERT_RELEASE(key >= remove_size);
+    });
+
+    YGM_ASSERT_RELEASE(imap.size() ==
+                       num_insertion_rounds * (num_items - remove_size));
+  }
+
+  // Test batch erase from vector
+  {
+    int                                num_items            = 100;
+    int                                remove_size          = 20;
+    int                                num_insertion_rounds = 5;
+    ygm::container::multimap<int, int> imap(world);
+
+    if (world.rank0()) {
+      for (int round = 0; round < num_insertion_rounds; ++round) {
+        for (int i = 0; i < num_items; ++i) {
+          imap.async_insert(i, round);
+        }
+      }
+    }
+
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(imap.size() == num_insertion_rounds * num_items);
+
+    std::vector<int> to_remove;
+
+    if (world.rank0()) {
+      for (int i = 0; i < remove_size; ++i) {
+        to_remove.push_back(i);
+      }
+    }
+
+    world.barrier();
+
+    imap.erase(to_remove);
+
+    imap.for_all([remove_size, &world](const auto &key, const auto &value) {
+      YGM_ASSERT_RELEASE(key >= remove_size);
+    });
+
+    YGM_ASSERT_RELEASE(imap.size() ==
+                       num_insertion_rounds * (num_items - remove_size));
+  }
+
+  // Test batch erase from multimap
+  {
+    int                                num_items            = 100;
+    int                                remove_size          = 20;
+    int                                num_insertion_rounds = 5;
+    int                                num_removal_rounds   = 2;
+    ygm::container::multimap<int, int> imap(world);
+
+    if (world.rank0()) {
+      for (int round = 0; round < num_insertion_rounds; ++round) {
+        for (int i = 0; i < num_items; ++i) {
+          imap.async_insert(i, round);
+        }
+      }
+    }
+
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(imap.size() == num_insertion_rounds * num_items);
+
+    ygm::container::multimap<int, int> to_remove(world);
+
+    if (world.rank0()) {
+      for (int round = 0; round < num_removal_rounds; ++round) {
+        for (int i = 0; i < remove_size; ++i) {
+          to_remove.async_insert(i, round);
+        }
+      }
+    }
+
+    world.barrier();
+
+    imap.erase(to_remove);
+
+    imap.for_all([remove_size, num_removal_rounds, &world](const auto &key,
+                                                           const auto &value) {
+      YGM_ASSERT_RELEASE((key >= remove_size) || (value >= num_removal_rounds));
+    });
+
+    YGM_ASSERT_RELEASE(imap.size() == num_insertion_rounds * num_items -
+                                          num_removal_rounds * remove_size);
+  }
+
+  // Test batch erase from vector of keys and values
+  {
+    int                                num_items            = 100;
+    int                                remove_size          = 20;
+    int                                num_insertion_rounds = 5;
+    int                                num_removal_rounds   = 2;
+    ygm::container::multimap<int, int> imap(world);
+
+    if (world.rank0()) {
+      for (int round = 0; round < num_insertion_rounds; ++round) {
+        for (int i = 0; i < num_items; ++i) {
+          imap.async_insert(i, round);
+        }
+      }
+    }
+
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(imap.size() == num_insertion_rounds * num_items);
+
+    std::vector<std::pair<int, int>> to_remove;
+
+    if (world.rank0()) {
+      for (int round = 0; round < num_removal_rounds; ++round) {
+        for (int i = 0; i < remove_size; ++i) {
+          to_remove.push_back(std::make_pair(i, round));
+        }
+      }
+    }
+
+    world.barrier();
+
+    imap.erase(to_remove);
+
+    imap.for_all([remove_size, num_removal_rounds, &world](const auto &key,
+                                                           const auto &value) {
+      YGM_ASSERT_RELEASE((key >= remove_size) || (value >= num_removal_rounds));
+    });
+
+    YGM_ASSERT_RELEASE(imap.size() == num_insertion_rounds * num_items -
+                                          num_removal_rounds * remove_size);
   }
 
   return 0;
