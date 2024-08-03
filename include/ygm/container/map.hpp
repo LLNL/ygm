@@ -13,6 +13,7 @@
 #include <ygm/container/detail/base_async_insert_or_assign.hpp>
 #include <ygm/container/detail/base_async_reduce.hpp>
 #include <ygm/container/detail/base_async_visit.hpp>
+#include <ygm/container/detail/base_batch_erase.hpp>
 #include <ygm/container/detail/base_count.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_misc.hpp>
@@ -33,6 +34,8 @@ class map
                                           std::tuple<Key, Value>>,
       public detail::base_async_erase_key_value<map<Key, Value>,
                                                 std::tuple<Key, Value>>,
+      public detail::base_batch_erase_key<map<Key, Value>,
+                                          std::tuple<Key, Value>>,
       public detail::base_async_visit<map<Key, Value>, std::tuple<Key, Value>>,
       public detail::base_iteration<map<Key, Value>, std::tuple<Key, Value>> {
   friend class detail::base_misc<map<Key, Value>, std::tuple<Key, Value>>;
@@ -63,27 +66,29 @@ class map
   }
 
   template <typename STLContainer>
-  map(ygm::comm &comm, const STLContainer &cont)
-    requires detail::STLContainer<STLContainer> &&
-                 std::convertible_to<typename STLContainer::value_type, std::pair<Key, Value>>
+  map(ygm::comm&          comm,
+      const STLContainer& cont) requires detail::STLContainer<STLContainer> &&
+      std::convertible_to<typename STLContainer::value_type,
+                          std::pair<Key, Value>>
       : m_comm(comm), pthis(this), partitioner(comm) {
     pthis.check(m_comm);
 
-    for (const std::pair<Key, Value> &i : cont) {
+    for (const std::pair<Key, Value>& i : cont) {
       this->async_insert(i);
     }
     m_comm.barrier();
   }
 
   template <typename YGMContainer>
-  map(ygm::comm &comm, const YGMContainer &yc)
-    requires detail::HasForAll<YGMContainer> &&
-                 detail::SingleItemTuple<
-                     typename YGMContainer::for_all_args>  
+  map(ygm::comm&          comm,
+      const YGMContainer& yc) requires detail::HasForAll<YGMContainer> &&
+      detail::SingleItemTuple<typename YGMContainer::for_all_args>
       : m_comm(comm), pthis(this), partitioner(comm) {
     pthis.check(m_comm);
 
-    yc.for_all([this](const std::pair<Key, Value> &value) { this->async_insert(value); });
+    yc.for_all([this](const std::pair<Key, Value>& value) {
+      this->async_insert(value);
+    });
 
     m_comm.barrier();
   }
@@ -336,6 +341,8 @@ class multimap
                                           std::tuple<Key, Value>>,
       public detail::base_async_erase_key_value<multimap<Key, Value>,
                                                 std::tuple<Key, Value>>,
+      public detail::base_batch_erase_key<multimap<Key, Value>,
+                                          std::tuple<Key, Value>>,
       public detail::base_async_visit<multimap<Key, Value>,
                                       std::tuple<Key, Value>>,
       public detail::base_iteration<multimap<Key, Value>,
@@ -373,27 +380,28 @@ class multimap
   }
 
   template <typename STLContainer>
-  multimap(ygm::comm &comm, const STLContainer &cont)
-    requires detail::STLContainer<STLContainer> &&
-                 std::convertible_to<typename STLContainer::value_type, std::pair<Key, Value>>
+  multimap(ygm::comm& comm, const STLContainer& cont) requires
+      detail::STLContainer<STLContainer> && std::convertible_to<
+          typename STLContainer::value_type, std::pair<Key, Value>>
       : m_comm(comm), pthis(this), partitioner(comm) {
     pthis.check(m_comm);
 
-    for (const std::pair<Key, Value> &i : cont) {
+    for (const std::pair<Key, Value>& i : cont) {
       this->async_insert(i);
     }
     m_comm.barrier();
   }
 
   template <typename YGMContainer>
-  multimap(ygm::comm &comm, const YGMContainer &yc)
-    requires detail::HasForAll<YGMContainer> &&
-                 detail::SingleItemTuple<
-                     typename YGMContainer::for_all_args>  
+  multimap(ygm::comm&          comm,
+           const YGMContainer& yc) requires detail::HasForAll<YGMContainer> &&
+      detail::SingleItemTuple<typename YGMContainer::for_all_args>
       : m_comm(comm), pthis(this), partitioner(comm) {
     pthis.check(m_comm);
 
-    yc.for_all([this](const std::pair<Key, Value> &value) { this->async_insert(value); });
+    yc.for_all([this](const std::pair<Key, Value>& value) {
+      this->async_insert(value);
+    });
 
     m_comm.barrier();
   }

@@ -8,6 +8,7 @@
 #include <string>
 #include <ygm/comm.hpp>
 #include <ygm/container/map.hpp>
+#include <ygm/container/set.hpp>
 
 int main(int argc, char **argv) {
   ygm::comm world(&argc, &argv);
@@ -78,8 +79,9 @@ int main(int argc, char **argv) {
     });
 
     const ygm::container::map<std::string, std::string> &csmap = smap;
-    csmap.async_visit_if_contains(
-        "red", [](auto key, auto &value) { YGM_ASSERT_RELEASE(value == "green"); });
+    csmap.async_visit_if_contains("red", [](auto key, auto &value) {
+      YGM_ASSERT_RELEASE(value == "green");
+    });
 
     smap.async_visit_if_contains(
         "SHOULD_BE_MISSING",
@@ -138,7 +140,8 @@ int main(int argc, char **argv) {
 
   //   world.barrier();
 
-  //   YGM_ASSERT_RELEASE(world.all_reduce_sum(dog_visit_counter) == world.size());
+  //   YGM_ASSERT_RELEASE(world.all_reduce_sum(dog_visit_counter) ==
+  //   world.size());
 
   //   static int apple_visit_counter{0};
 
@@ -180,11 +183,10 @@ int main(int argc, char **argv) {
 
     world.barrier();
 
-    smap.for_all([&world, &num_reductions](const auto &key, const auto
-    &value) {
+    smap.for_all([&world, &num_reductions](const auto &key, const auto &value) {
       if (key == "sum") {
         YGM_ASSERT_RELEASE(value == world.size() * num_reductions *
-                                    (num_reductions - 1) / 2);
+                                        (num_reductions - 1) / 2);
       } else if (key == "min") {
         YGM_ASSERT_RELEASE(value == 0);
       } else if (key == "max") {
@@ -214,6 +216,76 @@ int main(int argc, char **argv) {
     smap.async_insert_or_assign("car", "truck");
     YGM_ASSERT_RELEASE(smap.size() == 4);
     YGM_ASSERT_RELEASE(smap.count("car") == 1);
+  }
+
+  // Test batch erase from set
+  {
+    int                           num_items   = 100;
+    int                           remove_size = 20;
+    ygm::container::map<int, int> imap(world);
+
+    if (world.rank0()) {
+      for (int i = 0; i < num_items; ++i) {
+        imap.async_insert(i, i);
+      }
+    }
+
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(imap.size() == num_items);
+
+    ygm::container::set<int> to_remove(world);
+
+    if (world.rank0()) {
+      for (int i = 0; i < remove_size; ++i) {
+        to_remove.async_insert(i);
+      }
+    }
+
+    world.barrier();
+
+    imap.erase(to_remove);
+
+    imap.for_all([remove_size, &world](const auto &key, const auto &value) {
+      YGM_ASSERT_RELEASE(key >= remove_size);
+    });
+
+    YGM_ASSERT_RELEASE(imap.size() == num_items - remove_size);
+  }
+
+  // Test batch erase from vector
+  {
+    int                           num_items   = 100;
+    int                           remove_size = 20;
+    ygm::container::map<int, int> imap(world);
+
+    if (world.rank0()) {
+      for (int i = 0; i < num_items; ++i) {
+        imap.async_insert(i, i);
+      }
+    }
+
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(imap.size() == num_items);
+
+    std::vector<int> to_remove;
+
+    if (world.rank0()) {
+      for (int i = 0; i < remove_size; ++i) {
+        to_remove.push_back(i);
+      }
+    }
+
+    world.barrier();
+
+    imap.erase(to_remove);
+
+    imap.for_all([remove_size, &world](const auto &key, const auto &value) {
+      YGM_ASSERT_RELEASE(key >= remove_size);
+    });
+
+    YGM_ASSERT_RELEASE(imap.size() == num_items - remove_size);
   }
 
   //
