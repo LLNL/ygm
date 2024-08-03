@@ -231,21 +231,21 @@ class map
     } else {
       static_assert(ygm::detail::always_false<>,
                     "local map lambda signature must be invocable with (const "
-                    "&key_type, mapped_type&) signature");
+                    "key_type&, mapped_type&) signature");
     }
   }
 
   template <typename Function>
   void local_for_all(Function fn) const {
     if constexpr (std::is_invocable<decltype(fn), const key_type,
-                                    mapped_type&>()) {
+                                    const mapped_type&>()) {
       for (const std::pair<const key_type, mapped_type>& kv : m_local_map) {
         fn(kv.first, kv.second);
       }
     } else {
       static_assert(ygm::detail::always_false<>,
                     "local map lambda signature must be invocable with (const "
-                    "&key_type, mapped_type&) signature");
+                    "key_type&, const mapped_type&) signature");
     }
   }
 

@@ -8,42 +8,11 @@
 #include <functional>
 #include <tuple>
 #include <utility>
+#include <ygm/container/detail/type_traits.hpp>
 
 namespace ygm::container::detail {
 
-namespace type_traits {
-template <template <typename...> class T, typename U>
-struct is_specialization_of : std::false_type {};
 
-template <template <typename...> class T, typename... Us>
-struct is_specialization_of<T, T<Us...>> : std::true_type {};
-
-template <typename T>
-struct is_vector
-    : is_specialization_of<std::vector, typename std::decay<T>::type> {};
-
-template <typename T>
-struct is_tuple
-    : is_specialization_of<std::tuple, typename std::decay<T>::type> {};
-
-template <class T, bool isTuple>
-struct tuple_wrapper_helper  // T is not a tuple
-{
-  using type = std::tuple<T>;
-};
-
-template <class T>
-struct tuple_wrapper_helper<T, true>  // T is a tuple
-{
-  using type = T;
-};
-
-template <class T>
-struct tuple_wrapper  // T is a tuple
-{
-  using type = tuple_wrapper_helper<T, is_tuple<T>::value>::type;
-};
-}  // namespace type_traits
 
 template <typename Container, typename MapFunction>
 class map_proxy

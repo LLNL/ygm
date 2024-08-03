@@ -90,6 +90,11 @@ class counting_set
     m_map.local_for_all(fn);
   }
 
+  template <typename Function>
+  void local_for_all(Function fn) const {
+    m_map.local_for_all(fn);
+  }
+
   void local_clear() {  // What to do here
     m_map.local_clear();
     clear_cache();
