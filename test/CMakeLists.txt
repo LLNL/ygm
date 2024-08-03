@@ -63,6 +63,7 @@ add_ygm_test(test_traits)
 add_ygm_test(test_concepts)
 add_ygm_test(test_recursion_large_messages)
 add_ygm_test(test_recursion_progress)
+add_ygm_test(test_gather_topk)
 
 if (Boost_FOUND)
     add_ygm_seq_test(test_cereal_boost_json)
