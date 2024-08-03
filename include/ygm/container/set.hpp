@@ -11,6 +11,7 @@
 #include <ygm/container/detail/base_async_erase.hpp>
 #include <ygm/container/detail/base_async_insert.hpp>
 #include <ygm/container/detail/base_async_insert_contains.hpp>
+#include <ygm/container/detail/base_batch_erase.hpp>
 #include <ygm/container/detail/base_count.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_misc.hpp>
@@ -23,6 +24,7 @@ class multiset
     : public detail::base_async_insert_value<multiset<Value>,
                                              std::tuple<Value>>,
       public detail::base_async_erase_key<multiset<Value>, std::tuple<Value>>,
+      public detail::base_batch_erase_key<multiset<Value>, std::tuple<Value>>,
       public detail::base_async_contains<multiset<Value>, std::tuple<Value>>,
       public detail::base_async_insert_contains<multiset<Value>,
                                                 std::tuple<Value>>,
@@ -71,9 +73,9 @@ class multiset
   }
 
   template <typename STLContainer>
-  multiset(ygm::comm &comm, const STLContainer &cont)
-    requires detail::STLContainer<STLContainer> &&
-                 std::convertible_to<typename STLContainer::value_type, Value>
+  multiset(ygm::comm &comm, const STLContainer &cont) requires
+      detail::STLContainer<STLContainer> &&
+      std::convertible_to<typename STLContainer::value_type, Value>
       : m_comm(comm), pthis(this), partitioner(comm) {
     pthis.check(m_comm);
 
@@ -85,10 +87,9 @@ class multiset
   }
 
   template <typename YGMContainer>
-  multiset(ygm::comm &comm, const YGMContainer &yc)
-    requires detail::HasForAll<YGMContainer> &&
-                 detail::SingleItemTuple<
-                     typename YGMContainer::for_all_args>  //&&
+  multiset(ygm::comm          &comm,
+           const YGMContainer &yc) requires detail::HasForAll<YGMContainer> &&
+      detail::SingleItemTuple<typename YGMContainer::for_all_args>  //&&
       // std::same_as<typename TYGMContainer::for_all_args, std::tuple<Value>>
       : m_comm(comm), pthis(this), partitioner(comm) {
     pthis.check(m_comm);
@@ -151,6 +152,7 @@ template <typename Value>
 class set
     : public detail::base_async_insert_value<set<Value>, std::tuple<Value>>,
       public detail::base_async_erase_key<set<Value>, std::tuple<Value>>,
+      public detail::base_batch_erase_key<set<Value>, std::tuple<Value>>,
       public detail::base_async_contains<set<Value>, std::tuple<Value>>,
       public detail::base_async_insert_contains<set<Value>, std::tuple<Value>>,
       public detail::base_count<set<Value>, std::tuple<Value>>,
@@ -197,9 +199,9 @@ class set
   }
 
   template <typename STLContainer>
-  set(ygm::comm &comm, const STLContainer &cont)
-    requires detail::STLContainer<STLContainer> &&
-                 std::convertible_to<typename STLContainer::value_type, Value>
+  set(ygm::comm          &comm,
+      const STLContainer &cont) requires detail::STLContainer<STLContainer> &&
+      std::convertible_to<typename STLContainer::value_type, Value>
       : m_comm(comm), pthis(this), partitioner(comm) {
     pthis.check(m_comm);
 
@@ -210,10 +212,9 @@ class set
   }
 
   template <typename YGMContainer>
-  set(ygm::comm &comm, const YGMContainer &yc)
-    requires detail::HasForAll<YGMContainer> &&
-                 detail::SingleItemTuple<
-                     typename YGMContainer::for_all_args>  //&&
+  set(ygm::comm          &comm,
+      const YGMContainer &yc) requires detail::HasForAll<YGMContainer> &&
+      detail::SingleItemTuple<typename YGMContainer::for_all_args>  //&&
       // std::same_as<typename TYGMContainer::for_all_args, std::tuple<Value>>
       : m_comm(comm), pthis(this), partitioner(comm) {
     pthis.check(m_comm);
