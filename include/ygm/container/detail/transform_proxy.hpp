@@ -15,9 +15,9 @@ namespace ygm::container::detail {
 
 
 template <typename Container, typename MapFunction>
-class map_proxy
+class transform_proxy
     : public base_iteration<
-          map_proxy<Container, MapFunction>,
+          transform_proxy<Container, MapFunction>,
           typename type_traits::tuple_wrapper<decltype(std::apply(
               std::declval<MapFunction>(),
               std::declval<typename Container::for_all_args>()))>::type> {
@@ -29,7 +29,7 @@ class map_proxy
  public:
   using for_all_args = type_traits::tuple_wrapper<map_function_ret>::type;
 
-  map_proxy(Container& rc, MapFunction filter)
+  transform_proxy(Container& rc, MapFunction filter)
       : m_rcontainer(rc), m_map_fn(filter) {}
 
   template <typename Function>
