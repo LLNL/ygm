@@ -106,28 +106,32 @@ struct base_iteration<derived_type, for_all_args> {
   value_type reduce(MergeFunction merge) const {
     const derived_type* derived_this = static_cast<const derived_type*>(this);
     derived_this->comm().barrier();
-    YGM_ASSERT_RELEASE(derived_this->local_size() >
-                       0);  // empty partition not handled yet
 
     using value_type = typename std::tuple_element<0, for_all_args>::type;
     bool first       = true;
 
-    value_type to_return;
+    value_type local_reduce;
 
-    auto rlambda = [&to_return, &first, &merge](const value_type& value) {
+    auto rlambda = [&local_reduce, &first, &merge](const value_type& value) {
       if (first) {
-        to_return = value;
-        first     = false;
+        local_reduce = value;
+        first        = false;
       } else {
-        to_return = merge(to_return, value);
+        local_reduce = merge(local_reduce, value);
       }
     };
 
     derived_this->for_all(rlambda);
 
-    derived_this->comm().barrier();
+    std::optional<value_type> to_reduce;
+    if (!first) {  
+      to_reduce = local_reduce;
+    } 
 
-    return ::ygm::all_reduce(to_return, merge, derived_this->comm());
+    std::optional<value_type> to_return =
+        ::ygm::all_reduce(to_reduce, merge, derived_this->comm());
+    YGM_ASSERT_RELEASE(to_return.has_value());
+    return to_return.value();
   }
 
   template <typename YGMContainer>
@@ -255,6 +259,7 @@ struct base_iteration<derived_type, for_all_args> {
     return to_return;
   }
 
+  /* Its unclear this makes sense for an associative container.
   template <typename MergeFunction>
   std::pair<key_type, mapped_type> reduce(MergeFunction merge) const {
     const derived_type* derived_this = static_cast<const derived_type*>(this);
@@ -277,12 +282,16 @@ struct base_iteration<derived_type, for_all_args> {
     derived_this->for_all(rlambda);
 
     std::optional<std::pair<key_type, mapped_type>> to_reduce;
-    if (first) {  // local partition was empty!
+    if (!first) {  // local partition was empty!
       to_reduce = std::move(local_reduce);
     }
 
-    return ::ygm::all_reduce(to_reduce, merge, derived_this->comm());
+    std::optional<std::pair<key_type, mapped_type>> to_return =
+        ::ygm::all_reduce(to_reduce, merge, derived_this->comm());
+    YGM_ASSERT_RELEASE(to_return.has_value());
+    return to_return.value();
   }
+  */
 
   template <typename YGMContainer>
   void collect(YGMContainer& c) const {
