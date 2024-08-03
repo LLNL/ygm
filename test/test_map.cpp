@@ -253,6 +253,41 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(imap.size() == num_items - remove_size);
   }
 
+  // Test batch erase from map
+  {
+    int                           num_items   = 100;
+    int                           remove_size = 20;
+    ygm::container::map<int, int> imap(world);
+
+    if (world.rank0()) {
+      for (int i = 0; i < num_items; ++i) {
+        imap.async_insert(i, i);
+      }
+    }
+
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(imap.size() == num_items);
+
+    ygm::container::map<int, int> to_remove(world);
+
+    if (world.rank0()) {
+      for (int i = 0; i < remove_size; ++i) {
+        to_remove.async_insert(i, i + (i % 2));
+      }
+    }
+
+    world.barrier();
+
+    imap.erase(to_remove);
+
+    imap.for_all([remove_size, &world](const auto &key, const auto &value) {
+      YGM_ASSERT_RELEASE(((key % 2) == 1) || (key >= remove_size));
+    });
+
+    YGM_ASSERT_RELEASE(imap.size() == num_items - remove_size / 2);
+  }
+
   // Test batch erase from vector
   {
     int                           num_items   = 100;
@@ -286,6 +321,41 @@ int main(int argc, char **argv) {
     });
 
     YGM_ASSERT_RELEASE(imap.size() == num_items - remove_size);
+  }
+
+  // Test batch erase from vector of keys and values
+  {
+    int                           num_items   = 100;
+    int                           remove_size = 20;
+    ygm::container::map<int, int> imap(world);
+
+    if (world.rank0()) {
+      for (int i = 0; i < num_items; ++i) {
+        imap.async_insert(i, i);
+      }
+    }
+
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(imap.size() == num_items);
+
+    std::vector<std::pair<int, int>> to_remove;
+
+    if (world.rank0()) {
+      for (int i = 0; i < remove_size; ++i) {
+        to_remove.push_back(std::make_pair(i, i + (i % 2)));
+      }
+    }
+
+    world.barrier();
+
+    imap.erase(to_remove);
+
+    imap.for_all([remove_size, &world](const auto &key, const auto &value) {
+      YGM_ASSERT_RELEASE(((key % 2) == 1) || (key >= remove_size));
+    });
+
+    YGM_ASSERT_RELEASE(imap.size() == num_items - remove_size / 2);
   }
 
   //
