@@ -38,6 +38,7 @@ class counting_set
         m_comm(comm),
         partitioner(m_map.partitioner),
         pthis(this) {
+    pthis.check(m_comm);
     m_count_cache.resize(count_cache_size, {key_type(), -1});
   }
 
@@ -49,6 +50,7 @@ class counting_set
         partitioner(m_map.partitioner),
         pthis(this) {
   pthis.check(m_comm);
+  m_count_cache.resize(count_cache_size, {key_type(), -1});
   if (m_comm.rank0()) {
     for (const Key &i : l) {
       async_insert(i);
@@ -63,7 +65,7 @@ class counting_set
                  std::convertible_to<typename STLContainer::value_type, Key>
       : m_map(comm), m_comm(comm), pthis(this), partitioner(comm) {
     pthis.check(m_comm);
-
+    m_count_cache.resize(count_cache_size, {key_type(), -1});
     for (const Key &i : cont) {
       this->async_insert(i);
     }
@@ -77,7 +79,7 @@ class counting_set
                      typename YGMContainer::for_all_args>  
       : m_map(comm), m_comm(comm), pthis(this), partitioner(comm) {
     pthis.check(m_comm);
-
+    m_count_cache.resize(count_cache_size, {key_type(), -1});
     yc.for_all([this](const Key &value) { this->async_insert(value); });
 
     m_comm.barrier();
