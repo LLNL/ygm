@@ -15,8 +15,8 @@ namespace ygm::container::detail {
 template <typename derived_type, typename FilterFunction>
 class filter_proxy;
 
-template <typename derived_type, typename MapFunction>
-class map_proxy;
+template <typename derived_type, typename TransformFunction>
+class transform_proxy;
 
 template <typename derived_type>
 class flatten_proxy;
@@ -124,9 +124,9 @@ struct base_iteration<derived_type, for_all_args> {
     derived_this->for_all(rlambda);
 
     std::optional<value_type> to_reduce;
-    if (!first) {  
+    if (!first) {
       to_reduce = local_reduce;
-    } 
+    }
 
     std::optional<value_type> to_return =
         ::ygm::all_reduce(to_reduce, merge, derived_this->comm());
@@ -158,8 +158,9 @@ struct base_iteration<derived_type, for_all_args> {
     derived_this->for_all(rbklambda);
   }
 
-  template <typename MapFunction>
-  map_proxy<derived_type, MapFunction> map(MapFunction ffn);
+  template <typename TransformFunction>
+  transform_proxy<derived_type, TransformFunction> transform(
+      TransformFunction ffn);
 
   flatten_proxy<derived_type> flatten();
 
@@ -180,6 +181,7 @@ struct base_iteration<derived_type, for_all_args> {
   }
 };
 
+// For Associative Containers
 template <typename derived_type, DoubleItemTuple for_all_args>
 struct base_iteration<derived_type, for_all_args> {
   using key_type    = typename std::tuple_element<0, for_all_args>::type;
@@ -317,8 +319,23 @@ struct base_iteration<derived_type, for_all_args> {
     derived_this->for_all(rbklambda);
   }
 
-  template <typename MapFunction>
-  map_proxy<derived_type, MapFunction> map(MapFunction ffn);
+  template <typename TransformFunction>
+  transform_proxy<derived_type, TransformFunction> transform(
+      TransformFunction ffn);
+
+  auto keys() {
+    return transform(
+        [](const key_type& key, const mapped_type& value) -> key_type {
+          return key;
+        });
+  }
+
+  auto values() {
+    return transform(
+        [](const key_type& key, const mapped_type& value) -> mapped_type {
+          return value;
+        });
+  }
 
   flatten_proxy<derived_type> flatten();
 
@@ -343,16 +360,16 @@ struct base_iteration<derived_type, for_all_args> {
 
 #include <ygm/container/detail/filter_proxy.hpp>
 #include <ygm/container/detail/flatten_proxy.hpp>
-#include <ygm/container/detail/map_proxy.hpp>
+#include <ygm/container/detail/transform_proxy.hpp>
 
 namespace ygm::container::detail {
 
 template <typename derived_type, SingleItemTuple for_all_args>
-template <typename MapFunction>
-map_proxy<derived_type, MapFunction>
-base_iteration<derived_type, for_all_args>::map(MapFunction ffn) {
+template <typename TransformFunction>
+transform_proxy<derived_type, TransformFunction>
+base_iteration<derived_type, for_all_args>::transform(TransformFunction ffn) {
   derived_type* derived_this = static_cast<derived_type*>(this);
-  return map_proxy<derived_type, MapFunction>(*derived_this, ffn);
+  return transform_proxy<derived_type, TransformFunction>(*derived_this, ffn);
 }
 
 template <typename derived_type, SingleItemTuple for_all_args>
@@ -373,11 +390,11 @@ base_iteration<derived_type, for_all_args>::filter(FilterFunction ffn) {
 }
 
 template <typename derived_type, DoubleItemTuple for_all_args>
-template <typename MapFunction>
-map_proxy<derived_type, MapFunction>
-base_iteration<derived_type, for_all_args>::map(MapFunction ffn) {
+template <typename TransformFunction>
+transform_proxy<derived_type, TransformFunction>
+base_iteration<derived_type, for_all_args>::transform(TransformFunction ffn) {
   derived_type* derived_this = static_cast<derived_type*>(this);
-  return map_proxy<derived_type, MapFunction>(*derived_this, ffn);
+  return transform_proxy<derived_type, TransformFunction>(*derived_this, ffn);
 }
 
 template <typename derived_type, DoubleItemTuple for_all_args>
