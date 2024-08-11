@@ -8,6 +8,7 @@
 #include <tuple>
 #include <utility>
 #include <ygm/detail/lambda_compliance.hpp>
+#include <ygm/detail/meta/functional.hpp>
 
 namespace ygm::container::detail {
 
@@ -23,13 +24,12 @@ struct base_async_contains {
 
     int dest = derived_this->partitioner.owner(value);
 
-    auto lambda = [](auto                                             pcont,
-                     const std::tuple_element<0, for_all_args>::type& value,
-                     const FuncArgs&... args) {
-      Function* fn       = nullptr;
-      bool      contains = static_cast<bool>(pcont->local_count(value));
+    auto lambda = [fn](auto                                             pcont,
+                       const std::tuple_element<0, for_all_args>::type& value,
+                       const FuncArgs&... args) {
+      bool contains = static_cast<bool>(pcont->local_count(value));
       ygm::meta::apply_optional(
-          *fn, std::make_tuple(pcont),
+          fn, std::make_tuple(pcont),
           std::forward_as_tuple(contains, value, args...));
     };
 
