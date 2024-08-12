@@ -25,11 +25,11 @@ struct base_async_visit {
 
     int dest = derived_this->partitioner.owner(key);
 
-    auto vlambda = [](auto                                             pcont,
-                      const std::tuple_element<0, for_all_args>::type& key,
-                      const VisitorArgs&... args) {
-      Visitor* vis = nullptr;
-      pcont->local_visit(key, *vis, args...);
+    auto vlambda = [visitor](
+                       auto                                             pcont,
+                       const std::tuple_element<0, for_all_args>::type& key,
+                       const VisitorArgs&... args) {
+      pcont->local_visit(key, visitor, args...);
     };
 
     derived_this->comm().async(dest, vlambda, derived_this->get_ygm_ptr(), key,
@@ -47,11 +47,11 @@ struct base_async_visit {
 
     int dest = derived_this->partitioner.owner(key);
 
-    auto vlambda = [](auto                                             pcont,
-                      const std::tuple_element<0, for_all_args>::type& key,
-                      const VisitorArgs&... args) {
-      Visitor* vis = nullptr;
-      pcont->local_visit_if_contains(key, *vis, args...);
+    auto vlambda = [visitor](
+                       auto                                             pcont,
+                       const std::tuple_element<0, for_all_args>::type& key,
+                       const VisitorArgs&... args) {
+      pcont->local_visit_if_contains(key, visitor, args...);
     };
 
     derived_this->comm().async(dest, vlambda, derived_this->get_ygm_ptr(), key,
@@ -69,11 +69,11 @@ struct base_async_visit {
 
     int dest = derived_this->partitioner.owner(key);
 
-    auto vlambda = [](const auto                                       pcont,
-                      const std::tuple_element<0, for_all_args>::type& key,
-                      const VisitorArgs&... args) {
-      Visitor* vis = nullptr;
-      pcont->local_visit_if_contains(key, *vis, args...);
+    auto vlambda = [visitor](
+                       const auto                                       pcont,
+                       const std::tuple_element<0, for_all_args>::type& key,
+                       const VisitorArgs&... args) {
+      pcont->local_visit_if_contains(key, visitor, args...);
     };
 
     derived_this->comm().async(dest, vlambda, derived_this->get_ygm_ptr(), key,
