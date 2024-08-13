@@ -815,9 +815,7 @@ inline size_t comm::pack_lambda_generic(ygm::detail::byte_vector &packed,
   if constexpr (!std::is_empty<Lambda>::value) {
     // oarchive.saveBinary(&l, sizeof(Lambda));
     size_t size_before = packed.size();
-    packed.resize(size_before + sizeof(Lambda));
-    std::memcpy(packed.data() + size_before, &l, sizeof(Lambda));
-    //packed.push_bytes(&l, sizeof(lambda));
+    packed.push_bytes(&l, sizeof(Lambda));
   }
 
   if constexpr (!std::is_empty<std::tuple<PackArgs...>>::value) {
