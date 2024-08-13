@@ -20,7 +20,7 @@ struct base_async_reduce {
       const typename std::tuple_element<1, for_all_args>::type& value,
       ReductionOp                                               reducer) {
     YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(ReductionOp,
-                                      ygm::container::async_reduce());
+                                      "ygm::container::async_reduce()");
 
     derived_type* derived_this = static_cast<derived_type*>(this);
 

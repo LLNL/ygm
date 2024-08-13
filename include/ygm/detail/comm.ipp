@@ -133,7 +133,7 @@ inline comm::~comm() {
 
 template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
-  YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(AsyncFunction, ygm::comm::async());
+  YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(AsyncFunction, "ygm::comm::async()");
 
   YGM_ASSERT_RELEASE(dest < m_layout.size());
   stats.async(dest);
@@ -184,7 +184,7 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
 
 template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async_bcast(AsyncFunction fn, const SendArgs &...args) {
-  YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(AsyncFunction, ygm::comm::async_bcast());
+  YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(AsyncFunction, "ygm::comm::async_bcast()");
 
   check_if_production_halt_required();
 
@@ -200,7 +200,7 @@ inline void comm::async_bcast(AsyncFunction fn, const SendArgs &...args) {
 template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async_mcast(const std::vector<int> &dests, AsyncFunction fn,
                               const SendArgs &...args) {
-  YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(AsyncFunction, ygm::comm::async_bcast());
+  YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(AsyncFunction, "ygm::comm::async_bcast()");
 
   for (auto dest : dests) {
     async(dest, fn, std::forward<const SendArgs>(args)...);
