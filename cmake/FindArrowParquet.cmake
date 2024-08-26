@@ -115,7 +115,7 @@ function(install_pyarrow_in_venv)
     # Use only the Python 3 interpreter in the virtual environment
     set(Python3_FIND_VIRTUALENV ONLY)
 
-    pip_install_python_package(pyarrow)
+    pip_install_python_package("pyarrow==16.1.*")
     if (PIP_INSTALL_SUCCEEDED)
         find_pyarrow_package()
         if (PYARROW_ROOT)
