@@ -163,13 +163,13 @@ function(find_arrow_parquet_config)
     endif ()
 endfunction()
 
-# Find Arrow and Parquet. If not found, try to install pyarrow using pip in a Python virtual environmental space.
+# Find Arrow and Parquet. If not found, install pyarrow using pip in a Python virtual environmental space.
 # Input:
 #   PIP_PYARROW_ROOT (option) The root directory of a pyarrow installed by pip.
 #   YGM_REQUIRE_ARROW_PARQUET (option) If TRUE, an fatal error is thrown when Arrow Parquet is not found.
 # Output:
 #   Arrow_FOUND and Parquet_FOUND are defined and set to TRUE if Arrow and Parquet are found.
-function(find_arrow_parquet)
+function(find_or_install_arrow_parquet)
     if (PIP_PYARROW_ROOT)
         find_pip_installed_pyarrow()
         if (NOT Arrow_FOUND OR NOT Parquet_FOUND)
@@ -219,7 +219,7 @@ endfunction()
 
 
 # Link Arrow and Parquet to the target
-# This function must be called after find_arrow_parquet().
+# This function must be called after find_or_install_arrow_parquet().
 function(link_arrow_parquet target)
     if (Arrow_FOUND AND Parquet_FOUND)
         target_link_libraries(${target} PUBLIC
