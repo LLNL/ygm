@@ -35,6 +35,25 @@ function(deactivate_python_venv)
     set(PYTHON_VENV_ACTIVATED FALSE PARENT_SCOPE)
 endfunction()
 
+# Upgrade pip in the Python3 interpreter
+# Output: PIP_UPGRADE_SUCCEEDED is set to TRUE if pip was upgraded successfully
+function(upgrade_pip)
+    find_package(Python3 COMPONENTS Interpreter QUIET)
+    if (NOT Python3_Interpreter_FOUND)
+        message(WARNING "Python3 interpreter not found")
+        return()
+    endif()
+
+    execute_process(
+            COMMAND ${Python3_EXECUTABLE} -m pip install --upgrade pip
+            RESULT_VARIABLE result
+            OUTPUT_QUIET
+    )
+    if(result EQUAL "0")
+        set(PIP_UPGRADE_SUCCEEDED TRUE PARENT_SCOPE)
+    endif()
+endfunction()
+
 # Install a Python3 package using pip
 #
 # Input: A path to pip_executable and a package name

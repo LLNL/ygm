@@ -115,6 +115,11 @@ function(install_pyarrow_in_venv)
     # Use only the Python 3 interpreter in the virtual environment
     set(Python3_FIND_VIRTUALENV ONLY)
 
+    # Upgrade pip
+    # Ignore the error status as failing to upgrade is not the end of the world
+    upgrade_pip()
+
+    # Install pyarrow
     pip_install_python_package("pyarrow==16.1.*")
     if (PIP_INSTALL_SUCCEEDED)
         find_pyarrow_package()
