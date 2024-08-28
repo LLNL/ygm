@@ -15,7 +15,7 @@
 
 namespace ygm::io {
 
-class csv_parser : public ygm::container::detail::base_iteration<
+class csv_parser : public ygm::container::detail::base_iteration_value<
                        csv_parser, std::tuple<std::vector<detail::csv_field>>> {
  public:
   using for_all_args = std::tuple<std::vector<detail::csv_field>>;
@@ -67,10 +67,6 @@ class csv_parser : public ygm::container::detail::base_iteration<
   bool has_header(const std::string& label) {
     return m_has_headers && (m_header_map.find(label) != m_header_map.end());
   }
-
-  ygm::comm& comm() { return m_lp.comm(); }
-
-  const ygm::comm& comm() const { return m_lp.comm(); }
 
  private:
   line_parser m_lp;

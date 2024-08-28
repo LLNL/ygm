@@ -12,17 +12,11 @@
 namespace ygm::container::detail {
 
 template <typename derived_type, typename for_all_args>
-struct base_batch_erase {
-  static_assert(sizeof(for_all_args) != sizeof(for_all_args),
-                "Unsupported batch erase operation");
-};
-
-template <typename derived_type, SingleItemTuple for_all_args>
-struct base_batch_erase<derived_type, for_all_args> {
+struct base_batch_erase_key {
   using value_type = std::tuple_element_t<0, for_all_args>;
 
   template <typename Container>
-  void erase(const Container &cont) requires HasForAll<Container> &&
+  void erase(const Container &cont) requires detail::HasForAll<Container> &&
       SingleItemTuple<typename Container::for_all_args> && std::convertible_to<
           std::tuple_element_t<0, typename Container::for_all_args>,
           value_type> {
@@ -48,14 +42,14 @@ struct base_batch_erase<derived_type, for_all_args> {
   }
 };
 
-template <typename derived_type, DoubleItemTuple for_all_args>
-struct base_batch_erase<derived_type, for_all_args>
-    : public base_batch_erase<
+template <typename derived_type, typename for_all_args>
+struct base_batch_erase_key_value
+    : public base_batch_erase_key<
           derived_type, std::tuple<std::tuple_element_t<0, for_all_args>>> {
   using key_type    = std::tuple_element_t<0, for_all_args>;
   using mapped_type = std::tuple_element_t<1, for_all_args>;
 
-  using base_batch_erase<derived_type, std::tuple<key_type>>::erase;
+  using base_batch_erase_key<derived_type, std::tuple<key_type>>::erase;
 
   template <typename Container>
   void erase(const Container &cont) requires HasForAll<Container> &&

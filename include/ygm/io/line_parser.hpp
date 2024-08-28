@@ -19,7 +19,8 @@ namespace fs = std::filesystem;
  * @brief Distributed text file parsing.
  *
  */
-class line_parser: public ygm::container::detail::base_iteration<line_parser, std::tuple<std::string>> {
+class line_parser : public ygm::container::detail::base_iteration_value<
+                        line_parser, std::tuple<std::string>> {
  public:
   using for_all_args = std::tuple<std::string>;
   /**
@@ -163,10 +164,6 @@ class line_parser: public ygm::container::detail::base_iteration<line_parser, st
   }
 
   void set_skip_first_line(bool skip_first) { m_skip_first_line = skip_first; }
-
-  ygm::comm& comm() { return m_comm; }
-
-  const ygm::comm& comm() const { return m_comm; }
 
  private:
   /**
