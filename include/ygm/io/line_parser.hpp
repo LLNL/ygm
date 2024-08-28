@@ -165,6 +165,10 @@ class line_parser : public ygm::container::detail::base_iteration_value<
 
   void set_skip_first_line(bool skip_first) { m_skip_first_line = skip_first; }
 
+  ygm::comm& comm() { return m_comm; }
+
+  const ygm::comm& comm() const { return m_comm; }
+
  private:
   /**
    * @brief Check readability of paths and iterates through directories

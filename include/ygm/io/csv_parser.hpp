@@ -68,6 +68,10 @@ class csv_parser : public ygm::container::detail::base_iteration_value<
     return m_has_headers && (m_header_map.find(label) != m_header_map.end());
   }
 
+  ygm::comm& comm() { return m_lp.comm(); }
+
+  const ygm::comm& comm() const { return m_lp.comm(); }
+
  private:
   line_parser m_lp;
 
