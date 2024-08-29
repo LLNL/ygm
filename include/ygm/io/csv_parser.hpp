@@ -15,7 +15,7 @@
 
 namespace ygm::io {
 
-class csv_parser : public ygm::container::detail::base_iteration<
+class csv_parser : public ygm::container::detail::base_iteration_value<
                        csv_parser, std::tuple<std::vector<detail::csv_field>>> {
  public:
   using for_all_args = std::tuple<std::vector<detail::csv_field>>;

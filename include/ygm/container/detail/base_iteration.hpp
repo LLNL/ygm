@@ -13,22 +13,22 @@
 namespace ygm::container::detail {
 
 template <typename derived_type, typename FilterFunction>
-class filter_proxy;
+class filter_proxy_value;
+template <typename derived_type, typename FilterFunction>
+class filter_proxy_key_value;
 
 template <typename derived_type, typename TransformFunction>
-class transform_proxy;
+class transform_proxy_value;
+template <typename derived_type, typename TransformFunction>
+class transform_proxy_key_value;
 
 template <typename derived_type>
-class flatten_proxy;
+class flatten_proxy_value;
+template <typename derived_type>
+class flatten_proxy_key_value;
 
 template <typename derived_type, typename for_all_args>
-struct base_iteration {
-  static_assert(sizeof(for_all_args) != sizeof(for_all_args),
-                "Unsupported for_all_args");
-};
-
-template <typename derived_type, SingleItemTuple for_all_args>
-struct base_iteration<derived_type, for_all_args> {
+struct base_iteration_value {
   using value_type = typename std::tuple_element<0, for_all_args>::type;
 
   template <typename Function>
@@ -68,10 +68,9 @@ struct base_iteration<derived_type, for_all_args> {
   }
 
   template <typename Compare = std::greater<value_type>>
-  std::vector<value_type> gather_topk(
-      size_t k, Compare comp = std::greater<value_type>()) const
-    requires SingleItemTuple<for_all_args>
-  {
+  std::vector<value_type> gather_topk(size_t  k,
+                                      Compare comp = std::greater<value_type>())
+      const requires SingleItemTuple<for_all_args> {
     const derived_type* derived_this = static_cast<const derived_type*>(this);
     const ygm::comm&    mycomm       = derived_this->comm();
     std::vector<value_type> local_topk;
@@ -159,31 +158,31 @@ struct base_iteration<derived_type, for_all_args> {
   }
 
   template <typename TransformFunction>
-  transform_proxy<derived_type, TransformFunction> transform(
+  transform_proxy_value<derived_type, TransformFunction> transform(
       TransformFunction ffn);
 
-  flatten_proxy<derived_type> flatten();
+  flatten_proxy_value<derived_type> flatten();
 
   template <typename FilterFunction>
-  filter_proxy<derived_type, FilterFunction> filter(FilterFunction ffn);
+  filter_proxy_value<derived_type, FilterFunction> filter(FilterFunction ffn);
 
  private:
   template <typename STLContainer, typename Value>
-    requires requires(STLContainer stc, Value v) { stc.push_back(v); }
+  requires requires(STLContainer stc, Value v) { stc.push_back(v); }
   static void generic_insert(STLContainer& stc, const Value& value) {
     stc.push_back(value);
   }
 
   template <typename STLContainer, typename Value>
-    requires requires(STLContainer stc, Value v) { stc.insert(v); }
+  requires requires(STLContainer stc, Value v) { stc.insert(v); }
   static void generic_insert(STLContainer& stc, const Value& value) {
     stc.insert(value);
   }
 };
 
 // For Associative Containers
-template <typename derived_type, DoubleItemTuple for_all_args>
-struct base_iteration<derived_type, for_all_args> {
+template <typename derived_type, typename for_all_args>
+struct base_iteration_key_value {
   using key_type    = typename std::tuple_element<0, for_all_args>::type;
   using mapped_type = typename std::tuple_element<1, for_all_args>::type;
 
@@ -320,14 +319,12 @@ struct base_iteration<derived_type, for_all_args> {
   }
 
   template <typename TransformFunction>
-  transform_proxy<derived_type, TransformFunction> transform(
+  transform_proxy_key_value<derived_type, TransformFunction> transform(
       TransformFunction ffn);
 
   auto keys() {
-    return transform(
-        [](const key_type& key, const mapped_type& value) -> key_type {
-          return key;
-        });
+    return transform([](const key_type&    key,
+                        const mapped_type& value) -> key_type { return key; });
   }
 
   auto values() {
@@ -337,20 +334,21 @@ struct base_iteration<derived_type, for_all_args> {
         });
   }
 
-  flatten_proxy<derived_type> flatten();
+  flatten_proxy_key_value<derived_type> flatten();
 
   template <typename FilterFunction>
-  filter_proxy<derived_type, FilterFunction> filter(FilterFunction ffn);
+  filter_proxy_key_value<derived_type, FilterFunction> filter(
+      FilterFunction ffn);
 
  private:
   template <typename STLContainer, typename Value>
-    requires requires(STLContainer stc, Value v) { stc.push_back(v); }
+  requires requires(STLContainer stc, Value v) { stc.push_back(v); }
   static void generic_insert(STLContainer& stc, const Value& value) {
     stc.push_back(value);
   }
 
   template <typename STLContainer, typename Value>
-    requires requires(STLContainer stc, Value v) { stc.insert(v); }
+  requires requires(STLContainer stc, Value v) { stc.insert(v); }
   static void generic_insert(STLContainer& stc, const Value& value) {
     stc.insert(value);
   }
@@ -366,52 +364,58 @@ namespace ygm::container::detail {
 
 template <typename derived_type, SingleItemTuple for_all_args>
 template <typename TransformFunction>
-transform_proxy<derived_type, TransformFunction>
-base_iteration<derived_type, for_all_args>::transform(TransformFunction ffn) {
+transform_proxy_value<derived_type, TransformFunction>
+base_iteration_value<derived_type, for_all_args>::transform(
+    TransformFunction ffn) {
   derived_type* derived_this = static_cast<derived_type*>(this);
-  return transform_proxy<derived_type, TransformFunction>(*derived_this, ffn);
+  return transform_proxy_value<derived_type, TransformFunction>(*derived_this,
+                                                                ffn);
 }
 
 template <typename derived_type, SingleItemTuple for_all_args>
-inline flatten_proxy<derived_type>
-base_iteration<derived_type, for_all_args>::flatten() {
+inline flatten_proxy_value<derived_type>
+base_iteration_value<derived_type, for_all_args>::flatten() {
   // static_assert(
   //     type_traits::is_vector<std::tuple_element<0, for_all_args>>::value);
   derived_type* derived_this = static_cast<derived_type*>(this);
-  return flatten_proxy<derived_type>(*derived_this);
+  return flatten_proxy_value<derived_type>(*derived_this);
 }
 
 template <typename derived_type, SingleItemTuple for_all_args>
 template <typename FilterFunction>
-filter_proxy<derived_type, FilterFunction>
-base_iteration<derived_type, for_all_args>::filter(FilterFunction ffn) {
+filter_proxy_value<derived_type, FilterFunction>
+base_iteration_value<derived_type, for_all_args>::filter(FilterFunction ffn) {
   derived_type* derived_this = static_cast<derived_type*>(this);
-  return filter_proxy<derived_type, FilterFunction>(*derived_this, ffn);
+  return filter_proxy_value<derived_type, FilterFunction>(*derived_this, ffn);
 }
 
 template <typename derived_type, DoubleItemTuple for_all_args>
 template <typename TransformFunction>
-transform_proxy<derived_type, TransformFunction>
-base_iteration<derived_type, for_all_args>::transform(TransformFunction ffn) {
+transform_proxy_key_value<derived_type, TransformFunction>
+base_iteration_key_value<derived_type, for_all_args>::transform(
+    TransformFunction ffn) {
   derived_type* derived_this = static_cast<derived_type*>(this);
-  return transform_proxy<derived_type, TransformFunction>(*derived_this, ffn);
+  return transform_proxy_key_value<derived_type, TransformFunction>(
+      *derived_this, ffn);
 }
 
 template <typename derived_type, DoubleItemTuple for_all_args>
-inline flatten_proxy<derived_type>
-base_iteration<derived_type, for_all_args>::flatten() {
+inline flatten_proxy_key_value<derived_type>
+base_iteration_key_value<derived_type, for_all_args>::flatten() {
   // static_assert(
   //     type_traits::is_vector<std::tuple_element<0, for_all_args>>::value);
   derived_type* derived_this = static_cast<derived_type*>(this);
-  return flatten_proxy<derived_type>(*derived_this);
+  return flatten_proxy_key_value<derived_type>(*derived_this);
 }
 
 template <typename derived_type, DoubleItemTuple for_all_args>
 template <typename FilterFunction>
-filter_proxy<derived_type, FilterFunction>
-base_iteration<derived_type, for_all_args>::filter(FilterFunction ffn) {
+filter_proxy_key_value<derived_type, FilterFunction>
+base_iteration_key_value<derived_type, for_all_args>::filter(
+    FilterFunction ffn) {
   derived_type* derived_this = static_cast<derived_type*>(this);
-  return filter_proxy<derived_type, FilterFunction>(*derived_this, ffn);
+  return filter_proxy_key_value<derived_type, FilterFunction>(*derived_this,
+                                                              ffn);
 }
 
 }  // namespace ygm::container::detail

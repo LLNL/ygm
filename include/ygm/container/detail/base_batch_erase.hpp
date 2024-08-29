@@ -12,20 +12,13 @@
 namespace ygm::container::detail {
 
 template <typename derived_type, typename for_all_args>
-struct base_batch_erase {
-  static_assert(sizeof(for_all_args) != sizeof(for_all_args),
-                "Unsupported batch erase operation");
-};
-
-template <typename derived_type, SingleItemTuple for_all_args>
-struct base_batch_erase<derived_type, for_all_args> {
-  using value_type = std::tuple_element_t<0, for_all_args>;
+struct base_batch_erase_key {
+  using key_type = std::tuple_element_t<0, for_all_args>;
 
   template <typename Container>
-  void erase(const Container &cont) requires HasForAll<Container> &&
+  void erase(const Container &cont) requires detail::HasForAll<Container> &&
       SingleItemTuple<typename Container::for_all_args> && std::convertible_to<
-          std::tuple_element_t<0, typename Container::for_all_args>,
-          value_type> {
+          std::tuple_element_t<0, typename Container::for_all_args>, key_type> {
     derived_type *derived_this = static_cast<derived_type *>(this);
 
     cont.for_all(
@@ -37,7 +30,7 @@ struct base_batch_erase<derived_type, for_all_args> {
   template <typename Container>
   void erase(const Container &cont) requires STLContainer<Container> &&
       AtLeastOneItemTuple<for_all_args> &&
-      std::convertible_to<typename Container::value_type, value_type> {
+      std::convertible_to<typename Container::value_type, key_type> {
     derived_type *derived_this = static_cast<derived_type *>(this);
 
     for (const auto &key : cont) {
@@ -48,14 +41,10 @@ struct base_batch_erase<derived_type, for_all_args> {
   }
 };
 
-template <typename derived_type, DoubleItemTuple for_all_args>
-struct base_batch_erase<derived_type, for_all_args>
-    : public base_batch_erase<
-          derived_type, std::tuple<std::tuple_element_t<0, for_all_args>>> {
+template <typename derived_type, typename for_all_args>
+struct base_batch_erase_key_value {
   using key_type    = std::tuple_element_t<0, for_all_args>;
   using mapped_type = std::tuple_element_t<1, for_all_args>;
-
-  using base_batch_erase<derived_type, std::tuple<key_type>>::erase;
 
   template <typename Container>
   void erase(const Container &cont) requires HasForAll<Container> &&
@@ -111,6 +100,32 @@ struct base_batch_erase<derived_type, for_all_args>
     for (const auto &key_value : cont) {
       const auto &[key, value] = key_value;
       derived_this->async_erase(key, value);
+    }
+
+    derived_this->comm().barrier();
+  }
+
+  // Copies of base_batch_erase_key functions to allow deletions from keys alone
+  template <typename Container>
+  void erase(const Container &cont) requires detail::HasForAll<Container> &&
+      SingleItemTuple<typename Container::for_all_args> && std::convertible_to<
+          std::tuple_element_t<0, typename Container::for_all_args>, key_type> {
+    derived_type *derived_this = static_cast<derived_type *>(this);
+
+    cont.for_all(
+        [derived_this](const auto &key) { derived_this->async_erase(key); });
+
+    derived_this->comm().barrier();
+  }
+
+  template <typename Container>
+  void erase(const Container &cont) requires STLContainer<Container> &&
+      AtLeastOneItemTuple<for_all_args> &&
+      std::convertible_to<typename Container::value_type, key_type> {
+    derived_type *derived_this = static_cast<derived_type *>(this);
+
+    for (const auto &key : cont) {
+      derived_this->async_erase(key);
     }
 
     derived_this->comm().barrier();

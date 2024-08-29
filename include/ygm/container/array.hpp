@@ -27,8 +27,8 @@ class array
       public detail::base_misc<array<Value, Index>, std::tuple<Index, Value>>,
       public detail::base_async_visit<array<Value, Index>,
                                       std::tuple<Index, Value>>,
-      public detail::base_iteration<array<Value, Index>,
-                                    std::tuple<Index, Value>> {
+      public detail::base_iteration_key_value<array<Value, Index>,
+                                              std::tuple<Index, Value>> {
   friend class detail::base_misc<array<Value, Index>, std::tuple<Index, Value>>;
 
  public:
@@ -446,7 +446,8 @@ class array
     }
     m_comm.barrier();
 
-    YGM_ASSERT_RELEASE(samples.size() == samples_per_pivot * (m_comm.size() - 1));
+    YGM_ASSERT_RELEASE(samples.size() ==
+                       samples_per_pivot * (m_comm.size() - 1));
     std::sort(samples.begin(), samples.end());
     for (size_t i = samples_per_pivot - 1; i < samples.size();
          i += samples_per_pivot) {
