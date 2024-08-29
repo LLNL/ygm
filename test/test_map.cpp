@@ -90,6 +90,30 @@ int main(int argc, char **argv) {
   }
 
   //
+  // Test async_visit with functor
+  {
+    ygm::container::map<std::string, std::string> smap(world);
+
+    smap.async_insert("dog", "cat");
+    smap.async_insert("apple", "orange");
+
+    world.barrier();
+
+    smap.async_insert("dog", "dog");
+    smap.async_insert("red", "green");
+
+    world.barrier();
+
+    struct dog_check {
+      void operator()(const std::string &key, std::string &value) {
+        YGM_ASSERT_RELEASE(value == "cat");
+      }
+    };
+
+    smap.async_visit("dog", dog_check());
+  }
+
+  //
   // Test all ranks default & async_visit_if_contains
   {
     ygm::container::map<std::string, std::string> smap(world);

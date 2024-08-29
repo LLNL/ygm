@@ -174,6 +174,31 @@ int main(int argc, char **argv) {
     }
   }
 
+  // Test async_visit functor
+  {
+    struct visit_functor {
+      void operator()(const size_t index, const int value) {
+        YGM_ASSERT_RELEASE(value == index);
+      }
+    };
+
+    int size = 64;
+
+    ygm::container::array<int> arr(world, size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        arr.async_set(i, i);
+      }
+    }
+
+    world.barrier();
+
+    for (int i = 0; i < size; ++i) {
+      arr.async_visit(i, visit_functor());
+    }
+  }
+
   // Test value-only for_all
   {
     int size = 64;

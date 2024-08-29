@@ -25,9 +25,9 @@ struct base_async_insert_contains {
 
     int dest = derived_this->partitioner.owner(value);
 
-    auto lambda = [fn](auto                                             pcont,
-                       const std::tuple_element<0, for_all_args>::type& value,
-                       const FuncArgs&... args) {
+    auto lambda = [&fn](auto                                             pcont,
+                        const std::tuple_element<0, for_all_args>::type& value,
+                        const FuncArgs&... args) {
       bool contains = static_cast<bool>(pcont->local_count(value));
       if (!contains) {
         pcont->local_insert(value);
