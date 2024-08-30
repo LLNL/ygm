@@ -10,5 +10,7 @@
 
 #define YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(func, location) \
   static_assert(                                          \
-      std::is_trivially_copyable<func>::value, #location  \
+      std::is_trivially_copyable<func>::value &&          \
+          std::is_standard_layout<func>::value,           \
+      #location                                           \
       " function object must be is_trivially_copyable & is_standard_layout.")
