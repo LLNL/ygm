@@ -152,8 +152,7 @@ struct base_iteration_value {
                   "value_type must be a std::pair");
 
     auto rbklambda =
-        [&map,
-         reducer](std::pair<reduce_key_type, reduce_value_type> kvp) mutable {
+        [&map, reducer](std::pair<reduce_key_type, reduce_value_type> kvp) {
           map.async_reduce(kvp.first, kvp.second, reducer);
         };
     derived_this->for_all(rbklambda);
