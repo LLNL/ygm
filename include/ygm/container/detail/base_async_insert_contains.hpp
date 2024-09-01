@@ -27,7 +27,7 @@ struct base_async_insert_contains {
 
     auto lambda = [fn](auto                                             pcont,
                        const std::tuple_element<0, for_all_args>::type& value,
-                       const FuncArgs&... args) {
+                       const FuncArgs&... args) mutable {
       bool contains = static_cast<bool>(pcont->local_count(value));
       if (!contains) {
         pcont->local_insert(value);
