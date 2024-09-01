@@ -26,12 +26,12 @@ struct base_async_reduce {
 
     int dest = derived_this->partitioner.owner(key);
 
-    auto rlambda = [reducer](
-                       auto                                             pcont,
-                       const std::tuple_element<0, for_all_args>::type& key,
-                       const std::tuple_element<1, for_all_args>::type& value) {
-      pcont->local_reduce(key, value, reducer);
-    };
+    auto rlambda =
+        [reducer](
+            auto pcont, const std::tuple_element<0, for_all_args>::type& key,
+            const std::tuple_element<1, for_all_args>::type& value) mutable {
+          pcont->local_reduce(key, value, reducer);
+        };
 
     derived_this->comm().async(dest, rlambda, derived_this->get_ygm_ptr(), key,
                                value);
