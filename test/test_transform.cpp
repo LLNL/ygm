@@ -11,7 +11,6 @@
 #include <ygm/comm.hpp>
 #include <ygm/container/bag.hpp>
 #include <ygm/container/counting_set.hpp>
-#include <ygm/random.hpp>
 
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
