@@ -62,7 +62,7 @@ struct base_iteration_value {
           value);
     };
 
-    for_all(glambda);
+    derived_this->for_all(glambda);
 
     derived_this->comm().barrier();
   }
@@ -222,7 +222,7 @@ struct base_iteration_key_value {
           key, value);
     };
 
-    for_all(glambda);
+    derived_this->for_all(glambda);
 
     derived_this->comm().barrier();
   }
