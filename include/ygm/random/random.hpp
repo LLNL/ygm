@@ -7,7 +7,7 @@
 
 #include <ygm/detail/random.hpp>
 
-namespace ygm {
+namespace ygm::random {
 
 /// @brief A simple offset rng alias
 /// @tparam RandomEngine The underlying random engine, e.g. std::mt19937

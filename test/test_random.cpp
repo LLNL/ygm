@@ -6,7 +6,7 @@
 #undef NDEBUG
 #include <ygm/comm.hpp>
 #include <ygm/container/counting_set.hpp>
-#include <ygm/random.hpp>
+#include <ygm/random/random.hpp>
 
 #include <random>
 
@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
   // Test default_random_engine
   {
     std::uint32_t                     seed = 100;
-    ygm::default_random_engine<>      rng(world, seed);
+    ygm::random::default_random_engine<>      rng(world, seed);
     ygm::container::counting_set<int> seed_set(world);
     ygm::container::counting_set<int> rn_set(world);
     ygm::container::counting_set<int> sample_set(world);

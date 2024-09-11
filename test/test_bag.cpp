@@ -10,7 +10,7 @@
 #include <vector>
 #include <ygm/comm.hpp>
 #include <ygm/container/bag.hpp>
-#include <ygm/random.hpp>
+#include <ygm/random/random.hpp>
 
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
@@ -170,12 +170,12 @@ int main(int argc, char** argv) {
       }
     }
     int                          seed = 100;
-    ygm::default_random_engine<> rng1 =
-        ygm::default_random_engine<>(world, seed);
+    ygm::random::default_random_engine<> rng1 =
+        ygm::random::default_random_engine<>(world, seed);
     bbag.local_shuffle(rng1);
 
-    ygm::default_random_engine<> rng2 =
-        ygm::default_random_engine<>(world, seed);
+    ygm::random::default_random_engine<> rng2 =
+        ygm::random::default_random_engine<>(world, seed);
     bbag.global_shuffle(rng2);
 
     bbag.local_shuffle();
