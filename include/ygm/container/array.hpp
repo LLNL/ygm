@@ -12,6 +12,7 @@
 #include <ygm/comm.hpp>
 #include <ygm/container/container_traits.hpp>
 #include <ygm/container/detail/base_async_insert.hpp>
+#include <ygm/container/detail/base_async_reduce.hpp>
 #include <ygm/container/detail/base_async_visit.hpp>
 #include <ygm/container/detail/base_concepts.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
@@ -28,7 +29,9 @@ class array
       public detail::base_async_visit<array<Value, Index>,
                                       std::tuple<Index, Value>>,
       public detail::base_iteration_key_value<array<Value, Index>,
-                                              std::tuple<Index, Value>> {
+                                              std::tuple<Index, Value>>,
+      public detail::base_async_reduce<array<Value, Index>,
+                                       std::tuple<Index, Value>> {
   friend class detail::base_misc<array<Value, Index>, std::tuple<Index, Value>>;
 
  public:
@@ -126,9 +129,10 @@ class array
   }
 
   template <typename T>
-  array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
-      detail::SingleItemTuple<typename T::for_all_args> &&
-      std::same_as<typename T::for_all_args, std::tuple<mapped_type>>
+  array(ygm::comm& comm, const T& t)
+    requires detail::HasForAll<T> &&
+                 detail::SingleItemTuple<typename T::for_all_args> &&
+                 std::same_as<typename T::for_all_args, std::tuple<mapped_type>>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     pthis.check(m_comm);
 
@@ -144,17 +148,19 @@ class array
   }
 
   template <typename T>
-  array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
-      detail::SingleItemTuple<typename T::for_all_args> && detail::
-          DoubleItemTuple<std::tuple_element_t<0, typename T::for_all_args>> &&
-      std::convertible_to<
-          std::tuple_element_t<
-              0, std::tuple_element_t<0, typename T::for_all_args>>,
-          key_type> &&
-      std::convertible_to<
-          std::tuple_element_t<
-              1, std::tuple_element_t<0, typename T::for_all_args>>,
-          mapped_type>
+  array(ygm::comm& comm, const T& t)
+    requires detail::HasForAll<T> &&
+                 detail::SingleItemTuple<typename T::for_all_args> &&
+                 detail::DoubleItemTuple<
+                     std::tuple_element_t<0, typename T::for_all_args>> &&
+                 std::convertible_to<
+                     std::tuple_element_t<
+                         0, std::tuple_element_t<0, typename T::for_all_args>>,
+                     key_type> &&
+                 std::convertible_to<
+                     std::tuple_element_t<
+                         1, std::tuple_element_t<0, typename T::for_all_args>>,
+                     mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     pthis.check(m_comm);
 
@@ -175,12 +181,15 @@ class array
   }
 
   template <typename T>
-  array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
-      detail::DoubleItemTuple<typename T::for_all_args> && std::convertible_to<
-
-          std::tuple_element_t<0, typename T::for_all_args>, key_type> &&
-      std::convertible_to<std::tuple_element_t<0, typename T::for_all_args>,
-                          mapped_type>
+  array(ygm::comm& comm, const T& t)
+    requires detail::HasForAll<T> &&
+                 detail::DoubleItemTuple<typename T::for_all_args> &&
+                 std::convertible_to<
+                     std::tuple_element_t<0, typename T::for_all_args>,
+                     key_type> &&
+                 std::convertible_to<
+                     std::tuple_element_t<0, typename T::for_all_args>,
+                     mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     pthis.check(m_comm);
 
@@ -201,9 +210,10 @@ class array
   }
 
   template <typename T>
-  array(ygm::comm& comm, const T& t) requires detail::STLContainer<T> &&
-      (not detail::SingleItemTuple<typename T::value_type>)&&std::
-          convertible_to<typename T::value_type, mapped_type>
+  array(ygm::comm& comm, const T& t)
+    requires detail::STLContainer<T> &&
+                 (not detail::SingleItemTuple<typename T::value_type>) &&
+                 std::convertible_to<typename T::value_type, mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     pthis.check(m_comm);
 
@@ -221,11 +231,15 @@ class array
   }
 
   template <typename T>
-  array(ygm::comm& comm, const T& t) requires detail::STLContainer<T> &&
-      detail::DoubleItemTuple<typename T::value_type> && std::convertible_to<
-          std::tuple_element_t<0, typename T::value_type>, key_type> &&
-      std::convertible_to<std::tuple_element_t<1, typename T::value_type>,
-                          mapped_type>
+  array(ygm::comm& comm, const T& t)
+    requires detail::STLContainer<T> &&
+                 detail::DoubleItemTuple<typename T::value_type> &&
+                 std::convertible_to<
+                     std::tuple_element_t<0, typename T::value_type>,
+                     key_type> &&
+                 std::convertible_to<
+                     std::tuple_element_t<1, typename T::value_type>,
+                     mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     pthis.check(m_comm);
 
@@ -411,6 +425,13 @@ class array
                     "key_type, mapped_type &) or "
                     "(mapped_type &) signatures");
     }
+  }
+
+  template <typename ReductionOp>
+  void local_reduce(const key_type index, const mapped_type& value,
+                    ReductionOp reducer) {
+    m_local_vec[partitioner.local_index(index)] =
+        reducer(value, m_local_vec[partitioner.local_index(index)]);
   }
 
   void sort() {
