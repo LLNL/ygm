@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
     static_assert(not HasAsyncReduce<ygm::container::bag<int>>);
     static_assert(not HasAsyncReduce<ygm::container::set<int>>);
     static_assert(HasAsyncReduce<ygm::container::map<int, float>>);
-    static_assert(not HasAsyncReduce<ygm::container::array<float>>);
+    static_assert(HasAsyncReduce<ygm::container::array<float>>);
     static_assert(HasAsyncReduce<ygm::container::detail::reducing_adapter<
                       ygm::container::array<float>, std::plus<float>>>);
 
@@ -63,8 +63,7 @@ int main(int argc, char **argv) {
     static_assert(not HasAsyncReduceWithReductionOp<ygm::container::set<int>>);
     static_assert(
         HasAsyncReduceWithReductionOp<ygm::container::map<int, float>>);
-    static_assert(
-        not HasAsyncReduceWithReductionOp<ygm::container::array<float>>);
+    static_assert(HasAsyncReduceWithReductionOp<ygm::container::array<float>>);
     static_assert(not HasAsyncReduceWithReductionOp<
                   ygm::container::detail::reducing_adapter<
                       ygm::container::array<float>, std::plus<float>>>);
