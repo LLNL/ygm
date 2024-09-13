@@ -968,7 +968,7 @@ inline bool comm::process_receive_queue() {
     }
   }
 
-  received_to_return != local_process_incoming();
+  received_to_return |= local_process_incoming();
 
   m_in_process_receive_queue = false;
   return received_to_return;
