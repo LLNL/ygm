@@ -185,7 +185,6 @@ class array
     requires detail::HasForAll<T> &&
                  detail::DoubleItemTuple<typename T::for_all_args> &&
                  std::convertible_to<
-
                      std::tuple_element_t<0, typename T::for_all_args>,
                      key_type> &&
                  std::convertible_to<
