@@ -37,7 +37,7 @@ std::size_t json_filter(boost::json::object            &obj,
   return json_erase(obj, keys_to_erase);
 }
 
-class ndjson_parser : public ygm::container::detail::base_iteration<
+class ndjson_parser : public ygm::container::detail::base_iteration_value<
                           ndjson_parser, std::tuple<boost::json::object>> {
  public:
   using for_all_args = std::tuple<boost::json::object>;

@@ -34,9 +34,11 @@ class map
                                           std::tuple<Key, Value>>,
       public detail::base_async_erase_key_value<map<Key, Value>,
                                                 std::tuple<Key, Value>>,
-      public detail::base_batch_erase<map<Key, Value>, std::tuple<Key, Value>>,
+      public detail::base_batch_erase_key_value<map<Key, Value>,
+                                                std::tuple<Key, Value>>,
       public detail::base_async_visit<map<Key, Value>, std::tuple<Key, Value>>,
-      public detail::base_iteration<map<Key, Value>, std::tuple<Key, Value>> {
+      public detail::base_iteration_key_value<map<Key, Value>,
+                                              std::tuple<Key, Value>> {
   friend class detail::base_misc<map<Key, Value>, std::tuple<Key, Value>>;
 
  public:
@@ -98,6 +100,8 @@ class map
                                      for_all_args>::async_erase;
   using detail::base_async_erase_key_value<map<Key, Value>,
                                            for_all_args>::async_erase;
+  using detail::base_batch_erase_key_value<map<Key, Value>,
+                                           for_all_args>::erase;
 
   void local_insert(const key_type& key) { m_local_map[key]; }
 
@@ -340,12 +344,12 @@ class multimap
                                           std::tuple<Key, Value>>,
       public detail::base_async_erase_key_value<multimap<Key, Value>,
                                                 std::tuple<Key, Value>>,
-      public detail::base_batch_erase<multimap<Key, Value>,
-                                      std::tuple<Key, Value>>,
+      public detail::base_batch_erase_key_value<multimap<Key, Value>,
+                                                std::tuple<Key, Value>>,
       public detail::base_async_visit<multimap<Key, Value>,
                                       std::tuple<Key, Value>>,
-      public detail::base_iteration<multimap<Key, Value>,
-                                    std::tuple<Key, Value>> {
+      public detail::base_iteration_key_value<multimap<Key, Value>,
+                                              std::tuple<Key, Value>> {
   friend class detail::base_misc<multimap<Key, Value>, std::tuple<Key, Value>>;
 
  public:

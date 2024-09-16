@@ -21,7 +21,7 @@ template <typename Item>
 class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
             public detail::base_count<bag<Item>, std::tuple<Item>>,
             public detail::base_misc<bag<Item>, std::tuple<Item>>,
-            public detail::base_iteration<bag<Item>, std::tuple<Item>> {
+            public detail::base_iteration_value<bag<Item>, std::tuple<Item>> {
   friend class detail::base_misc<bag<Item>, std::tuple<Item>>;
 
  public:
@@ -47,9 +47,9 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
   }
 
   template <typename STLContainer>
-  bag(ygm::comm &comm, const STLContainer &cont)
-    requires detail::STLContainer<STLContainer> &&
-                 std::convertible_to<typename STLContainer::value_type, Item>
+  bag(ygm::comm          &comm,
+      const STLContainer &cont) requires detail::STLContainer<STLContainer> &&
+      std::convertible_to<typename STLContainer::value_type, Item>
       : m_comm(comm), pthis(this), partitioner(comm) {
     pthis.check(m_comm);
 
@@ -60,10 +60,9 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
   }
 
   template <typename YGMContainer>
-  bag(ygm::comm &comm, const YGMContainer &yc)
-    requires detail::HasForAll<YGMContainer> &&
-                 detail::SingleItemTuple<
-                     typename YGMContainer::for_all_args>
+  bag(ygm::comm          &comm,
+      const YGMContainer &yc) requires detail::HasForAll<YGMContainer> &&
+      detail::SingleItemTuple<typename YGMContainer::for_all_args>
       : m_comm(comm), pthis(this), partitioner(comm) {
     pthis.check(m_comm);
 
