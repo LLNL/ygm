@@ -174,6 +174,62 @@ int main(int argc, char **argv) {
     }
   }
 
+  // Test async_visit functor
+  {
+    struct visit_functor {
+      void operator()(const size_t index, const int value) {
+        YGM_ASSERT_RELEASE(value == index);
+      }
+    };
+
+    int size = 64;
+
+    ygm::container::array<int> arr(world, size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        arr.async_set(i, i);
+      }
+    }
+
+    world.barrier();
+
+    for (int i = 0; i < size; ++i) {
+      arr.async_visit(i, visit_functor());
+    }
+  }
+
+  //
+  // Test async_reduce
+  {
+    ygm::container::array<int> arr(world, 3);
+
+    int num_reductions = 5;
+    for (int i = 0; i < num_reductions; ++i) {
+      arr.async_reduce(0, i, std::plus<int>());
+      arr.async_reduce(
+          1, i, [](const int &a, const int &b) { return std::min<int>(a, b); });
+      arr.async_reduce(
+          2, i, [](const int &a, const int &b) { return std::max<int>(a, b); });
+    }
+
+    world.barrier();
+
+    arr.for_all(
+        [&world, &num_reductions](const auto &index, const auto &value) {
+          if (index == 0) {
+            YGM_ASSERT_RELEASE(value == world.size() * num_reductions *
+                                            (num_reductions - 1) / 2);
+          } else if (index == 1) {
+            YGM_ASSERT_RELEASE(value == 0);
+          } else if (index == 2) {
+            YGM_ASSERT_RELEASE(value == num_reductions - 1);
+          } else {
+            YGM_ASSERT_RELEASE(false);
+          }
+        });
+  }
+
   // Test value-only for_all
   {
     int size = 64;

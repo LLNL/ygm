@@ -58,14 +58,12 @@ int main(int argc, char** argv) {
   //
   // Test async_contains
   {
-    static bool              set_contains = false;
+    static bool                   set_contains = false;
     ygm::container::multiset<int> iset(world);
     world.barrier();
     int val = 42;
 
-    auto f = [](bool contains, const int& i) {
-      set_contains = contains;
-    };   
+    auto f = [](bool contains, const int& i) { set_contains = contains; };
 
     if (world.rank0()) {
       iset.async_contains(val, f);
@@ -87,13 +85,13 @@ int main(int argc, char** argv) {
   //
   // Test async_insert_contains
   {
-    static bool              already_contains = false;
+    static bool                           already_contains = false;
     ygm::container::multiset<std::string> sset(world);
     world.barrier();
 
     auto f = [](bool& contains, const std::string& s) {
       already_contains = contains;
-    };   
+    };
 
     if (world.rank0()) {
       sset.async_insert_contains("dog", f);
@@ -106,6 +104,82 @@ int main(int argc, char** argv) {
     }
     world.barrier();
     YGM_ASSERT_RELEASE(ygm::logical_or(already_contains, world));
+  }
+
+  // Test batch erase
+  {
+    int                           num_items            = 100;
+    int                           num_insertion_rounds = 5;
+    int                           remove_size          = 20;
+    ygm::container::multiset<int> iset(world);
+
+    if (world.rank0()) {
+      for (int round = 0; round < num_insertion_rounds; ++round) {
+        for (int i = 0; i < num_items; ++i) {
+          iset.async_insert(i);
+        }
+      }
+    }
+
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(iset.size() == num_insertion_rounds * num_items);
+
+    ygm::container::set<int> to_remove(world);
+
+    if (world.rank0()) {
+      for (int i = 0; i < remove_size; ++i) {
+        to_remove.async_insert(i);
+      }
+    }
+
+    world.barrier();
+
+    iset.erase(to_remove);
+
+    iset.for_all([remove_size, &world](const auto& item) {
+      YGM_ASSERT_RELEASE(item >= remove_size);
+    });
+
+    YGM_ASSERT_RELEASE(iset.size() ==
+                       num_insertion_rounds * (num_items - remove_size));
+  }
+
+  // Test batch erase from vector
+  {
+    int                           num_items            = 100;
+    int                           num_insertion_rounds = 5;
+    int                           remove_size          = 20;
+    ygm::container::multiset<int> iset(world);
+
+    if (world.rank0()) {
+      for (int round = 0; round < num_insertion_rounds; ++round) {
+        for (int i = 0; i < num_items; ++i) {
+          iset.async_insert(i);
+        }
+      }
+    }
+
+    YGM_ASSERT_RELEASE(iset.size() == num_items * num_insertion_rounds);
+
+    std::vector<int> to_remove;
+
+    if (world.rank0()) {
+      for (int i = 0; i < remove_size; ++i) {
+        to_remove.push_back(i);
+      }
+    }
+
+    world.barrier();
+
+    iset.erase(to_remove);
+
+    iset.for_all([remove_size, &world](const auto& item) {
+      YGM_ASSERT_RELEASE(item >= remove_size);
+    });
+
+    YGM_ASSERT_RELEASE(iset.size() ==
+                       num_insertion_rounds * (num_items - remove_size));
   }
 
   //
@@ -139,7 +213,7 @@ int main(int argc, char** argv) {
     sset1.async_insert("apple");
     sset1.async_insert("red");
 
-    sset1.for_all([&sset2](const auto &key) { sset2.async_insert(key); });
+    sset1.for_all([&sset2](const auto& key) { sset2.async_insert(key); });
 
     YGM_ASSERT_RELEASE(sset2.count("dog") == world.size());
     YGM_ASSERT_RELEASE(sset2.count("apple") == world.size());
@@ -149,7 +223,7 @@ int main(int argc, char** argv) {
   //
   // Test vector of sets
   {
-    int                                   num_sets = 4;
+    int                                        num_sets = 4;
     std::vector<ygm::container::multiset<int>> vec_sets;
 
     for (int i = 0; i < num_sets; ++i) {

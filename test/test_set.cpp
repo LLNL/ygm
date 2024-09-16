@@ -9,10 +9,10 @@
 #include <string>
 
 #include <ygm/comm.hpp>
-#include <ygm/container/set.hpp>
 #include <ygm/container/bag.hpp>
+#include <ygm/container/set.hpp>
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
 
   //
@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
 
   //
   // Test Rank 0 async_insert
-  { 
+  {
     ygm::container::set<std::string> sset(world);
     if (world.rank() == 0) {
       sset.async_insert("dog");
@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
   // Test Rank 0 async_insert with ygm set pointer
   {
     ygm::container::set<std::string> sset(world);
-    auto sset_ptr = sset.get_ygm_ptr();
+    auto                             sset_ptr = sset.get_ygm_ptr();
     if (world.rank() == 0) {
       sset_ptr->async_insert("dog");
       sset_ptr->async_insert("apple");
@@ -69,7 +69,6 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(sset.size() == 3);
   }
 
-  
   //
   // Test all ranks async_insert
   {
@@ -88,17 +87,14 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(sset.size() == 2);
   }
 
-
   //
   // Test async_contains
   {
     static bool              set_contains = false;
     ygm::container::set<int> iset(world);
-    int val = 42;
+    int                      val = 42;
 
-    auto f = [](bool& contains, const int& i) {
-      set_contains = contains;
-    };   
+    auto f = [](bool& contains, const int& i) { set_contains = contains; };
 
     if (world.rank0()) {
       iset.async_contains(val, f);
@@ -121,12 +117,12 @@ int main(int argc, char **argv) {
   //
   // Test async_insert_contains
   {
-    static bool              did_contain = false;
+    static bool                      did_contain = false;
     ygm::container::set<std::string> sset(world);
 
     auto f = [](bool& contains, const std::string& s) {
       did_contain = contains;
-    };   
+    };
 
     if (world.rank0()) {
       sset.async_insert_contains("dog", f);
@@ -141,10 +137,80 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(ygm::logical_or(did_contain, world));
   }
 
+  // Test batch erase from set
+  {
+    int                      num_items   = 100;
+    int                      remove_size = 20;
+    ygm::container::set<int> iset(world);
+
+    if (world.rank0()) {
+      for (int i = 0; i < num_items; ++i) {
+        iset.async_insert(i);
+      }
+    }
+
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(iset.size() == num_items);
+
+    ygm::container::set<int> to_remove(world);
+
+    if (world.rank0()) {
+      for (int i = 0; i < remove_size; ++i) {
+        to_remove.async_insert(i);
+      }
+    }
+
+    world.barrier();
+
+    iset.erase(to_remove);
+
+    iset.for_all([remove_size, &world](const auto& item) {
+      YGM_ASSERT_RELEASE(item >= remove_size);
+    });
+
+    YGM_ASSERT_RELEASE(iset.size() == num_items - remove_size);
+  }
+
+  // Test batch erase from vector
+  {
+    int                      num_items   = 100;
+    int                      remove_size = 20;
+    ygm::container::set<int> iset(world);
+
+    if (world.rank0()) {
+      for (int i = 0; i < num_items; ++i) {
+        iset.async_insert(i);
+      }
+    }
+
+    world.barrier();
+
+    YGM_ASSERT_RELEASE(iset.size() == num_items);
+
+    std::vector<int> to_remove;
+
+    if (world.rank0()) {
+      for (int i = 0; i < remove_size; ++i) {
+        to_remove.push_back(i);
+      }
+    }
+
+    world.barrier();
+
+    iset.erase(to_remove);
+
+    iset.for_all([remove_size, &world](const auto& item) {
+      YGM_ASSERT_RELEASE(item >= remove_size);
+    });
+
+    YGM_ASSERT_RELEASE(iset.size() == num_items - remove_size);
+  }
 
   // Test from bag
   {
-    ygm::container::bag<std::string> sbag(world, {"one", "two", "three", "one", "two"});
+    ygm::container::bag<std::string> sbag(
+        world, {"one", "two", "three", "one", "two"});
     YGM_ASSERT_RELEASE(sbag.size() == 5);
 
     ygm::container::set<std::string> sset(world, sbag);
@@ -153,27 +219,26 @@ int main(int argc, char **argv) {
 
   // Test initializer list
   {
-    ygm::container::set<std::string> sset(world, {"one", "two", "three", "one", "two"});
+    ygm::container::set<std::string> sset(
+        world, {"one", "two", "three", "one", "two"});
     YGM_ASSERT_RELEASE(sset.size() == 3);
   }
 
   // Test from STL vector
   {
-    std::vector<int> v({1,2,3,4,5,1,1,1,3});
+    std::vector<int>         v({1, 2, 3, 4, 5, 1, 1, 1, 3});
     ygm::container::set<int> iset(world, v);
     YGM_ASSERT_RELEASE(iset.size() == 5);
   }
-
 
   //
   // Test additional arguments of async_contains
   // {
   //   ygm::container::set<std::string> sset(world);
-  //   sset.async_contains("howdy", [](bool c, const std::string s, int i, float f){}, 3, 3.14);
-  //   sset.async_contains("howdy", [](auto ptr_set, bool c, const std::string s){});
-  //   world.barrier();
+  //   sset.async_contains("howdy", [](bool c, const std::string s, int i, float
+  //   f){}, 3, 3.14); sset.async_contains("howdy", [](auto ptr_set, bool c,
+  //   const std::string s){}); world.barrier();
   // }
-
 
   //
   // Test swap
@@ -206,7 +271,7 @@ int main(int argc, char **argv) {
     sset1.async_insert("apple");
     sset1.async_insert("red");
 
-    sset1.for_all([&sset2](const auto &key) { sset2.async_insert(key); });
+    sset1.for_all([&sset2](const auto& key) { sset2.async_insert(key); });
 
     YGM_ASSERT_RELEASE(sset2.count("dog") == 1);
     YGM_ASSERT_RELEASE(sset2.count("apple") == 1);
@@ -223,7 +288,8 @@ int main(int argc, char **argv) {
   //   sset1.async_insert("apple");
   //   sset1.async_insert("red");
 
-  //   sset1.consume_all([&sset2](const auto &key) { sset2.async_insert(key); });
+  //   sset1.consume_all([&sset2](const auto &key) { sset2.async_insert(key);
+  //   });
 
   //   YGM_ASSERT_RELEASE(sset1.empty());
   //   YGM_ASSERT_RELEASE(sset2.count("dog") == 1);

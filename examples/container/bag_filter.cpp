@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
   ygm::container::map<std::string, size_t> word_count(world);
 
   bag3.filter([](std::string s) { return s.size() == 3; })
-      .map([](std::string s) { return std::make_pair(s, size_t(1)); })
+      .transform([](std::string s) { return std::make_pair(s, size_t(1)); })
       .reduce_by_key(word_count, std::plus<size_t>());
 
   word_count.for_all(
@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
     ygm::io::line_parser lp(world, {"dummy"});
 
     lp.filter([](std::string s) { return s.size() == 3; })
-        .map([](std::string s) { return std::make_pair(s, size_t(1)); })
+        .transform([](std::string s) { return std::make_pair(s, size_t(1)); })
         .reduce_by_key(word_count, std::plus<size_t>());
   }
 
