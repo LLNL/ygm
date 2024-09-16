@@ -200,7 +200,7 @@ inline void comm::async_bcast(AsyncFunction fn, const SendArgs &...args) {
 template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async_mcast(const std::vector<int> &dests, AsyncFunction fn,
                               const SendArgs &...args) {
-  YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(AsyncFunction, "ygm::comm::async_bcast()");
+  YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(AsyncFunction, "ygm::comm::async_mcast()");
 
   for (auto dest : dests) {
     async(dest, fn, std::forward<const SendArgs>(args)...);
