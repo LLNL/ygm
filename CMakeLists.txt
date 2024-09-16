@@ -147,6 +147,24 @@ option(YGM_REQUIRE_ARROW_PARQUET "YGM requires Apache Arrow Parquet." OFF)
 find_or_install_arrow_parquet()
 
 #
+# cxxopts
+#
+find_package(cxxopts 3.2 CONFIG QUIET)
+if (cxxopts_FOUND)
+    message(STATUS ${PROJECT_NAME} " found cxxopts include dirs: "
+            ${cxxopts_INCLUDE_DIRS}
+    )
+else ()
+    FetchContent_Declare(
+            cxxopts
+            GIT_REPOSITORY https://github.com/jarro2783/cxxopts.git
+            GIT_TAG v3.2.0)
+    FetchContent_MakeAvailable(cxxopts)
+    message(STATUS ${PROJECT_NAME} " cloned cxxopts dependency: "
+            ${cxxopts_SOURCE_DIR})
+endif ()
+
+#
 # Create the YGM target library
 #
 add_library(ygm INTERFACE)
