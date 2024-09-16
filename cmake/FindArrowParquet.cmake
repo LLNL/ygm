@@ -211,7 +211,7 @@ function(find_or_install_arrow_parquet)
 
     if (NOT Arrow_FOUND OR NOT Parquet_FOUND)
         message(STATUS "${PROJECT_NAME} could not find Arrow Parquet.")
-        message(STATUS "If this is an unexpected result, try the following command to install pyarrow: export Python3_ROOT_DIR=/path/to/paython3; /path/to/paython3 -m pip pyarrow")
+        message(STATUS "If this is an unexpected result, try the following command to install pyarrow: export Python3_ROOT_DIR=/path/to/python3; /path/to/python3 -m pip pyarrow")
         if (YGM_REQUIRE_ARROW_PARQUET)
             message(FATAL_ERROR "${PROJECT_NAME} requires Arrow Parquet.")
         else ()
