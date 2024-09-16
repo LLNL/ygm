@@ -12,5 +12,5 @@
   static_assert(                                          \
       std::is_trivially_copyable<func>::value &&          \
           std::is_standard_layout<func>::value,           \
-      #location                                           \
+      location                                            \
       " function object must be is_trivially_copyable & is_standard_layout.")

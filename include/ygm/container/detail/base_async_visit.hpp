@@ -20,7 +20,7 @@ struct base_async_visit {
                    Visitor visitor, const VisitorArgs&... args)
     requires DoubleItemTuple<for_all_args>
   {
-    YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(Visitor, ygm::container::async_visit());
+    YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(Visitor, "ygm::container::async_visit()");
 
     derived_type* derived_this = static_cast<derived_type*>(this);
 
@@ -44,7 +44,7 @@ struct base_async_visit {
     requires DoubleItemTuple<for_all_args>
   {
     YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(
-        Visitor, ygm::container::async_visit_if_contains());
+        Visitor, "ygm::container::async_visit_if_contains()");
 
     derived_type* derived_this = static_cast<derived_type*>(this);
 
@@ -68,7 +68,7 @@ struct base_async_visit {
     requires DoubleItemTuple<for_all_args>
   {
     YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(
-        Visitor, ygm::container::async_visit_if_contains());
+        Visitor, "ygm::container::async_visit_if_contains()");
 
     const derived_type* derived_this = static_cast<const derived_type*>(this);
 

@@ -18,7 +18,7 @@ struct base_async_contains {
   void async_contains(const std::tuple_element<0, for_all_args>::type& value,
                       Function fn, const FuncArgs&... args) {
     YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(Function,
-                                      ygm::container::async_contains());
+                                      "ygm::container::async_contains()");
 
     derived_type* derived_this = static_cast<derived_type*>(this);
 
