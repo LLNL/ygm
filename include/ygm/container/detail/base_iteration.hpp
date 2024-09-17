@@ -33,14 +33,14 @@ struct base_iteration_value {
 
   template <typename Function>
   void for_all(Function fn) {
-    derived_type* derived_this = static_cast<derived_type*>(this);
+    auto* derived_this = static_cast<derived_type*>(this);
     derived_this->comm().barrier();
     derived_this->local_for_all(fn);
   }
 
   template <typename Function>
   void for_all(Function fn) const {
-    const derived_type* derived_this = static_cast<const derived_type*>(this);
+    const auto* derived_this = static_cast<const derived_type*>(this);
     derived_this->comm().barrier();
     derived_this->local_for_all(fn);
   }
@@ -53,7 +53,7 @@ struct base_iteration_value {
     // container.
     bool                 all_gather   = (rank == -1);
     static STLContainer* spgto        = &gto;
-    const derived_type*  derived_this = static_cast<const derived_type*>(this);
+    const auto*          derived_this = static_cast<const derived_type*>(this);
     const ygm::comm&     mycomm       = derived_this->comm();
 
     auto glambda = [&mycomm, rank](const auto& value) {
@@ -72,8 +72,8 @@ struct base_iteration_value {
       size_t k, Compare comp = std::greater<value_type>()) const
     requires SingleItemTuple<for_all_args>
   {
-    const derived_type* derived_this = static_cast<const derived_type*>(this);
-    const ygm::comm&    mycomm       = derived_this->comm();
+    const auto*      derived_this = static_cast<const derived_type*>(this);
+    const ygm::comm& mycomm       = derived_this->comm();
     std::vector<value_type> local_topk;
 
     //
@@ -104,7 +104,7 @@ struct base_iteration_value {
 
   template <typename MergeFunction>
   value_type reduce(MergeFunction merge) const {
-    const derived_type* derived_this = static_cast<const derived_type*>(this);
+    const auto* derived_this = static_cast<const derived_type*>(this);
     derived_this->comm().barrier();
 
     using value_type = typename std::tuple_element<0, for_all_args>::type;
@@ -136,7 +136,7 @@ struct base_iteration_value {
 
   template <typename YGMContainer>
   void collect(YGMContainer& c) const {
-    const derived_type* derived_this = static_cast<const derived_type*>(this);
+    const auto* derived_this = static_cast<const derived_type*>(this);
     auto clambda = [&c](const value_type& item) { c.async_insert(item); };
     derived_this->for_all(clambda);
   }
@@ -144,9 +144,9 @@ struct base_iteration_value {
   template <typename MapType, typename ReductionOp>
   void reduce_by_key(MapType& map, ReductionOp reducer) const {
     // TODO:  static_assert MapType is ygm::container::map
-    const derived_type* derived_this = static_cast<const derived_type*>(this);
-    using reduce_key_type            = typename MapType::key_type;
-    using reduce_value_type          = typename MapType::mapped_type;
+    const auto* derived_this = static_cast<const derived_type*>(this);
+    using reduce_key_type    = typename MapType::key_type;
+    using reduce_value_type  = typename MapType::mapped_type;
     static_assert(std::is_same_v<value_type,
                                  std::pair<reduce_key_type, reduce_value_type>>,
                   "value_type must be a std::pair");
@@ -189,14 +189,14 @@ struct base_iteration_key_value {
 
   template <typename Function>
   void for_all(Function fn) {
-    derived_type* derived_this = static_cast<derived_type*>(this);
+    auto* derived_this = static_cast<derived_type*>(this);
     derived_this->comm().barrier();
     derived_this->local_for_all(fn);
   }
 
   template <typename Function>
   void for_all(Function fn) const {
-    const derived_type* derived_this = static_cast<const derived_type*>(this);
+    const auto* derived_this = static_cast<const derived_type*>(this);
     derived_this->comm().barrier();
     derived_this->local_for_all(fn);
   }
@@ -230,8 +230,8 @@ struct base_iteration_key_value {
   template <typename Compare = std::greater<std::pair<key_type, mapped_type>>>
   std::vector<std::pair<key_type, mapped_type>> gather_topk(
       size_t k, Compare comp = Compare()) const {
-    const derived_type* derived_this = static_cast<const derived_type*>(this);
-    const ygm::comm&    mycomm       = derived_this->comm();
+    const auto*      derived_this = static_cast<const derived_type*>(this);
+    const ygm::comm& mycomm       = derived_this->comm();
     using vec_type = std::vector<std::pair<key_type, mapped_type>>;
     vec_type local_topk;
 
@@ -297,8 +297,8 @@ struct base_iteration_key_value {
 
   template <typename YGMContainer>
   void collect(YGMContainer& c) const {
-    const derived_type* derived_this = static_cast<const derived_type*>(this);
-    auto clambda = [&c](const key_type& key, const mapped_type& value) {
+    const auto* derived_this = static_cast<const derived_type*>(this);
+    auto        clambda = [&c](const key_type& key, const mapped_type& value) {
       c.async_insert(std::make_pair(key, value));
     };
     derived_this->for_all(clambda);
@@ -306,7 +306,7 @@ struct base_iteration_key_value {
 
   template <typename MapType, typename ReductionOp>
   void reduce_by_key(MapType& map, ReductionOp reducer) const {
-    const derived_type* derived_this = static_cast<const derived_type*>(this);
+    const auto* derived_this = static_cast<const derived_type*>(this);
     // static_assert ygm::map
     using reduce_key_type   = typename MapType::key_type;
     using reduce_value_type = typename MapType::mapped_type;
@@ -368,7 +368,7 @@ template <typename TransformFunction>
 transform_proxy_value<derived_type, TransformFunction>
 base_iteration_value<derived_type, for_all_args>::transform(
     TransformFunction ffn) {
-  derived_type* derived_this = static_cast<derived_type*>(this);
+  auto* derived_this = static_cast<derived_type*>(this);
   return transform_proxy_value<derived_type, TransformFunction>(*derived_this,
                                                                 ffn);
 }
@@ -378,7 +378,7 @@ inline flatten_proxy_value<derived_type>
 base_iteration_value<derived_type, for_all_args>::flatten() {
   // static_assert(
   //     type_traits::is_vector<std::tuple_element<0, for_all_args>>::value);
-  derived_type* derived_this = static_cast<derived_type*>(this);
+  auto* derived_this = static_cast<derived_type*>(this);
   return flatten_proxy_value<derived_type>(*derived_this);
 }
 
@@ -386,7 +386,7 @@ template <typename derived_type, SingleItemTuple for_all_args>
 template <typename FilterFunction>
 filter_proxy_value<derived_type, FilterFunction>
 base_iteration_value<derived_type, for_all_args>::filter(FilterFunction ffn) {
-  derived_type* derived_this = static_cast<derived_type*>(this);
+  auto* derived_this = static_cast<derived_type*>(this);
   return filter_proxy_value<derived_type, FilterFunction>(*derived_this, ffn);
 }
 
@@ -395,7 +395,7 @@ template <typename TransformFunction>
 transform_proxy_key_value<derived_type, TransformFunction>
 base_iteration_key_value<derived_type, for_all_args>::transform(
     TransformFunction ffn) {
-  derived_type* derived_this = static_cast<derived_type*>(this);
+  auto* derived_this = static_cast<derived_type*>(this);
   return transform_proxy_key_value<derived_type, TransformFunction>(
       *derived_this, ffn);
 }
@@ -405,7 +405,7 @@ inline flatten_proxy_key_value<derived_type>
 base_iteration_key_value<derived_type, for_all_args>::flatten() {
   // static_assert(
   //     type_traits::is_vector<std::tuple_element<0, for_all_args>>::value);
-  derived_type* derived_this = static_cast<derived_type*>(this);
+  auto* derived_this = static_cast<derived_type*>(this);
   return flatten_proxy_key_value<derived_type>(*derived_this);
 }
 
@@ -414,7 +414,7 @@ template <typename FilterFunction>
 filter_proxy_key_value<derived_type, FilterFunction>
 base_iteration_key_value<derived_type, for_all_args>::filter(
     FilterFunction ffn) {
-  derived_type* derived_this = static_cast<derived_type*>(this);
+  auto* derived_this = static_cast<derived_type*>(this);
   return filter_proxy_key_value<derived_type, FilterFunction>(*derived_this,
                                                               ffn);
 }
