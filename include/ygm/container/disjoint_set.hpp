@@ -64,6 +64,8 @@ class disjoint_set {
     return m_impl.get_ygm_ptr();
   }
 
+  ygm::comm &comm() { return m_impl.comm(); }
+
  private:
   impl_type m_impl;
 };
