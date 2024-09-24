@@ -27,7 +27,7 @@ class flatten_proxy_value;
 template <typename derived_type>
 class flatten_proxy_key_value;
 
-template <typename derived_type, typename for_all_args>
+template <typename derived_type, SingleItemTuple for_all_args>
 struct base_iteration_value {
   using value_type = typename std::tuple_element<0, for_all_args>::type;
 
@@ -182,7 +182,7 @@ struct base_iteration_value {
 };
 
 // For Associative Containers
-template <typename derived_type, typename for_all_args>
+template <typename derived_type, DoubleItemTuple for_all_args>
 struct base_iteration_key_value {
   using key_type    = typename std::tuple_element<0, for_all_args>::type;
   using mapped_type = typename std::tuple_element<1, for_all_args>::type;
