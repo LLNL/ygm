@@ -58,7 +58,7 @@ jobs:
         run: sudo apt-get install openmpi-bin libopenmpi-dev
       - name: Install GCC-${{ matrix.gcc-version }}
         if: matrix.gcc-version == '13'
-        run: apt-get search gcc-13
+        run: apt search gcc-13
           #run: sudo apt-get install gcc-13
       - name: Make
         run: |
