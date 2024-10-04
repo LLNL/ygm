@@ -7,6 +7,7 @@
 #include <ygm/detail/lambda_compliance.hpp>
 #include <ygm/detail/meta/functional.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
+#include <ygm/version.hpp>
 
 namespace ygm {
 
@@ -90,6 +91,7 @@ inline void comm::welcome(std::ostream &os) {
   auto        end = version_string.find_first_of(delimiters);
 
   sstr << "MPI_IMPLEMENTATION = " << version_string.substr(0, end) << "\n";
+  sstr << "YGM_VERSION        = " << ygm_version << "\n";
 
   config.print(sstr);
 
