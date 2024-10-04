@@ -27,7 +27,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-        - name: Update apt
+      - name: Update apt
         run: |
         sudo add-apt-repository universe
         sudo apt update
