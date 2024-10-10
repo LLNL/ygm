@@ -52,12 +52,21 @@ class map
 
   map() = delete;
 
-  map(ygm::comm& comm) : m_comm(comm), pthis(this), partitioner(comm) {
+  map(ygm::comm& comm)
+      : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
+    pthis.check(m_comm);
+  }
+
+  map(ygm::comm& comm, const mapped_type& default_value)
+      : m_comm(comm),
+        pthis(this),
+        partitioner(comm),
+        m_default_value(default_value) {
     pthis.check(m_comm);
   }
 
   map(ygm::comm& comm, std::initializer_list<std::pair<Key, Value>> l)
-      : m_comm(comm), pthis(this), partitioner(comm) {
+      : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
     pthis.check(m_comm);
     if (m_comm.rank0()) {
       for (const std::pair<Key, Value>& i : l) {
@@ -67,11 +76,11 @@ class map
   }
 
   template <typename STLContainer>
-  map(ygm::comm&          comm,
-      const STLContainer& cont) requires detail::STLContainer<STLContainer> &&
-      std::convertible_to<typename STLContainer::value_type,
-                          std::pair<Key, Value>>
-      : m_comm(comm), pthis(this), partitioner(comm) {
+  map(ygm::comm& comm, const STLContainer& cont)
+    requires detail::STLContainer<STLContainer> &&
+                 std::convertible_to<typename STLContainer::value_type,
+                                     std::pair<Key, Value>>
+      : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
     pthis.check(m_comm);
 
     for (const std::pair<Key, Value>& i : cont) {
@@ -81,10 +90,10 @@ class map
   }
 
   template <typename YGMContainer>
-  map(ygm::comm&          comm,
-      const YGMContainer& yc) requires detail::HasForAll<YGMContainer> &&
-      detail::SingleItemTuple<typename YGMContainer::for_all_args>
-      : m_comm(comm), pthis(this), partitioner(comm) {
+  map(ygm::comm& comm, const YGMContainer& yc)
+    requires detail::HasForAll<YGMContainer> &&
+                 detail::SingleItemTuple<typename YGMContainer::for_all_args>
+      : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
     pthis.check(m_comm);
 
     yc.for_all([this](const std::pair<Key, Value>& value) {
@@ -103,7 +112,7 @@ class map
   using detail::base_batch_erase_key_value<map<Key, Value>,
                                            for_all_args>::erase;
 
-  void local_insert(const key_type& key) { m_local_map[key]; }
+  void local_insert(const key_type& key) { local_insert(key, m_default_value); }
 
   void local_erase(const key_type& key) { m_local_map.erase(key); }
 
@@ -331,6 +340,7 @@ class map
 
   ygm::comm&                                m_comm;
   std::unordered_map<key_type, mapped_type> m_local_map;
+  mapped_type                               m_default_value;
   typename ygm::ygm_ptr<self_type>          pthis;
 };
 
@@ -368,12 +378,21 @@ class multimap
 
   multimap() = delete;
 
-  multimap(ygm::comm& comm) : m_comm(comm), pthis(this), partitioner(comm) {
+  multimap(ygm::comm& comm)
+      : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
+    pthis.check(m_comm);
+  }
+
+  multimap(ygm::comm& comm, const mapped_type& default_value)
+      : m_comm(comm),
+        pthis(this),
+        partitioner(comm),
+        m_default_value(default_value) {
     pthis.check(m_comm);
   }
 
   multimap(ygm::comm& comm, std::initializer_list<std::pair<Key, Value>> l)
-      : m_comm(comm), pthis(this), partitioner(comm) {
+      : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
     pthis.check(m_comm);
     if (m_comm.rank0()) {
       for (const std::pair<Key, Value>& i : l) {
@@ -383,10 +402,11 @@ class multimap
   }
 
   template <typename STLContainer>
-  multimap(ygm::comm& comm, const STLContainer& cont) requires
-      detail::STLContainer<STLContainer> && std::convertible_to<
-          typename STLContainer::value_type, std::pair<Key, Value>>
-      : m_comm(comm), pthis(this), partitioner(comm) {
+  multimap(ygm::comm& comm, const STLContainer& cont)
+    requires detail::STLContainer<STLContainer> &&
+                 std::convertible_to<typename STLContainer::value_type,
+                                     std::pair<Key, Value>>
+      : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
     pthis.check(m_comm);
 
     for (const std::pair<Key, Value>& i : cont) {
@@ -396,10 +416,10 @@ class multimap
   }
 
   template <typename YGMContainer>
-  multimap(ygm::comm&          comm,
-           const YGMContainer& yc) requires detail::HasForAll<YGMContainer> &&
-      detail::SingleItemTuple<typename YGMContainer::for_all_args>
-      : m_comm(comm), pthis(this), partitioner(comm) {
+  multimap(ygm::comm& comm, const YGMContainer& yc)
+    requires detail::HasForAll<YGMContainer> &&
+                 detail::SingleItemTuple<typename YGMContainer::for_all_args>
+      : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
     pthis.check(m_comm);
 
     yc.for_all([this](const std::pair<Key, Value>& value) {
@@ -413,7 +433,7 @@ class multimap
 
   void local_insert(const key_type& key) {
     if (m_local_map.count(key) == 0) {
-      m_local_map.insert({key, mapped_type()});
+      m_local_map.insert({key, m_default_value});
     }
   }
 
@@ -624,6 +644,7 @@ class multimap
 
   ygm::comm&                                     m_comm;
   std::unordered_multimap<key_type, mapped_type> m_local_map;
+  mapped_type                                    m_default_value;
   typename ygm::ygm_ptr<self_type>               pthis;
 };
 

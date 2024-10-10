@@ -146,6 +146,27 @@ int main(int argc, char **argv) {
     YGM_ASSERT_RELEASE(smap.size() == 0);
   }
 
+  //
+  // Test default value
+  {
+    ygm::container::map<std::string, std::string> smap(world, "NOT FOUND");
+
+    smap.async_insert("dog", "cat");
+
+    world.barrier();
+
+    if (world.rank0()) {
+      smap.async_visit("dog", [](const auto &k, const auto &v) {
+        YGM_ASSERT_RELEASE(v == "cat");
+      });
+      smap.async_visit("not inserted", [](const auto &k, const auto &v) {
+        YGM_ASSERT_RELEASE(v == "NOT FOUND");
+      });
+    }
+
+    YGM_ASSERT_RELEASE(smap.size() == 2);
+  }
+
   // //
   // // Test async_insert_else_visit
   // {
