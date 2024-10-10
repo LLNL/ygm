@@ -7,6 +7,7 @@
 #include <ygm/detail/lambda_compliance.hpp>
 #include <ygm/detail/meta/functional.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
+#include <ygm/version.hpp>
 
 namespace ygm {
 
@@ -78,6 +79,19 @@ inline void comm::welcome(std::ostream &os) {
        << "COMM_SIZE      = " << m_layout.size() << "\n"
        << "RANKS_PER_NODE = " << m_layout.local_size() << "\n"
        << "NUM_NODES      = " << m_layout.node_size() << "\n";
+
+  // Find MPI implementation details
+  char version[MPI_MAX_LIBRARY_VERSION_STRING];
+  int  version_len;
+  MPI_Get_library_version(version, &version_len);
+
+  // Trim MPI details to implementation and version
+  std::string version_string(version, version_len);
+  std::string delimiters{',', '\n'};
+  auto        end = version_string.find_first_of(delimiters);
+
+  sstr << "MPI_LIBRARY    = " << version_string.substr(0, end) << "\n";
+  sstr << "YGM_VERSION    = " << ygm_version << "\n";
 
   config.print(sstr);
 
