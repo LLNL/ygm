@@ -76,9 +76,9 @@ inline void comm::welcome(std::ostream &os) {
        << "    YY       GG    GG     MM     MM   \n"
        << "    YY        GGGGGG      MM     MM   \n"
        << "======================================\n"
-       << "COMM_SIZE          = " << m_layout.size() << "\n"
-       << "RANKS_PER_NODE     = " << m_layout.local_size() << "\n"
-       << "NUM_NODES          = " << m_layout.node_size() << "\n";
+       << "COMM_SIZE      = " << m_layout.size() << "\n"
+       << "RANKS_PER_NODE = " << m_layout.local_size() << "\n"
+       << "NUM_NODES      = " << m_layout.node_size() << "\n";
 
   // Find MPI implementation details
   char version[MPI_MAX_LIBRARY_VERSION_STRING];
@@ -90,8 +90,8 @@ inline void comm::welcome(std::ostream &os) {
   std::string delimiters{',', '\n'};
   auto        end = version_string.find_first_of(delimiters);
 
-  sstr << "MPI_IMPLEMENTATION = " << version_string.substr(0, end) << "\n";
-  sstr << "YGM_VERSION        = " << ygm_version << "\n";
+  sstr << "MPI_LIBRARY    = " << version_string.substr(0, end) << "\n";
+  sstr << "YGM_VERSION    = " << ygm_version << "\n";
 
   config.print(sstr);
 
