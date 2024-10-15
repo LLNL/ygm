@@ -4,11 +4,8 @@
 // SPDX-License-Identifier: MIT
 
 #pragma once
-<<<<<<< HEAD
 #include <iomanip>
-=======
 #include <ygm/detail/lambda_compliance.hpp>
->>>>>>> upstream-v0.7/v0.7-dev
 #include <ygm/detail/meta/functional.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
 #include <ygm/version.hpp>
@@ -73,7 +70,7 @@ inline void comm::comm_setup(MPI_Comm c) {
 
   if (config.trace_ygm || config.trace_mpi) {
     if (rank0()) m_tracer.create_directory(config.trace_path);
-    ASSERT_MPI(MPI_Barrier(c));
+    YGM_ASSERT_MPI(MPI_Barrier(c));
     m_tracer.open_file(config.trace_path, rank());
     m_next_message_id = rank();
   }
@@ -143,8 +140,6 @@ inline void comm::stats_print(const std::string &name, std::ostream &os) {
 
 inline comm::~comm() {
   barrier();
-
-<<<<<<< HEAD
   for (int i = 0; i < m_layout.size(); i++) {
     if (rank() == i) {
       std::cout << "Rank " << rank() << std::setw(30)
@@ -156,10 +151,7 @@ inline comm::~comm() {
     }
   }
 
-  ASSERT_RELEASE(MPI_Barrier(m_comm_async) == MPI_SUCCESS);
-=======
   YGM_ASSERT_RELEASE(MPI_Barrier(m_comm_async) == MPI_SUCCESS);
->>>>>>> upstream-v0.7/v0.7-dev
 
   YGM_ASSERT_RELEASE(m_send_queue.empty());
   YGM_ASSERT_RELEASE(m_send_dest_queue.empty());
@@ -179,20 +171,11 @@ inline comm::~comm() {
 
 template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
-<<<<<<< HEAD
   TimeResolution event_time;
   if (config.trace_ygm) event_time = m_tracer.get_time();
-
-  static_assert(std::is_trivially_copyable<AsyncFunction>::value &&
-                    std::is_standard_layout<AsyncFunction>::value,
-                "comm::async() AsyncFunction must be is_trivially_copyable & "
-                "is_standard_layout.");
-  ASSERT_RELEASE(dest < m_layout.size());
-=======
   YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(AsyncFunction, "ygm::comm::async()");
 
   YGM_ASSERT_RELEASE(dest < m_layout.size());
->>>>>>> upstream-v0.7/v0.7-dev
   stats.async(dest);
 
   check_if_production_halt_required();
@@ -325,9 +308,6 @@ inline void comm::barrier() {
       flush_all_local_and_process_incoming();
     }
   }
-<<<<<<< HEAD
-  ASSERT_RELEASE(m_pre_barrier_callbacks.empty());
-  ASSERT_RELEASE(m_send_dest_queue.empty());
 
   if (config.trace_ygm || config.trace_mpi) {
     m_next_message_id += size();
@@ -343,12 +323,10 @@ inline void comm::barrier() {
     m_tracer.trace_event(m_next_message_id, action, event_name, rank(),
                          start_time, metadata, 'X', duration);
   }
-=======
   YGM_ASSERT_RELEASE(m_pre_barrier_callbacks.empty());
   YGM_ASSERT_RELEASE(m_send_dest_queue.empty());
 
   cf_barrier();
->>>>>>> upstream-v0.7/v0.7-dev
 }
 
 /**
