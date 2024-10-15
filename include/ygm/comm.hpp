@@ -66,6 +66,11 @@ class comm {
   void async(int dest, AsyncFunction fn, const SendArgs &...args);
 
   template <typename AsyncFunction, typename... SendArgs>
+  void async(int dest, AsyncFunction fn, const SendArgs &...args) const {
+    const_cast<comm *>(this)->async(dest, fn, args...);
+  }
+
+  template <typename AsyncFunction, typename... SendArgs>
   void async_bcast(AsyncFunction fn, const SendArgs &...args);
 
   template <typename AsyncFunction, typename... SendArgs>
@@ -81,13 +86,15 @@ class comm {
    * Only blocks the control flow until all processes in the communicator have
    * called it. See:  MPI_Barrier()
    */
-  void cf_barrier();
+  void cf_barrier() const;
 
   /**
    * @brief Full communicator barrier
    *
    */
   void barrier();
+
+  void barrier() const { const_cast<comm *>(this)->barrier(); }
 
   void local_progress();
 
@@ -137,10 +144,25 @@ class comm {
   void mpi_send(const T &data, int dest, int tag, MPI_Comm comm) const;
 
   template <typename T>
+  void mpi_send(const T &data, int dest, int tag) const {
+    mpi_send(data, dest, tag, m_comm_other);
+  }
+
+  template <typename T>
   T mpi_recv(int source, int tag, MPI_Comm comm) const;
 
   template <typename T>
+  T mpi_recv(int source, int tag) const {
+    return mpi_recv<T>(source, tag, m_comm_other);
+  }
+
+  template <typename T>
   T mpi_bcast(const T &to_bcast, int root, MPI_Comm comm) const;
+
+  template <typename T>
+  T mpi_bcast(const T &to_bcast, int root) const {
+    return mpi_bcast(to_bcast, root, m_comm_other);
+  }
 
   std::ostream &cout0() const;
   std::ostream &cerr0() const;

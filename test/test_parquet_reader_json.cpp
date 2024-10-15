@@ -32,49 +32,49 @@ int main(int argc, char** argv) {
     world.async(
         0,
         [](auto, const auto& obj) {
-          ASSERT_RELEASE(obj.contains("id"));
-          ASSERT_RELEASE(obj.contains("bool"));
-          ASSERT_RELEASE(obj.contains("int32"));
-          ASSERT_RELEASE(obj.contains("int64"));
-          ASSERT_RELEASE(obj.contains("float"));
-          ASSERT_RELEASE(obj.contains("double"));
-          ASSERT_RELEASE(obj.contains("byte_array"));
+          YGM_ASSERT_RELEASE(obj.contains("id"));
+          YGM_ASSERT_RELEASE(obj.contains("bool"));
+          YGM_ASSERT_RELEASE(obj.contains("int32"));
+          YGM_ASSERT_RELEASE(obj.contains("int64"));
+          YGM_ASSERT_RELEASE(obj.contains("float"));
+          YGM_ASSERT_RELEASE(obj.contains("double"));
+          YGM_ASSERT_RELEASE(obj.contains("byte_array"));
 
-          ASSERT_RELEASE(obj.at("id").is_int64());
-          ASSERT_RELEASE(obj.at("bool").is_bool());
-          ASSERT_RELEASE(obj.at("int32").is_int64());
-          ASSERT_RELEASE(obj.at("int64").is_int64());
-          ASSERT_RELEASE(obj.at("float").is_double());
-          ASSERT_RELEASE(obj.at("double").is_double());
-          ASSERT_RELEASE(obj.at("byte_array").is_string());
+          YGM_ASSERT_RELEASE(obj.at("id").is_int64());
+          YGM_ASSERT_RELEASE(obj.at("bool").is_bool());
+          YGM_ASSERT_RELEASE(obj.at("int32").is_int64());
+          YGM_ASSERT_RELEASE(obj.at("int64").is_int64());
+          YGM_ASSERT_RELEASE(obj.at("float").is_double());
+          YGM_ASSERT_RELEASE(obj.at("double").is_double());
+          YGM_ASSERT_RELEASE(obj.at("byte_array").is_string());
 
           const auto id = obj.at("id").as_int64();
           if (id == 0) {
-            ASSERT_RELEASE(obj.at("bool").as_bool() == true);
-            ASSERT_RELEASE(obj.at("int32").as_int64() == -1);
-            ASSERT_RELEASE(obj.at("int64").as_int64() == -(1ULL << 32) - 1);
-            ASSERT_RELEASE(obj.at("float").as_double() == 1.5);
-            ASSERT_RELEASE(obj.at("double").as_double() == 10.5);
-            ASSERT_RELEASE(obj.at("byte_array").as_string() == "aa");
+            YGM_ASSERT_RELEASE(obj.at("bool").as_bool() == true);
+            YGM_ASSERT_RELEASE(obj.at("int32").as_int64() == -1);
+            YGM_ASSERT_RELEASE(obj.at("int64").as_int64() == -(1ULL << 32) - 1);
+            YGM_ASSERT_RELEASE(obj.at("float").as_double() == 1.5);
+            YGM_ASSERT_RELEASE(obj.at("double").as_double() == 10.5);
+            YGM_ASSERT_RELEASE(obj.at("byte_array").as_string() == "aa");
             ++cnt1;
           } else if (id == 1) {
-            ASSERT_RELEASE(obj.at("bool").as_bool() == false);
-            ASSERT_RELEASE(obj.at("int32").as_int64() == -2);
-            ASSERT_RELEASE(obj.at("int64").as_int64() == -(1ULL << 32) - 2);
-            ASSERT_RELEASE(obj.at("float").as_double() == 2.5);
-            ASSERT_RELEASE(obj.at("double").as_double() == 20.5);
-            ASSERT_RELEASE(obj.at("byte_array").as_string() == "bb");
+            YGM_ASSERT_RELEASE(obj.at("bool").as_bool() == false);
+            YGM_ASSERT_RELEASE(obj.at("int32").as_int64() == -2);
+            YGM_ASSERT_RELEASE(obj.at("int64").as_int64() == -(1ULL << 32) - 2);
+            YGM_ASSERT_RELEASE(obj.at("float").as_double() == 2.5);
+            YGM_ASSERT_RELEASE(obj.at("double").as_double() == 20.5);
+            YGM_ASSERT_RELEASE(obj.at("byte_array").as_string() == "bb");
             ++cnt2;
           } else if (id == 2) {
-            ASSERT_RELEASE(obj.at("bool").as_bool() == true);
-            ASSERT_RELEASE(obj.at("int32").as_int64() == -3);
-            ASSERT_RELEASE(obj.at("int64").as_int64() == -(1ULL << 32) - 3);
-            ASSERT_RELEASE(obj.at("float").as_double() == 3.5);
-            ASSERT_RELEASE(obj.at("double").as_double() == 30.5);
-            ASSERT_RELEASE(obj.at("byte_array").as_string() == "cc");
+            YGM_ASSERT_RELEASE(obj.at("bool").as_bool() == true);
+            YGM_ASSERT_RELEASE(obj.at("int32").as_int64() == -3);
+            YGM_ASSERT_RELEASE(obj.at("int64").as_int64() == -(1ULL << 32) - 3);
+            YGM_ASSERT_RELEASE(obj.at("float").as_double() == 3.5);
+            YGM_ASSERT_RELEASE(obj.at("double").as_double() == 30.5);
+            YGM_ASSERT_RELEASE(obj.at("byte_array").as_string() == "cc");
             ++cnt3;
           } else {
-            ASSERT_RELEASE(false);
+            YGM_ASSERT_RELEASE(false);
           }
         },
         obj);
@@ -82,13 +82,13 @@ int main(int argc, char** argv) {
   world.barrier();
 
   if (world.rank0()) {
-    ASSERT_RELEASE(cnt1 == 1);
-    ASSERT_RELEASE(cnt2 == 1);
-    ASSERT_RELEASE(cnt3 == 1);
+    YGM_ASSERT_RELEASE(cnt1 == 1);
+    YGM_ASSERT_RELEASE(cnt2 == 1);
+    YGM_ASSERT_RELEASE(cnt3 == 1);
   } else {
-    ASSERT_RELEASE(cnt1 == 0);
-    ASSERT_RELEASE(cnt2 == 0);
-    ASSERT_RELEASE(cnt3 == 0);
+    YGM_ASSERT_RELEASE(cnt1 == 0);
+    YGM_ASSERT_RELEASE(cnt2 == 0);
+    YGM_ASSERT_RELEASE(cnt3 == 0);
   }
 
   return 0;

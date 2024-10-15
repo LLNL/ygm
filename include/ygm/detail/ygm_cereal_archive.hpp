@@ -12,6 +12,7 @@
 #include <cereal/types/tuple.hpp>
 #include <cereal/types/utility.hpp>
 #include <cereal/types/vector.hpp>
+#include <cereal/types/optional.hpp>
 #include <cstring>
 #include <vector>
 #include <ygm/detail/assert.hpp>
@@ -86,7 +87,7 @@ class YGMInputArchive
 
   //! Reads size bytes of data from the input stream
   void loadBinary(void *const data, std::streamsize size) {
-    ASSERT_DEBUG(m_position + size <= m_capacity);
+    YGM_ASSERT_DEBUG(m_position + size <= m_capacity);
     std::memcpy(data, m_pdata + m_position, size);
     m_position += size;
 
@@ -97,7 +98,7 @@ class YGMInputArchive
   }
 
   bool empty() const {
-    ASSERT_DEBUG(!(m_position > m_capacity));
+    YGM_ASSERT_DEBUG(!(m_position > m_capacity));
     return m_position == m_capacity;
   }
 
