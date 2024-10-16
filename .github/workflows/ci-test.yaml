@@ -55,9 +55,9 @@ jobs:
         if: matrix.mpi-type == 'openmpi'
         run: sudo apt-get install openmpi-bin libopenmpi-dev
       - name: Install GCC-${{ matrix.gcc-version }}
-        if: matrix.gcc-version == '13'
-        run: apt search gcc-13
-          #run: sudo apt-get install gcc-13
+        if: (matrix.gcc-version == '11' && matrix.os_version == 'ubuntu-24.04')
+        run: apt search gcc-11
+        run: sudo apt-get install gcc-11
       - name: Make
         run: |
           echo Run 'make'
