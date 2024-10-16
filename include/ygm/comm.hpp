@@ -17,6 +17,7 @@
 #include <ygm/detail/layout.hpp>
 #include <ygm/detail/meta/functional.hpp>
 #include <ygm/detail/mpi.hpp>
+#include <ygm/detail/tracer.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
 #include <ygm/detail/ygm_ptr.hpp>
 
@@ -27,6 +28,7 @@ class interrupt_mask;
 class comm_stats;
 class layout;
 class comm_router;
+class tracer;
 }  // namespace detail
 
 class comm {
@@ -34,6 +36,7 @@ class comm {
   class mpi_irecv_request;
   class mpi_isend_request;
   class header_t;
+  class trace_header_t;
   friend class detail::interrupt_mask;
   friend class detail::comm_stats;
 
@@ -178,12 +181,17 @@ class comm {
   template <typename... Args>
   void cerr0(Args &&...args) const;
 
+  void trace_message(std::string message);
+
   // Private member functions
  private:
   void comm_setup(MPI_Comm comm);
 
-  size_t pack_header(std::vector<std::byte> &packed, const int dest,
-                     size_t size);
+  size_t pack_routing_header(std::vector<std::byte> &packed, const int dest,
+                             size_t size);
+
+  size_t pack_tracing_header(std::vector<std::byte> &packed, const int trace_id,
+                             size_t size);
 
   std::pair<uint64_t, uint64_t> barrier_reduce_counts();
 
@@ -248,8 +256,9 @@ class comm {
 
   bool m_enable_interrupts = true;
 
-  uint64_t m_recv_count = 0;
-  uint64_t m_send_count = 0;
+  uint64_t m_recv_count      = 0;
+  uint64_t m_send_count      = 0;
+  uint64_t m_next_message_id = 0;
 
   bool m_in_process_receive_queue = false;
 
@@ -257,6 +266,7 @@ class comm {
   const detail::comm_environment config;
   const detail::layout           m_layout;
   detail::comm_router            m_router;
+  detail::tracer                 m_tracer;
 
   detail::lambda_map<void (*)(comm *, cereal::YGMInputArchive *), uint16_t>
       m_lambda_map;
