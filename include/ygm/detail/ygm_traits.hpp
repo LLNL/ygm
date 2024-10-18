@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 #pragma once
+#include <algorithm>
 #include <type_traits>
 
 namespace ygm::detail {
