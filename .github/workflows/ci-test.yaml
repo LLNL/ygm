@@ -22,6 +22,8 @@ jobs:
             gcc-version: 13
           - os: ubuntu-22.04
             gcc-version: 14
+          - os: ubuntu-24.04
+            mpi-type: mpich
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
