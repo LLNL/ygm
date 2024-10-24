@@ -182,6 +182,8 @@ class comm {
  private:
   void comm_setup(MPI_Comm comm);
 
+  std::string mpi_library();
+
   size_t pack_header(std::vector<std::byte> &packed, const int dest,
                      size_t size);
 

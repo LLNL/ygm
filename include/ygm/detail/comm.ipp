@@ -46,6 +46,14 @@ inline comm::comm(MPI_Comm mcomm)
 }
 
 inline void comm::comm_setup(MPI_Comm c) {
+  // Warn about MVAPICH
+  if (mpi_library().substr(0, 8) == "MVAPICH2") {
+    cerr0() << "YGM::COMM WARNING: YGM hangs when run with MVAPICH2 on certain "
+               "machines. Use at "
+               "your own risk."
+            << std::endl;
+  }
+
   YGM_ASSERT_MPI(MPI_Comm_dup(c, &m_comm_async));
   YGM_ASSERT_MPI(MPI_Comm_dup(c, &m_comm_barrier));
   YGM_ASSERT_MPI(MPI_Comm_dup(c, &m_comm_other));
@@ -60,6 +68,20 @@ inline void comm::comm_setup(MPI_Comm c) {
     std::shared_ptr<std::byte[]> recv_buffer{new std::byte[config.irecv_size]};
     post_new_irecv(recv_buffer);
   }
+}
+
+inline std::string comm::mpi_library() {
+  // Find MPI implementation details
+  char version[MPI_MAX_LIBRARY_VERSION_STRING];
+  int  version_len;
+  MPI_Get_library_version(version, &version_len);
+
+  // Trim MPI details to implementation and version
+  std::string version_string(version, version_len);
+  std::string delimiters{',', '\n'};
+  auto        end = version_string.find_first_of(delimiters);
+
+  return version_string.substr(0, end);
 }
 
 inline void comm::welcome(std::ostream &os) {
@@ -80,17 +102,7 @@ inline void comm::welcome(std::ostream &os) {
        << "RANKS_PER_NODE = " << m_layout.local_size() << "\n"
        << "NUM_NODES      = " << m_layout.node_size() << "\n";
 
-  // Find MPI implementation details
-  char version[MPI_MAX_LIBRARY_VERSION_STRING];
-  int  version_len;
-  MPI_Get_library_version(version, &version_len);
-
-  // Trim MPI details to implementation and version
-  std::string version_string(version, version_len);
-  std::string delimiters{',', '\n'};
-  auto        end = version_string.find_first_of(delimiters);
-
-  sstr << "MPI_LIBRARY    = " << version_string.substr(0, end) << "\n";
+  sstr << "MPI_LIBRARY    = " << mpi_library() << "\n";
   sstr << "YGM_VERSION    = " << ygm_version << "\n";
 
   config.print(sstr);
