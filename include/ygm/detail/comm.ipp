@@ -47,7 +47,8 @@ inline comm::comm(MPI_Comm mcomm)
 
 inline void comm::comm_setup(MPI_Comm c) {
   // Warn about MVAPICH
-  if (mpi_library().substr(0, 8) == "MVAPICH2") {
+  const auto mpi_details = mpi_library();
+  if (mpi_details.find("MVAPICH2") != mpi_details.npos) {
     cerr0() << "YGM::COMM WARNING: YGM hangs when run with MVAPICH2 on certain "
                "machines. Use at your own risk."
             << std::endl;
