@@ -20,7 +20,6 @@ class byte_vector {
   using value_type        = std::byte;
   using pointer           = std::byte*;
   using reference         = std::byte&;
-  using difference_type   = std::ptrdiff_t;
 public:
   class Byte_Iterator {
   public:
@@ -42,8 +41,6 @@ public:
 
     Byte_Iterator&  operator+=(int n) { i += n; return *this; }
     Byte_Iterator&  operator-=(int n) { i -= n; return *this; }
-
-    difference_type operator-(Byte_Iterator const& r) const { return i - r.i; }
 
     bool operator<(Byte_Iterator const& r)  const { return i <  r.i; }
     bool operator<=(Byte_Iterator const& r) const { return i <= r.i; }
