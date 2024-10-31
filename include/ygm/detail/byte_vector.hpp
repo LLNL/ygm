@@ -29,8 +29,6 @@ public:
     
     reference       operator*()             { return (*m_bv)[i]; }
     const reference operator*()       const { return (*m_bv)[i]; }
-    pointer         operator->()            { return &(*m_bv)[i]; }
-    const pointer   operator->()      const { return &(*m_bv)[i]; }
     reference       operator[](int n)       { return (*m_bv)[i + n]; }
     const reference operator[](int n) const { return (*m_bv)[i + n]; }
 

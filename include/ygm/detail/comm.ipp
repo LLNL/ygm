@@ -7,11 +7,8 @@
 #include <ygm/detail/lambda_compliance.hpp>
 #include <ygm/detail/meta/functional.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
-<<<<<<< HEAD
-=======
 #include <ygm/version.hpp>
 
->>>>>>> ygm/v0.7-dev
 namespace ygm {
 
 struct comm::mpi_irecv_request {
@@ -645,7 +642,7 @@ inline void comm::post_new_irecv(std::shared_ptr<ygm::detail::byte_vector> &recv
   recv_req.buffer = recv_buffer;
 
   //::madvise(recv_req.buffer.get(), config.irecv_size, MADV_DONTNEED);
-  ASSERT_MPI(MPI_Irecv(recv_req.buffer.get()->data(), config.irecv_size, MPI_BYTE,
+  YGM_ASSERT_MPI(MPI_Irecv(recv_req.buffer.get()->data(), config.irecv_size, MPI_BYTE,
                        MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_async,
                        &(recv_req.request)));
   m_recv_queue.push_back(recv_req);

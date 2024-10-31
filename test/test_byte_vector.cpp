@@ -31,8 +31,7 @@ int main() {
     auto bv_it  = buffer.begin();
     for(const auto& s : vec_sentences) {
       for(int i = 0; i < s.size(); i++) {
-        ASSERT_RELEASE(s[i] == (char)(*bv_it) && s[i] == (*str_it));
-        ASSERT_RELEASE(s[i] == (char)bv_it->() && s[i] == (*str_it));
+        YGM_ASSERT_RELEASE(s[i] == (char)(*bv_it) && s[i] == (*str_it));
         bv_it++;
         str_it++;
       }
@@ -44,33 +43,33 @@ int main() {
     auto test_it1 = buffer.begin();
     auto test_it2 = buffer.begin();
     // Testing logical Operators
-    ASSERT_RELEASE(test_it1 == test_it2);
-    ASSERT_RELEASE(test_it1 <= test_it2);
-    ASSERT_RELEASE(test_it1 >= test_it2);
+    YGM_ASSERT_RELEASE(test_it1 == test_it2);
+    YGM_ASSERT_RELEASE(test_it1 <= test_it2);
+    YGM_ASSERT_RELEASE(test_it1 >= test_it2);
     test_it2++;
-    ASSERT_RELEASE(test_it1 != test_it2);
-    ASSERT_RELEASE(test_it1 < test_it2);
-    ASSERT_RELEASE(test_it1 <= test_it2);
-    ASSERT_RELEASE(test_it2 > test_it1);
-    ASSERT_RELEASE(test_it2 >= test_it1);
+    YGM_ASSERT_RELEASE(test_it1 != test_it2);
+    YGM_ASSERT_RELEASE(test_it1 < test_it2);
+    YGM_ASSERT_RELEASE(test_it1 <= test_it2);
+    YGM_ASSERT_RELEASE(test_it2 > test_it1);
+    YGM_ASSERT_RELEASE(test_it2 >= test_it1);
     test_it2--;
-    ASSERT_RELEASE(test_it1 == test_it2);
+    YGM_ASSERT_RELEASE(test_it1 == test_it2);
     test_it2 += 3; // testing +=
-    ASSERT_RELEASE(test_it1[3] == test_it2);  // testing [] operator
+    YGM_ASSERT_RELEASE(test_it1[3] == *test_it2);  // testing [] operator
     test_it2 -= 3; // testing -=
-    ASSERT_RELEASE(test_it1 == test_it2);
+    YGM_ASSERT_RELEASE(test_it1 == test_it2);
 
     //testing postfix and prefix operators
-    ASSERT_RELEASE(test_it1 == test_it2++);
-    ASSERT_RELEASE(test_it1 == --test_it2);
+    YGM_ASSERT_RELEASE(test_it1 == test_it2++);
+    YGM_ASSERT_RELEASE(test_it1 == --test_it2);
 
-    ASSERT_RELEASE(!(test_it1 < test_it2++));
-    ASSERT_RELEASE(!(test_it1 > --test_it2));
+    YGM_ASSERT_RELEASE(!(test_it1 < test_it2++));
+    YGM_ASSERT_RELEASE(!(test_it1 > --test_it2));
 
     test_it2++; // test_it1 is at 0, test_it2 is at 1
-    ASSERT_RELEASE(test_it1 != test_it2--);
-    ASSERT_RELEASE(test_it1 == test_it2);
-    ASSERT_RELEASE(test_it1 < ++test_it2);
+    YGM_ASSERT_RELEASE(test_it1 != test_it2--);
+    YGM_ASSERT_RELEASE(test_it1 == test_it2);
+    YGM_ASSERT_RELEASE(test_it1 < ++test_it2);
   }
 
   return 0;
