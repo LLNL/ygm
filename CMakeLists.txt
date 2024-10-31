@@ -144,7 +144,7 @@ endif ()
 #
 include(FindArrowParquet)
 option(YGM_REQUIRE_ARROW_PARQUET "YGM requires Apache Arrow Parquet." OFF)
-find_arrow_parquet()
+find_or_install_arrow_parquet()
 
 #
 # Create the YGM target library

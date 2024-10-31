@@ -11,11 +11,11 @@
 #include <ygm/container/detail/base_async_erase.hpp>
 #include <ygm/container/detail/base_async_insert.hpp>
 #include <ygm/container/detail/base_async_insert_contains.hpp>
+#include <ygm/container/detail/base_batch_erase.hpp>
 #include <ygm/container/detail/base_count.hpp>
 #include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/container/detail/base_misc.hpp>
 #include <ygm/container/detail/hash_partitioner.hpp>
-// #include <ygm/container/detail/set_impl.hpp>
 
 namespace ygm::container {
 
@@ -24,12 +24,13 @@ class multiset
     : public detail::base_async_insert_value<multiset<Value>,
                                              std::tuple<Value>>,
       public detail::base_async_erase_key<multiset<Value>, std::tuple<Value>>,
+      public detail::base_batch_erase_key<multiset<Value>, std::tuple<Value>>,
       public detail::base_async_contains<multiset<Value>, std::tuple<Value>>,
       public detail::base_async_insert_contains<multiset<Value>,
                                                 std::tuple<Value>>,
       public detail::base_count<multiset<Value>, std::tuple<Value>>,
       public detail::base_misc<multiset<Value>, std::tuple<Value>>,
-      public detail::base_iteration<multiset<Value>, std::tuple<Value>> {
+      public detail::base_iteration_value<multiset<Value>, std::tuple<Value>> {
   friend class detail::base_misc<multiset<Value>, std::tuple<Value>>;
 
  public:
@@ -57,6 +58,45 @@ class multiset
         partitioner(other.partitioner),
         m_local_set(std::move(other.m_local_set)) {
     pthis.check(m_comm);
+  }
+
+  multiset(ygm::comm &comm, std::initializer_list<Value> l)
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+    if (m_comm.rank0()) {
+      for (const Value &i : l) {
+        async_insert(i);
+      }
+    }
+
+    m_comm.barrier();
+  }
+
+  template <typename STLContainer>
+  multiset(ygm::comm &comm, const STLContainer &cont) requires
+      detail::STLContainer<STLContainer> &&
+      std::convertible_to<typename STLContainer::value_type, Value>
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+
+    for (const Value &i : cont) {
+      this->async_insert(i);
+    }
+
+    m_comm.barrier();
+  }
+
+  template <typename YGMContainer>
+  multiset(ygm::comm          &comm,
+           const YGMContainer &yc) requires detail::HasForAll<YGMContainer> &&
+      detail::SingleItemTuple<typename YGMContainer::for_all_args>  //&&
+      // std::same_as<typename TYGMContainer::for_all_args, std::tuple<Value>>
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+
+    yc.for_all([this](const Value &value) { this->async_insert(value); });
+
+    m_comm.barrier();
   }
 
   ~multiset() { m_comm.barrier(); }
@@ -112,11 +152,12 @@ template <typename Value>
 class set
     : public detail::base_async_insert_value<set<Value>, std::tuple<Value>>,
       public detail::base_async_erase_key<set<Value>, std::tuple<Value>>,
+      public detail::base_batch_erase_key<set<Value>, std::tuple<Value>>,
       public detail::base_async_contains<set<Value>, std::tuple<Value>>,
       public detail::base_async_insert_contains<set<Value>, std::tuple<Value>>,
       public detail::base_count<set<Value>, std::tuple<Value>>,
       public detail::base_misc<set<Value>, std::tuple<Value>>,
-      public detail::base_iteration<set<Value>, std::tuple<Value>> {
+      public detail::base_iteration_value<set<Value>, std::tuple<Value>> {
   friend class detail::base_misc<set<Value>, std::tuple<Value>>;
 
  public:
@@ -146,6 +187,43 @@ class set
     pthis.check(m_comm);
   }
 
+  set(ygm::comm &comm, std::initializer_list<Value> l)
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+    if (m_comm.rank0()) {
+      for (const Value &i : l) {
+        this->async_insert(i);
+      }
+    }
+    m_comm.barrier();
+  }
+
+  template <typename STLContainer>
+  set(ygm::comm          &comm,
+      const STLContainer &cont) requires detail::STLContainer<STLContainer> &&
+      std::convertible_to<typename STLContainer::value_type, Value>
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+
+    for (const Value &i : cont) {
+      this->async_insert(i);
+    }
+    m_comm.barrier();
+  }
+
+  template <typename YGMContainer>
+  set(ygm::comm          &comm,
+      const YGMContainer &yc) requires detail::HasForAll<YGMContainer> &&
+      detail::SingleItemTuple<typename YGMContainer::for_all_args>  //&&
+      // std::same_as<typename TYGMContainer::for_all_args, std::tuple<Value>>
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+
+    yc.for_all([this](const Value &value) { this->async_insert(value); });
+
+    m_comm.barrier();
+  }
+
   ~set() { m_comm.barrier(); }
 
   set() = delete;
@@ -156,6 +234,8 @@ class set
     std::swap(m_local_set, other.m_local_set);
     return *this;
   }
+
+  using detail::base_batch_erase_key<set<Value>, for_all_args>::erase;
 
   void local_insert(const value_type &val) { m_local_set.insert(val); }
 

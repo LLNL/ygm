@@ -23,7 +23,7 @@ T prefix_sum(const T &value, const comm &c) {
   T to_return{0};
   c.barrier();
   MPI_Comm mpi_comm = c.get_mpi_comm();
-  ASSERT_MPI(MPI_Exscan(&value, &to_return, 1, detail::mpi_typeof(value),
+  YGM_ASSERT_MPI(MPI_Exscan(&value, &to_return, 1, detail::mpi_typeof(value),
                         MPI_SUM, mpi_comm));
   return to_return;
 }
@@ -42,7 +42,7 @@ T sum(const T &value, const comm &c) {
   T to_return;
   c.barrier();
   MPI_Comm mpi_comm = c.get_mpi_comm();
-  ASSERT_MPI(MPI_Allreduce(&value, &to_return, 1, detail::mpi_typeof(T()),
+  YGM_ASSERT_MPI(MPI_Allreduce(&value, &to_return, 1, detail::mpi_typeof(T()),
                            MPI_SUM, mpi_comm));
   return to_return;
 }
@@ -61,7 +61,7 @@ T min(const T &value, const comm &c) {
   T to_return;
   c.barrier();
   MPI_Comm mpi_comm = c.get_mpi_comm();
-  ASSERT_MPI(MPI_Allreduce(&value, &to_return, 1, detail::mpi_typeof(T()),
+  YGM_ASSERT_MPI(MPI_Allreduce(&value, &to_return, 1, detail::mpi_typeof(T()),
                            MPI_MIN, mpi_comm));
   return to_return;
 }
@@ -80,7 +80,7 @@ T max(const T &value, const comm &c) {
   T to_return;
   c.barrier();
   MPI_Comm mpi_comm = c.get_mpi_comm();
-  ASSERT_MPI(MPI_Allreduce(&value, &to_return, 1, detail::mpi_typeof(T()),
+  YGM_ASSERT_MPI(MPI_Allreduce(&value, &to_return, 1, detail::mpi_typeof(T()),
                            MPI_MAX, mpi_comm));
   return to_return;
 }
@@ -98,7 +98,7 @@ inline bool logical_and(bool value, const comm &c) {
   bool to_return;
   c.barrier();
   MPI_Comm mpi_comm = c.get_mpi_comm();
-  ASSERT_MPI(MPI_Allreduce(&value, &to_return, 1, detail::mpi_typeof(bool()),
+  YGM_ASSERT_MPI(MPI_Allreduce(&value, &to_return, 1, detail::mpi_typeof(bool()),
                            MPI_LAND, mpi_comm));
   return to_return;
 }
@@ -116,7 +116,7 @@ inline bool logical_or(bool value, const comm &c) {
   bool to_return;
   c.barrier();
   MPI_Comm mpi_comm = c.get_mpi_comm();
-  ASSERT_MPI(MPI_Allreduce(&value, &to_return, 1, detail::mpi_typeof(bool()),
+  YGM_ASSERT_MPI(MPI_Allreduce(&value, &to_return, 1, detail::mpi_typeof(bool()),
                            MPI_LOR, mpi_comm));
   return to_return;
 }
@@ -133,7 +133,7 @@ template <typename T>
 void bcast(T &to_bcast, int root, const comm &cm) {
   if constexpr (std::is_trivially_copyable<T>::value &&
                 std::is_standard_layout<T>::value) {
-    ASSERT_MPI(
+    YGM_ASSERT_MPI(
         MPI_Bcast(&to_bcast, sizeof(T), MPI_BYTE, root, cm.get_mpi_comm()));
   } else {
     ygm::detail::byte_vector packed;
@@ -142,13 +142,13 @@ void bcast(T &to_bcast, int root, const comm &cm) {
       oarchive(to_bcast);
     }
     size_t packed_size = packed.size();
-    ASSERT_RELEASE(packed_size < 1024 * 1024 * 1024);
-    ASSERT_MPI(MPI_Bcast(&packed_size, 1, ygm::detail::mpi_typeof(packed_size),
+    YGM_ASSERT_RELEASE(packed_size < 1024 * 1024 * 1024);
+    YGM_ASSERT_MPI(MPI_Bcast(&packed_size, 1, ygm::detail::mpi_typeof(packed_size),
                          root, cm.get_mpi_comm()));
     if (cm.rank() != root) {
       packed.resize(packed_size);
     }
-    ASSERT_MPI(MPI_Bcast(packed.data(), packed_size, MPI_BYTE, root,
+    YGM_ASSERT_MPI(MPI_Bcast(packed.data(), packed_size, MPI_BYTE, root,
                          cm.get_mpi_comm()));
 
     if (cm.rank() != root) {

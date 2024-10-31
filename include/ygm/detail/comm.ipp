@@ -4,8 +4,14 @@
 // SPDX-License-Identifier: MIT
 
 #pragma once
+#include <ygm/detail/lambda_compliance.hpp>
 #include <ygm/detail/meta/functional.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
+<<<<<<< HEAD
+=======
+#include <ygm/version.hpp>
+
+>>>>>>> ygm/v0.7-dev
 namespace ygm {
 
 struct comm::mpi_irecv_request {
@@ -35,7 +41,7 @@ inline comm::comm(MPI_Comm mcomm)
     : m_layout(mcomm), m_router(m_layout, config.routing) {
   pimpl_if.reset();
   int flag(0);
-  ASSERT_MPI(MPI_Initialized(&flag));
+  YGM_ASSERT_MPI(MPI_Initialized(&flag));
   if (!flag) {
     throw std::runtime_error("YGM::COMM ERROR: MPI not initialized");
   }
@@ -43,9 +49,9 @@ inline comm::comm(MPI_Comm mcomm)
 }
 
 inline void comm::comm_setup(MPI_Comm c) {
-  ASSERT_MPI(MPI_Comm_dup(c, &m_comm_async));
-  ASSERT_MPI(MPI_Comm_dup(c, &m_comm_barrier));
-  ASSERT_MPI(MPI_Comm_dup(c, &m_comm_other));
+  YGM_ASSERT_MPI(MPI_Comm_dup(c, &m_comm_async));
+  YGM_ASSERT_MPI(MPI_Comm_dup(c, &m_comm_barrier));
+  YGM_ASSERT_MPI(MPI_Comm_dup(c, &m_comm_other));
 
   m_vec_send_buffers.resize(m_layout.size());
 
@@ -76,6 +82,19 @@ inline void comm::welcome(std::ostream &os) {
        << "COMM_SIZE      = " << m_layout.size() << "\n"
        << "RANKS_PER_NODE = " << m_layout.local_size() << "\n"
        << "NUM_NODES      = " << m_layout.node_size() << "\n";
+
+  // Find MPI implementation details
+  char version[MPI_MAX_LIBRARY_VERSION_STRING];
+  int  version_len;
+  MPI_Get_library_version(version, &version_len);
+
+  // Trim MPI details to implementation and version
+  std::string version_string(version, version_len);
+  std::string delimiters{',', '\n'};
+  auto        end = version_string.find_first_of(delimiters);
+
+  sstr << "MPI_LIBRARY    = " << version_string.substr(0, end) << "\n";
+  sstr << "YGM_VERSION    = " << ygm_version << "\n";
 
   config.print(sstr);
 
@@ -111,31 +130,29 @@ inline void comm::stats_print(const std::string &name, std::ostream &os) {
 inline comm::~comm() {
   barrier();
 
-  ASSERT_RELEASE(MPI_Barrier(m_comm_async) == MPI_SUCCESS);
+  YGM_ASSERT_RELEASE(MPI_Barrier(m_comm_async) == MPI_SUCCESS);
 
-  ASSERT_RELEASE(m_send_queue.empty());
-  ASSERT_RELEASE(m_send_dest_queue.empty());
-  ASSERT_RELEASE(m_send_buffer_bytes == 0);
-  ASSERT_RELEASE(m_pending_isend_bytes == 0);
+  YGM_ASSERT_RELEASE(m_send_queue.empty());
+  YGM_ASSERT_RELEASE(m_send_dest_queue.empty());
+  YGM_ASSERT_RELEASE(m_send_buffer_bytes == 0);
+  YGM_ASSERT_RELEASE(m_pending_isend_bytes == 0);
 
   for (size_t i = 0; i < m_recv_queue.size(); ++i) {
-    ASSERT_RELEASE(MPI_Cancel(&(m_recv_queue[i].request)) == MPI_SUCCESS);
+    YGM_ASSERT_RELEASE(MPI_Cancel(&(m_recv_queue[i].request)) == MPI_SUCCESS);
   }
-  ASSERT_RELEASE(MPI_Barrier(m_comm_async) == MPI_SUCCESS);
-  ASSERT_RELEASE(MPI_Comm_free(&m_comm_async) == MPI_SUCCESS);
-  ASSERT_RELEASE(MPI_Comm_free(&m_comm_barrier) == MPI_SUCCESS);
-  ASSERT_RELEASE(MPI_Comm_free(&m_comm_other) == MPI_SUCCESS);
+  YGM_ASSERT_RELEASE(MPI_Barrier(m_comm_async) == MPI_SUCCESS);
+  YGM_ASSERT_RELEASE(MPI_Comm_free(&m_comm_async) == MPI_SUCCESS);
+  YGM_ASSERT_RELEASE(MPI_Comm_free(&m_comm_barrier) == MPI_SUCCESS);
+  YGM_ASSERT_RELEASE(MPI_Comm_free(&m_comm_other) == MPI_SUCCESS);
 
   pimpl_if.reset();
 }
 
 template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
-  static_assert(std::is_trivially_copyable<AsyncFunction>::value &&
-                    std::is_standard_layout<AsyncFunction>::value,
-                "comm::async() AsyncFunction must be is_trivially_copyable & "
-                "is_standard_layout.");
-  ASSERT_RELEASE(dest < m_layout.size());
+  YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(AsyncFunction, "ygm::comm::async()");
+
+  YGM_ASSERT_RELEASE(dest < m_layout.size());
   stats.async(dest);
 
   check_if_production_halt_required();
@@ -184,11 +201,8 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
 
 template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async_bcast(AsyncFunction fn, const SendArgs &...args) {
-  static_assert(
-      std::is_trivially_copyable<AsyncFunction>::value &&
-          std::is_standard_layout<AsyncFunction>::value,
-      "comm::async_bcast() AsyncFunction must be is_trivially_copyable & "
-      "is_standard_layout.");
+  YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(AsyncFunction, "ygm::comm::async_bcast()");
+
   check_if_production_halt_required();
 
   pack_lambda_broadcast(fn, std::forward<const SendArgs>(args)...);
@@ -203,11 +217,8 @@ inline void comm::async_bcast(AsyncFunction fn, const SendArgs &...args) {
 template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async_mcast(const std::vector<int> &dests, AsyncFunction fn,
                               const SendArgs &...args) {
-  static_assert(
-      std::is_trivially_copyable<AsyncFunction>::value &&
-          std::is_standard_layout<AsyncFunction>::value,
-      "comm::async_mcast() AsyncFunction must be is_trivially_copyable & "
-      "is_standard_layout.");
+  YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(AsyncFunction, "ygm::comm::async_mcast()");
+
   for (auto dest : dests) {
     async(dest, fn, std::forward<const SendArgs>(args)...);
   }
@@ -241,8 +252,10 @@ inline void comm::barrier() {
       flush_all_local_and_process_incoming();
     }
   }
-  ASSERT_RELEASE(m_pre_barrier_callbacks.empty());
-  ASSERT_RELEASE(m_send_dest_queue.empty());
+  YGM_ASSERT_RELEASE(m_pre_barrier_callbacks.empty());
+  YGM_ASSERT_RELEASE(m_send_dest_queue.empty());
+
+  cf_barrier();
 }
 
 /**
@@ -251,7 +264,7 @@ inline void comm::barrier() {
  * called it. See:  MPI_Barrier()
  */
 inline void comm::cf_barrier() const {
-  ASSERT_MPI(MPI_Barrier(m_comm_barrier));
+  YGM_ASSERT_MPI(MPI_Barrier(m_comm_barrier));
 }
 
 template <typename T>
@@ -269,24 +282,24 @@ inline void comm::register_pre_barrier_callback(
 template <typename T>
 inline T comm::all_reduce_sum(const T &t) const {
   T to_return;
-  ASSERT_MPI(MPI_Allreduce(&t, &to_return, 1, detail::mpi_typeof(T()), MPI_SUM,
-                           m_comm_other));
+  YGM_ASSERT_MPI(MPI_Allreduce(&t, &to_return, 1, detail::mpi_typeof(T()),
+                               MPI_SUM, m_comm_other));
   return to_return;
 }
 
 template <typename T>
 inline T comm::all_reduce_min(const T &t) const {
   T to_return;
-  ASSERT_MPI(MPI_Allreduce(&t, &to_return, 1, detail::mpi_typeof(T()), MPI_MIN,
-                           m_comm_other));
+  YGM_ASSERT_MPI(MPI_Allreduce(&t, &to_return, 1, detail::mpi_typeof(T()),
+                               MPI_MIN, m_comm_other));
   return to_return;
 }
 
 template <typename T>
 inline T comm::all_reduce_max(const T &t) const {
   T to_return;
-  ASSERT_MPI(MPI_Allreduce(&t, &to_return, 1, detail::mpi_typeof(T()), MPI_MAX,
-                           m_comm_other));
+  YGM_ASSERT_MPI(MPI_Allreduce(&t, &to_return, 1, detail::mpi_typeof(T()),
+                               MPI_MAX, m_comm_other));
   return to_return;
 }
 
@@ -333,21 +346,22 @@ inline void comm::mpi_send(const T &data, int dest, int tag,
   cereal::YGMOutputArchive oarchive(packed);
   oarchive(data);
   size_t packed_size = packed.size();
-  ASSERT_RELEASE(packed_size < 1024 * 1024 * 1024);
-  ASSERT_MPI(MPI_Send(&packed_size, 1, detail::mpi_typeof(packed_size), dest,
-                      tag, comm));
-  ASSERT_MPI(MPI_Send(packed.data(), packed_size, MPI_BYTE, dest, tag, comm));
+  YGM_ASSERT_RELEASE(packed_size < 1024 * 1024 * 1024);
+  YGM_ASSERT_MPI(MPI_Send(&packed_size, 1, detail::mpi_typeof(packed_size),
+                          dest, tag, comm));
+  YGM_ASSERT_MPI(
+      MPI_Send(packed.data(), packed_size, MPI_BYTE, dest, tag, comm));
 }
 
 template <typename T>
 inline T comm::mpi_recv(int source, int tag, MPI_Comm comm) const {
   std::vector<std::byte> packed;
   size_t                 packed_size{0};
-  ASSERT_MPI(MPI_Recv(&packed_size, 1, detail::mpi_typeof(packed_size), source,
-                      tag, comm, MPI_STATUS_IGNORE));
+  YGM_ASSERT_MPI(MPI_Recv(&packed_size, 1, detail::mpi_typeof(packed_size),
+                          source, tag, comm, MPI_STATUS_IGNORE));
   packed.resize(packed_size);
-  ASSERT_MPI(MPI_Recv(packed.data(), packed_size, MPI_BYTE, source, tag, comm,
-                      MPI_STATUS_IGNORE));
+  YGM_ASSERT_MPI(MPI_Recv(packed.data(), packed_size, MPI_BYTE, source, tag,
+                          comm, MPI_STATUS_IGNORE));
 
   T                       to_return;
   cereal::YGMInputArchive iarchive(packed.data(), packed.size());
@@ -363,13 +377,13 @@ inline T comm::mpi_bcast(const T &to_bcast, int root, MPI_Comm comm) const {
     oarchive(to_bcast);
   }
   size_t packed_size = packed.size();
-  ASSERT_RELEASE(packed_size < 1024 * 1024 * 1024);
-  ASSERT_MPI(
+  YGM_ASSERT_RELEASE(packed_size < 1024 * 1024 * 1024);
+  YGM_ASSERT_MPI(
       MPI_Bcast(&packed_size, 1, detail::mpi_typeof(packed_size), root, comm));
   if (rank() != root) {
     packed.resize(packed_size);
   }
-  ASSERT_MPI(MPI_Bcast(packed.data(), packed_size, MPI_BYTE, root, comm));
+  YGM_ASSERT_MPI(MPI_Bcast(packed.data(), packed_size, MPI_BYTE, root, comm));
 
   cereal::YGMInputArchive iarchive(packed.data(), packed.size());
   T                       to_return;
@@ -462,12 +476,12 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
   uint64_t local_counts[2]  = {m_recv_count, m_send_count};
   uint64_t global_counts[2] = {0, 0};
 
-  ASSERT_RELEASE(m_pending_isend_bytes == 0);
-  ASSERT_RELEASE(m_send_buffer_bytes == 0);
+  YGM_ASSERT_RELEASE(m_pending_isend_bytes == 0);
+  YGM_ASSERT_RELEASE(m_send_buffer_bytes == 0);
 
   MPI_Request req = MPI_REQUEST_NULL;
-  ASSERT_MPI(MPI_Iallreduce(local_counts, global_counts, 2, MPI_UINT64_T,
-                            MPI_SUM, m_comm_barrier, &req));
+  YGM_ASSERT_MPI(MPI_Iallreduce(local_counts, global_counts, 2, MPI_UINT64_T,
+                                MPI_SUM, m_comm_barrier, &req));
   stats.iallreduce();
   bool iallreduce_complete(false);
   while (!iallreduce_complete) {
@@ -482,7 +496,7 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
     {
       auto timer = stats.waitsome_iallreduce();
       while (outcount == 0) {
-        ASSERT_MPI(
+        YGM_ASSERT_MPI(
             MPI_Testsome(2, twin_req, &outcount, twin_indices, twin_status));
       }
     }
@@ -496,7 +510,7 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
         mpi_irecv_request req_buffer = m_recv_queue.front();
         m_recv_queue.pop_front();
         int buffer_size{0};
-        ASSERT_MPI(MPI_Get_count(&twin_status[i], MPI_BYTE, &buffer_size));
+        YGM_ASSERT_MPI(MPI_Get_count(&twin_status[i], MPI_BYTE, &buffer_size));
         stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
         handle_next_receive(req_buffer.buffer, buffer_size);
         flush_all_local_and_process_incoming();
@@ -523,13 +537,13 @@ inline void comm::flush_send_buffer(int dest) {
     }
     request.buffer->swap(m_vec_send_buffers[dest]);
     if (config.freq_issend > 0 && counter++ % config.freq_issend == 0) {
-      ASSERT_MPI(MPI_Issend(request.buffer->data(), request.buffer->size(),
-                            MPI_BYTE, dest, 0, m_comm_async,
-                            &(request.request)));
+      YGM_ASSERT_MPI(MPI_Issend(request.buffer->data(), request.buffer->size(),
+                                MPI_BYTE, dest, 0, m_comm_async,
+                                &(request.request)));
     } else {
-      ASSERT_MPI(MPI_Isend(request.buffer->data(), request.buffer->size(),
-                           MPI_BYTE, dest, 0, m_comm_async,
-                           &(request.request)));
+      YGM_ASSERT_MPI(MPI_Isend(request.buffer->data(), request.buffer->size(),
+                               MPI_BYTE, dest, 0, m_comm_async,
+                               &(request.request)));
     }
     stats.isend(dest, request.buffer->size());
     m_pending_isend_bytes += request.buffer->size();
@@ -618,7 +632,7 @@ inline void comm::flush_all_local_and_process_incoming() {
  */
 inline void comm::flush_to_capacity() {
   while (m_send_buffer_bytes > config.buffer_size) {
-    ASSERT_DEBUG(!m_send_dest_queue.empty());
+    YGM_ASSERT_DEBUG(!m_send_dest_queue.empty());
     int dest = m_send_dest_queue.front();
     m_send_dest_queue.pop_front();
     flush_send_buffer(dest);
@@ -908,7 +922,7 @@ inline void comm::handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> 
  * @return True if receive queue was non-empty, else false
  */
 inline bool comm::process_receive_queue() {
-  ASSERT_RELEASE(!m_in_process_receive_queue);
+  YGM_ASSERT_RELEASE(!m_in_process_receive_queue);
   m_in_process_receive_queue = true;
   bool received_to_return    = false;
 
@@ -930,7 +944,7 @@ inline bool comm::process_receive_queue() {
     {
       auto timer = stats.waitsome_isend_irecv();
       while (outcount == 0) {
-        ASSERT_MPI(
+        YGM_ASSERT_MPI(
             MPI_Testsome(2, twin_req, &outcount, twin_indices, twin_status));
       }
     }
@@ -945,7 +959,7 @@ inline bool comm::process_receive_queue() {
         mpi_irecv_request req_buffer = m_recv_queue.front();
         m_recv_queue.pop_front();
         int buffer_size{0};
-        ASSERT_MPI(MPI_Get_count(&twin_status[i], MPI_BYTE, &buffer_size));
+        YGM_ASSERT_MPI(MPI_Get_count(&twin_status[i], MPI_BYTE, &buffer_size));
         stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
         handle_next_receive(req_buffer.buffer, buffer_size);
       }
@@ -953,7 +967,7 @@ inline bool comm::process_receive_queue() {
   } else {
     if (!m_send_queue.empty()) {
       int flag(0);
-      ASSERT_MPI(
+      YGM_ASSERT_MPI(
           MPI_Test(&(m_send_queue.front().request), &flag, MPI_STATUS_IGNORE));
       stats.isend_test();
       if (flag) {
@@ -965,7 +979,7 @@ inline bool comm::process_receive_queue() {
     }
   }
 
-  received_to_return != local_process_incoming();
+  received_to_return |= local_process_incoming();
 
   m_in_process_receive_queue = false;
   return received_to_return;
@@ -977,14 +991,14 @@ inline bool comm::local_process_incoming() {
   while (true) {
     int        flag(0);
     MPI_Status status;
-    ASSERT_MPI(MPI_Test(&(m_recv_queue.front().request), &flag, &status));
+    YGM_ASSERT_MPI(MPI_Test(&(m_recv_queue.front().request), &flag, &status));
     stats.irecv_test();
     if (flag) {
       received_to_return           = true;
       mpi_irecv_request req_buffer = m_recv_queue.front();
       m_recv_queue.pop_front();
       int buffer_size{0};
-      ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &buffer_size));
+      YGM_ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &buffer_size));
       stats.irecv(status.MPI_SOURCE, buffer_size);
       handle_next_receive(req_buffer.buffer, buffer_size);
     } else {

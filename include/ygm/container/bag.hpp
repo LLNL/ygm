@@ -21,7 +21,7 @@ template <typename Item>
 class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
             public detail::base_count<bag<Item>, std::tuple<Item>>,
             public detail::base_misc<bag<Item>, std::tuple<Item>>,
-            public detail::base_iteration<bag<Item>, std::tuple<Item>> {
+            public detail::base_iteration_value<bag<Item>, std::tuple<Item>> {
   friend class detail::base_misc<bag<Item>, std::tuple<Item>>;
 
  public:
@@ -37,24 +37,38 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
 
   bag(ygm::comm &comm, std::initializer_list<Item> l)
       : m_comm(comm), pthis(this), partitioner(comm) {
-    m_comm.cout0("initializer_list assumes all ranks are equal");
     pthis.check(m_comm);
     if (m_comm.rank0()) {
       for (const Item &i : l) {
         async_insert(i);
       }
     }
+    m_comm.barrier();
   }
 
   template <typename STLContainer>
-  bag(ygm::comm &comm, const STLContainer &cont)
+  bag(ygm::comm          &comm,
+      const STLContainer &cont) requires detail::STLContainer<STLContainer> &&
+      std::convertible_to<typename STLContainer::value_type, Item>
       : m_comm(comm), pthis(this), partitioner(comm) {
-    m_comm.cout0("STLContainer assumes all ranks are different");
     pthis.check(m_comm);
 
     for (const Item &i : cont) {
-      async_insert(i);
+      this->async_insert(i);
     }
+    m_comm.barrier();
+  }
+
+  template <typename YGMContainer>
+  bag(ygm::comm          &comm,
+      const YGMContainer &yc) requires detail::HasForAll<YGMContainer> &&
+      detail::SingleItemTuple<typename YGMContainer::for_all_args>
+      : m_comm(comm), pthis(this), partitioner(comm) {
+    pthis.check(m_comm);
+
+    yc.for_all([this](const Item &value) { this->async_insert(value); });
+
+    m_comm.barrier();
   }
 
   ~bag() { m_comm.barrier(); }
@@ -228,7 +242,7 @@ class bag : public detail::base_async_insert_value<bag<Item>, std::tuple<Item>>,
 
  private:
   std::vector<value_type> local_pop(int n) {
-    ASSERT_RELEASE(n <= local_size());
+    YGM_ASSERT_RELEASE(n <= local_size());
 
     size_t                  new_size  = local_size() - n;
     auto                    pop_start = m_local_bag.begin() + new_size;

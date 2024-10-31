@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
     to_gather = {"freedom"};
   }
 
-  auto counts = word_counter.key_gather(to_gather);
+  auto counts = word_counter.gather_keys(to_gather);
 
   for (auto &word_count : counts) {
     std::cout << word_count.first << " -> " << word_count.second << std::endl;

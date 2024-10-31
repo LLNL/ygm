@@ -61,7 +61,7 @@ class reducing_adapter {
           m_cache[slot].value = m_reducer(m_cache[slot].value, value);
         } else {
           cache_flush(slot);
-          ASSERT_DEBUG(m_cache[slot].occupied == false);
+          YGM_ASSERT_DEBUG(m_cache[slot].occupied == false);
           m_cache[slot].key      = key;
           m_cache[slot].value    = value;
           m_cache[slot].occupied = true;
@@ -73,7 +73,8 @@ class reducing_adapter {
   void cache_flush(const size_t slot) {
     // Use NLNR for reductions
     int next_dest = m_container.comm().router().next_hop(
-        m_container.owner(m_cache[slot].key), ygm::detail::routing_type::NLNR);
+        m_container.partitioner.owner(m_cache[slot].key),
+        ygm::detail::routing_type::NLNR);
 
     m_container.comm().async(
         next_dest,

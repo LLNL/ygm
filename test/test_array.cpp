@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
     }
 
     arr.for_all([](const auto index, const auto value) {
-      ASSERT_RELEASE(index == value);
+      YGM_ASSERT_RELEASE(index == value);
     });
   }
 
@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
     }
 
     arr.for_all([&world](const auto index, const auto value) {
-      ASSERT_RELEASE(value == index + 2 * world.size());
+      YGM_ASSERT_RELEASE(value == index + 2 * world.size());
     });
   }
 
@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
           cumulative_xor = 0;
           break;
       }
-      ASSERT_RELEASE(value == index ^ cumulative_xor);
+      YGM_ASSERT_RELEASE(value == index ^ cumulative_xor);
     });
   }
 
@@ -128,7 +128,7 @@ int main(int argc, char **argv) {
     }
 
     arr.for_all([&world](const auto index, const auto value) {
-      ASSERT_RELEASE(value == index + world.size());
+      YGM_ASSERT_RELEASE(value == index + world.size());
     });
   }
 
@@ -148,7 +148,7 @@ int main(int argc, char **argv) {
 
     for (int i = 0; i < size; ++i) {
       arr.async_visit(i, [](const auto index, const auto value) {
-        ASSERT_RELEASE(value == index);
+        YGM_ASSERT_RELEASE(value == index);
       });
     }
   }
@@ -169,9 +169,65 @@ int main(int argc, char **argv) {
 
     for (int i = 0; i < size; ++i) {
       arr.async_visit(i, [](auto ptr, const auto index, const auto value) {
-        ASSERT_RELEASE(value == index);
+        YGM_ASSERT_RELEASE(value == index);
       });
     }
+  }
+
+  // Test async_visit functor
+  {
+    struct visit_functor {
+      void operator()(const size_t index, const int value) {
+        YGM_ASSERT_RELEASE(value == index);
+      }
+    };
+
+    int size = 64;
+
+    ygm::container::array<int> arr(world, size);
+
+    if (world.rank0()) {
+      for (int i = 0; i < size; ++i) {
+        arr.async_set(i, i);
+      }
+    }
+
+    world.barrier();
+
+    for (int i = 0; i < size; ++i) {
+      arr.async_visit(i, visit_functor());
+    }
+  }
+
+  //
+  // Test async_reduce
+  {
+    ygm::container::array<int> arr(world, 3);
+
+    int num_reductions = 5;
+    for (int i = 0; i < num_reductions; ++i) {
+      arr.async_reduce(0, i, std::plus<int>());
+      arr.async_reduce(
+          1, i, [](const int &a, const int &b) { return std::min<int>(a, b); });
+      arr.async_reduce(
+          2, i, [](const int &a, const int &b) { return std::max<int>(a, b); });
+    }
+
+    world.barrier();
+
+    arr.for_all(
+        [&world, &num_reductions](const auto &index, const auto &value) {
+          if (index == 0) {
+            YGM_ASSERT_RELEASE(value == world.size() * num_reductions *
+                                            (num_reductions - 1) / 2);
+          } else if (index == 1) {
+            YGM_ASSERT_RELEASE(value == 0);
+          } else if (index == 2) {
+            YGM_ASSERT_RELEASE(value == num_reductions - 1);
+          } else {
+            YGM_ASSERT_RELEASE(false);
+          }
+        });
   }
 
   // Test value-only for_all
@@ -193,7 +249,7 @@ int main(int argc, char **argv) {
     }
 
     arr.for_all([&world](const auto value) {
-      ASSERT_RELEASE(value == world.size() + 1);
+      YGM_ASSERT_RELEASE(value == world.size() + 1);
     });
   }
 
@@ -209,7 +265,7 @@ int main(int argc, char **argv) {
     }
 
     arr.for_all([](const auto index, const auto value) {
-      ASSERT_RELEASE(index == value);
+      YGM_ASSERT_RELEASE(index == value);
     });
   }
 
@@ -233,7 +289,7 @@ int main(int argc, char **argv) {
       arr.async_visit(
           index,
           [](const auto &index, const auto &my_value, const auto &other_value) {
-            ASSERT_RELEASE(my_value == other_value);
+            YGM_ASSERT_RELEASE(my_value == other_value);
           },
           value);
     });
@@ -242,7 +298,7 @@ int main(int argc, char **argv) {
       arr_copy.async_visit(
           index,
           [](const auto &index, const auto &my_value, const auto &other_value) {
-            ASSERT_RELEASE(my_value == other_value);
+            YGM_ASSERT_RELEASE(my_value == other_value);
           },
           value);
     });
@@ -263,24 +319,24 @@ int main(int argc, char **argv) {
 
     world.barrier();
 
-    ASSERT_RELEASE(arr.size() == large_size);
+    YGM_ASSERT_RELEASE(arr.size() == large_size);
     arr.for_all([](const auto &index, const auto &value) {
-      ASSERT_RELEASE(value == 2 * index);
+      YGM_ASSERT_RELEASE(value == 2 * index);
     });
 
     arr.resize(small_size);
 
-    ASSERT_RELEASE(arr.size() == small_size);
+    YGM_ASSERT_RELEASE(arr.size() == small_size);
     arr.for_all([](const auto &index, const auto &value) {
-      ASSERT_RELEASE(value == 2 * index);
+      YGM_ASSERT_RELEASE(value == 2 * index);
     });
 
     arr.resize(large_size);
 
-    ASSERT_RELEASE(arr.size() == large_size);
+    YGM_ASSERT_RELEASE(arr.size() == large_size);
     arr.for_all([&small_size](const auto &index, const auto &value) {
       if (index < small_size) {
-        ASSERT_RELEASE(value == 2 * index);
+        YGM_ASSERT_RELEASE(value == 2 * index);
       }
     });
   }
@@ -299,11 +355,11 @@ int main(int argc, char **argv) {
 
     world.barrier();
 
-    ASSERT_RELEASE(arr.size() == initial_size);
+    YGM_ASSERT_RELEASE(arr.size() == initial_size);
 
     arr.clear();
 
-    ASSERT_RELEASE(arr.size() == 0);
+    YGM_ASSERT_RELEASE(arr.size() == 0);
   }
 
   // Test swap
@@ -325,28 +381,28 @@ int main(int argc, char **argv) {
 
     world.barrier();
 
-    ASSERT_RELEASE(arr1.size() == size1);
-    ASSERT_RELEASE(arr2.size() == size2);
+    YGM_ASSERT_RELEASE(arr1.size() == size1);
+    YGM_ASSERT_RELEASE(arr2.size() == size2);
 
     arr1.for_all([](const auto &index, const auto &value) {
-      ASSERT_RELEASE(value == 2 * index);
+      YGM_ASSERT_RELEASE(value == 2 * index);
     });
 
     arr2.for_all([](const auto &index, const auto &value) {
-      ASSERT_RELEASE(value == 3 * index + 1);
+      YGM_ASSERT_RELEASE(value == 3 * index + 1);
     });
 
     arr1.swap(arr2);
 
-    ASSERT_RELEASE(arr1.size() == size2);
-    ASSERT_RELEASE(arr2.size() == size1);
+    YGM_ASSERT_RELEASE(arr1.size() == size2);
+    YGM_ASSERT_RELEASE(arr2.size() == size1);
 
     arr1.for_all([](const auto &index, const auto &value) {
-      ASSERT_RELEASE(value == 3 * index + 1);
+      YGM_ASSERT_RELEASE(value == 3 * index + 1);
     });
 
     arr2.for_all([](const auto &index, const auto &value) {
-      ASSERT_RELEASE(value == 2 * index);
+      YGM_ASSERT_RELEASE(value == 2 * index);
     });
   }
 
@@ -369,9 +425,9 @@ int main(int argc, char **argv) {
 
     arr.for_all([&default_value](const auto &index, const auto &value) {
       if (index % 2 == 0) {
-        ASSERT_RELEASE(value == 2 * index);
+        YGM_ASSERT_RELEASE(value == 2 * index);
       } else {
-        ASSERT_RELEASE(value == default_value);
+        YGM_ASSERT_RELEASE(value == default_value);
       }
     });
   }
@@ -381,7 +437,7 @@ int main(int argc, char **argv) {
     ygm::container::array<int> arr(world, {1, 3, 5, 7, 9, 11});
 
     arr.for_all([](const auto &index, const auto &value) {
-      ASSERT_RELEASE(value == 2 * index + 1);
+      YGM_ASSERT_RELEASE(value == 2 * index + 1);
     });
   }
 
@@ -394,9 +450,9 @@ int main(int argc, char **argv) {
 
     arr.for_all([](const auto &index, const auto &value) {
       if (index % 2 == 1) {
-        ASSERT_RELEASE(value == 2 * index);
+        YGM_ASSERT_RELEASE(value == 2 * index);
       } else {
-        ASSERT_RELEASE(value == 0);
+        YGM_ASSERT_RELEASE(value == 0);
       }
     });
   }
@@ -416,7 +472,7 @@ int main(int argc, char **argv) {
     ygm::container::array<int> arr(world, b);
 
     arr.for_all([](const auto &index, const auto &value) {
-      ASSERT_RELEASE(value == 1);
+      YGM_ASSERT_RELEASE(value == 1);
     });
   }
 
@@ -434,12 +490,12 @@ int main(int argc, char **argv) {
 
     ygm::container::array<int> arr(world, b);
 
-    ASSERT_RELEASE(arr.size() == 2 * bag_size - 1);
+    YGM_ASSERT_RELEASE(arr.size() == 2 * bag_size - 1);
     arr.for_all([](const auto &index, const auto &value) {
       if (index % 2 == 0) {
-        ASSERT_RELEASE(value == index / 2);
+        YGM_ASSERT_RELEASE(value == index / 2);
       } else {
-        ASSERT_RELEASE(value == 0);
+        YGM_ASSERT_RELEASE(value == 0);
       }
     });
   }
@@ -458,12 +514,12 @@ int main(int argc, char **argv) {
 
     ygm::container::array<int> arr(world, m);
 
-    ASSERT_RELEASE(arr.size() == 2 * bag_size - 1);
+    YGM_ASSERT_RELEASE(arr.size() == 2 * bag_size - 1);
     arr.for_all([](const auto &index, const auto &value) {
       if (index % 2 == 0) {
-        ASSERT_RELEASE(value == index / 2);
+        YGM_ASSERT_RELEASE(value == index / 2);
       } else {
-        ASSERT_RELEASE(value == 0);
+        YGM_ASSERT_RELEASE(value == 0);
       }
     });
   }
@@ -478,9 +534,9 @@ int main(int argc, char **argv) {
 
     ygm::container::array<int> arr(world, local_vec);
 
-    ASSERT_RELEASE(arr.size() == world.size() * (world.size() + 1) / 2);
+    YGM_ASSERT_RELEASE(arr.size() == world.size() * (world.size() + 1) / 2);
     arr.for_all([](const auto &index, const auto &value) {
-      ASSERT_RELEASE(value == index);
+      YGM_ASSERT_RELEASE(value == index);
     });
   }
 
@@ -496,9 +552,9 @@ int main(int argc, char **argv) {
 
     ygm::container::array<float> arr(world, local_vec);
 
-    ASSERT_RELEASE(arr.size() == world.size() * local_size);
+    YGM_ASSERT_RELEASE(arr.size() == world.size() * local_size);
     arr.for_all([&world](const auto &index, const auto &value) {
-      ASSERT_RELEASE(value == float(index % world.size()));
+      YGM_ASSERT_RELEASE(value == float(index % world.size()));
     });
   }
 
@@ -513,9 +569,9 @@ int main(int argc, char **argv) {
 
     ygm::container::array<float> arr(world, local_map);
 
-    ASSERT_RELEASE(arr.size() == world.size() * local_size);
+    YGM_ASSERT_RELEASE(arr.size() == world.size() * local_size);
     arr.for_all([&world](const auto &index, const auto &value) {
-      ASSERT_RELEASE(value == float(index % world.size()));
+      YGM_ASSERT_RELEASE(value == float(index % world.size()));
     });
   }
 
@@ -543,7 +599,7 @@ int main(int argc, char **argv) {
     arr.sort();
 
     arr.for_all([](const auto index, const auto &value) {
-      ASSERT_RELEASE(index == value);
+      YGM_ASSERT_RELEASE(index == value);
     });
   }
 

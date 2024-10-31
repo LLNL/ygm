@@ -48,7 +48,7 @@ struct block_partitioner {
     int to_return;
     // Owner depends on whether index is before switching to small blocks
     if (index < (m_partitioned_size % m_comm_size) * m_large_block_size) {
-      ASSERT_RELEASE(m_large_block_size > 0);
+      YGM_ASSERT_RELEASE(m_large_block_size > 0);
       to_return = index / m_large_block_size;
     } else {
       if (m_small_block_size == 0) {
@@ -56,26 +56,26 @@ struct block_partitioner {
                   << m_partitioned_size << "\t" << m_comm_size << "\t" << index
                   << std::endl;
       }
-      ASSERT_RELEASE(m_small_block_size > 0);
+      YGM_ASSERT_RELEASE(m_small_block_size > 0);
       to_return =
           (m_partitioned_size % m_comm_size) +
           (index - (m_partitioned_size % m_comm_size) * m_large_block_size) /
               m_small_block_size;
     }
-    ASSERT_RELEASE((to_return >= 0) && (to_return < m_comm_size));
+    YGM_ASSERT_RELEASE((to_return >= 0) && (to_return < m_comm_size));
 
     return to_return;
   }
 
   index_type local_index(const index_type &global_index) {
     index_type to_return = global_index - m_local_start_index;
-    ASSERT_RELEASE((to_return >= 0) && (to_return <= m_small_block_size));
+    YGM_ASSERT_RELEASE((to_return >= 0) && (to_return < m_local_size));
     return to_return;
   }
 
   index_type global_index(const index_type &local_index) {
     index_type to_return = m_local_start_index + local_index;
-    ASSERT_RELEASE(to_return < m_partitioned_size);
+    YGM_ASSERT_RELEASE(to_return < m_partitioned_size);
     return to_return;
   }
 

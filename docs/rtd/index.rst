@@ -10,6 +10,7 @@ YGM library documentation
    :maxdepth: 2
    :caption: Contents:
 
+   getting_started
    ygm/comm
    ygm/container
 

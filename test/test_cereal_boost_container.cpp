@@ -30,7 +30,7 @@ int main() {
     boost::container::vector<int> load_value;
     archive(load_value);
 
-    ASSERT_RELEASE(original_value == load_value);
+    YGM_ASSERT_RELEASE(original_value == load_value);
   }
 
   return 0;

@@ -45,7 +45,7 @@ int main() {
     const bj::value original_value = bj::parse(json_string);
     // std::cout << original_value << std::endl;
     // std::cout << load_value << std::endl;
-    ASSERT_RELEASE(original_value == load_value);
+    YGM_ASSERT_RELEASE(original_value == load_value);
   }
 
   return 0;
