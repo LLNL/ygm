@@ -60,7 +60,7 @@ public:
     m_data = (pointer) mmap(NULL, m_capacity, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
     if (m_data == MAP_FAILED) {
       std::cerr << strerror(errno) << std::endl;
-      throw std::runtime_error("mmap failed");
+      throw std::runtime_error("mmap failed to allocate byte_vector:" + std::string(strerror(errno)));
     }
   }
 
@@ -90,6 +90,10 @@ public:
     std::swap(m_capacity, other.m_capacity);
   }
 
+  /**
+   * @brief Manually reseerves memory for the byte_vector.
+   * @param cap The new capacity to reserve, it will be page aligned.
+   */
   void reserve(size_t cap) {
     size_t new_capacity = get_page_aligned_size(cap);
     if(m_data == nullptr) {
@@ -97,35 +101,40 @@ public:
       // now that the shm_file is the correct size we can memory map to it.
       m_data = (pointer) mmap(NULL, m_capacity, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
       if (m_data == MAP_FAILED) {
-        throw std::runtime_error("mmap failed");
+        throw std::runtime_error("mmap failed to initialize empty byte_vector:" + std::string(strerror(errno)));
       }
       return;
     }
     // if max osx handler
     #if __APPLE__
-    pointer temp = (pointer) mmap(NULL, new_capacity, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
-    if (temp == MAP_FAILED) {
-      std::cerr << strerror(errno) << std::endl;
-      throw std::runtime_error("mmap failed");
-    }  
-    memcpy(temp, m_data, m_size);
-    munmap(m_data, m_capacity);
-    m_data = temp;
+      pointer temp = (pointer) mmap(NULL, new_capacity, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+      if (temp == MAP_FAILED) {
+        throw std::runtime_error("mmap failed" + std::string(strerror(errno)));
+      }  
+      memcpy(temp, m_data, m_size);
+      munmap(m_data, m_capacity);
+      m_data = temp;
     #else
       m_data = (pointer) mremap(m_data, m_capacity, new_capacity, MREMAP_MAYMOVE);
       if(m_data == MAP_FAILED) { 
-        std::cerr << m_capacity << "," << cap << "," << new_capacity << ", " << strerror(errno) << std::endl;
-        throw std::runtime_error("mremap failed");
+        throw std::runtime_error("mremap failed to resize byte_vector:" + std::string(strerror(errno)));
       }
     #endif
     m_capacity = new_capacity;
   } 
 
+  // @brief Resizes the byte_vector to the new size if the new size is greater than the current capacity
   void resize(size_t s) {
     if(s > m_capacity) this->reserve(s);
     m_size = s;
   }
 
+  /**
+   * @brief Appends bytes to the byte_vector.
+   * 
+   * @param d Pointer to the data to be appended.
+   * @param s Number of bytes to append.
+   */
   void push_bytes(const void* d, size_t s) {
     if(s > m_capacity - m_size) {
       size_t new_capacity = std::max(m_capacity * 2, m_size + s);
@@ -136,15 +145,13 @@ public:
   }
 
   void push_bytes(void* d, size_t s) {
-    if(s > m_capacity - m_size) {
-      size_t new_capacity = std::max(m_capacity * 2, m_size + s);
-      this->reserve(new_capacity);
-    } 
-    memcpy(m_data + m_size, d, s);
-    m_size += s;
+    push_bytes((const void*)d, s);
   }
 
-private:
+private: 
+  /**
+   * @brief Returns the page aligned size for a given number of bytes
+   */
   size_t get_page_aligned_size(size_t s) const {
     auto pagesize = getpagesize();
     auto num_pages = s / pagesize;
