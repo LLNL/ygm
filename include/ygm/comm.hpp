@@ -189,6 +189,10 @@ class comm {
 
   void flush_send_buffer(int dest);
 
+  void handle_completed_send(mpi_isend_request &req_buffer);
+
+  void check_completed_sends();
+
   void check_if_production_halt_required();
 
   void flush_all_local_and_process_incoming();
