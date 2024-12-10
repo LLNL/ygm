@@ -525,6 +525,7 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
 inline void comm::flush_send_buffer(int dest) {
   static size_t counter = 0;
   if (m_vec_send_buffers[dest].size() > 0) {
+    check_completed_sends();
     mpi_isend_request request;
     if (m_free_send_buffers.empty()) {
       request.buffer = std::make_shared<ygm::detail::byte_vector>();
@@ -548,6 +549,36 @@ inline void comm::flush_send_buffer(int dest) {
     m_send_queue.push_back(request);
     if (!m_in_process_receive_queue) {
       process_receive_queue();
+    }
+  }
+}
+
+/**
+ * @brief Handle a completed send by putting the buffer on the free list or
+ * allowing it to be freed
+ */
+inline void comm::handle_completed_send(mpi_isend_request &req_buffer) {
+  m_pending_isend_bytes -= req_buffer.buffer->size();
+  if (m_free_send_buffers.size() < config.send_buffer_free_list_len) {
+    req_buffer.buffer->clear();
+    m_free_send_buffers.push_back(req_buffer.buffer);
+  }
+}
+
+/**
+ * @brief Test completed sends
+ */
+inline void comm::check_completed_sends() {
+  if (!m_send_queue.empty()) {
+    int flag(1);
+    while (flag && not m_send_queue.empty()) {
+      YGM_ASSERT_MPI(
+          MPI_Test(&(m_send_queue.front().request), &flag, MPI_STATUS_IGNORE));
+      stats.isend_test();
+      if (flag) {
+        handle_completed_send(m_send_queue.front());
+        m_send_queue.pop_front();
+      }
     }
   }
 }
@@ -947,9 +978,7 @@ inline bool comm::process_receive_queue() {
     }
     for (int i = 0; i < outcount; ++i) {
       if (twin_indices[i] == 0) {  // completed a iSend
-        m_pending_isend_bytes -= m_send_queue.front().buffer->size();
-        m_send_queue.front().buffer->clear();
-        m_free_send_buffers.push_back(m_send_queue.front().buffer);
+        handle_completed_send(m_send_queue.front());
         m_send_queue.pop_front();
       } else {  // completed an iRecv -- COPIED FROM BELOW
         received_to_return           = true;
@@ -962,18 +991,7 @@ inline bool comm::process_receive_queue() {
       }
     }
   } else {
-    if (!m_send_queue.empty()) {
-      int flag(0);
-      YGM_ASSERT_MPI(
-          MPI_Test(&(m_send_queue.front().request), &flag, MPI_STATUS_IGNORE));
-      stats.isend_test();
-      if (flag) {
-        m_pending_isend_bytes -= m_send_queue.front().buffer->size();
-        m_send_queue.front().buffer->clear();
-        m_free_send_buffers.push_back(m_send_queue.front().buffer);
-        m_send_queue.pop_front();
-      }
-    }
+    check_completed_sends();
   }
 
   received_to_return |= local_process_incoming();
