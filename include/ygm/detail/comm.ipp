@@ -12,12 +12,12 @@
 namespace ygm {
 
 struct comm::mpi_irecv_request {
-  std::shared_ptr<std::byte[]> buffer;
-  MPI_Request                  request;
+  std::shared_ptr<ygm::detail::byte_vector> buffer;
+  MPI_Request                             request;
 };
 
 struct comm::mpi_isend_request {
-  std::shared_ptr<std::vector<std::byte>> buffer;
+  std::shared_ptr<ygm::detail::byte_vector> buffer;
   MPI_Request                             request;
 };
 
@@ -57,7 +57,7 @@ inline void comm::comm_setup(MPI_Comm c) {
   }
 
   for (size_t i = 0; i < config.num_irecvs; ++i) {
-    std::shared_ptr<std::byte[]> recv_buffer{new std::byte[config.irecv_size]};
+    std::shared_ptr<ygm::detail::byte_vector> recv_buffer{new ygm::detail::byte_vector(config.irecv_size)};
     post_new_irecv(recv_buffer);
   }
 }
@@ -339,7 +339,7 @@ inline T comm::all_reduce(const T &in, MergeFunction merge) const {
 template <typename T>
 inline void comm::mpi_send(const T &data, int dest, int tag,
                            MPI_Comm comm) const {
-  std::vector<std::byte>   packed;
+  ygm::detail::byte_vector        packed;
   cereal::YGMOutputArchive oarchive(packed);
   oarchive(data);
   size_t packed_size = packed.size();
@@ -368,7 +368,7 @@ inline T comm::mpi_recv(int source, int tag, MPI_Comm comm) const {
 
 template <typename T>
 inline T comm::mpi_bcast(const T &to_bcast, int root, MPI_Comm comm) const {
-  std::vector<std::byte>   packed;
+  ygm::detail::byte_vector        packed;
   cereal::YGMOutputArchive oarchive(packed);
   if (rank() == root) {
     oarchive(to_bcast);
@@ -454,7 +454,7 @@ inline std::string comm::outstr(Args &&...args) const {
   return ss.str();
 }
 
-inline size_t comm::pack_header(std::vector<std::byte> &packed, const int dest,
+inline size_t comm::pack_header(ygm::detail::byte_vector &packed, const int dest,
                                 size_t size) {
   size_t size_before = packed.size();
 
@@ -462,9 +462,7 @@ inline size_t comm::pack_header(std::vector<std::byte> &packed, const int dest,
   h.dest         = dest;
   h.message_size = size;
 
-  packed.resize(size_before + sizeof(header_t));
-  std::memcpy(packed.data() + size_before, &h, sizeof(header_t));
-
+  packed.push_bytes(&h, sizeof(header_t));
   // cereal::YGMOutputArchive oarchive(packed);
   // oarchive(h);
 
@@ -530,7 +528,7 @@ inline void comm::flush_send_buffer(int dest) {
     check_completed_sends();
     mpi_isend_request request;
     if (m_free_send_buffers.empty()) {
-      request.buffer = std::make_shared<std::vector<std::byte>>();
+      request.buffer = std::make_shared<ygm::detail::byte_vector>();
     } else {
       request.buffer = m_free_send_buffers.back();
       m_free_send_buffers.pop_back();
@@ -669,19 +667,20 @@ inline void comm::flush_to_capacity() {
   }
 }
 
-inline void comm::post_new_irecv(std::shared_ptr<std::byte[]> &recv_buffer) {
+inline void comm::post_new_irecv(std::shared_ptr<ygm::detail::byte_vector> &recv_buffer) {
+  recv_buffer->clear();
   mpi_irecv_request recv_req;
   recv_req.buffer = recv_buffer;
 
   //::madvise(recv_req.buffer.get(), config.irecv_size, MADV_DONTNEED);
-  YGM_ASSERT_MPI(MPI_Irecv(recv_req.buffer.get(), config.irecv_size, MPI_BYTE,
-                           MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_async,
-                           &(recv_req.request)));
+  YGM_ASSERT_MPI(MPI_Irecv(recv_req.buffer.get()->data(), config.irecv_size, MPI_BYTE,
+                       MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_async,
+                       &(recv_req.request)));
   m_recv_queue.push_back(recv_req);
 }
 
 template <typename Lambda, typename... PackArgs>
-inline size_t comm::pack_lambda(std::vector<std::byte> &packed, Lambda l,
+inline size_t comm::pack_lambda(ygm::detail::byte_vector &packed, Lambda l,
                                 const PackArgs &...args) {
   size_t                        size_before = packed.size();
   const std::tuple<PackArgs...> tuple_args(
@@ -771,7 +770,7 @@ inline void comm::pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
           // Pack lambda telling terminal ranks to execute user lambda.
           // TODO: Why does this work? Passing ta (tuple of args) to a function
           // expecting a parameter pack shouldn't work...
-          std::vector<std::byte> packed_msg;
+          ygm::detail::byte_vector packed_msg;
           c->pack_lambda_generic(packed_msg, *pl, local_dispatch_lambda, ta);
 
           for (auto dest : c->layout().local_ranks()) {
@@ -786,7 +785,7 @@ inline void comm::pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
           ygm::meta::apply_optional(*pl, std::move(t1), std::move(ta));
         };
 
-    std::vector<std::byte> packed_msg;
+    ygm::detail::byte_vector packed_msg;
     c->pack_lambda_generic(packed_msg, *pl, forward_local_and_dispatch_lambda,
                            ta);
 
@@ -824,7 +823,7 @@ inline void comm::pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
     ygm::meta::apply_optional(*pl, std::move(t1), std::move(ta));
   };
 
-  std::vector<std::byte> packed_msg;
+  ygm::detail::byte_vector packed_msg;
   pack_lambda_generic(packed_msg, l, forward_remote_and_dispatch_lambda,
                       std::forward<const PackArgs>(args)...);
 
@@ -835,7 +834,7 @@ inline void comm::pack_lambda_broadcast(Lambda l, const PackArgs &...args) {
 }
 
 template <typename Lambda, typename RemoteLogicLambda, typename... PackArgs>
-inline size_t comm::pack_lambda_generic(std::vector<std::byte> &packed,
+inline size_t comm::pack_lambda_generic(ygm::detail::byte_vector &packed,
                                         Lambda l, RemoteLogicLambda rll,
                                         const PackArgs &...args) {
   size_t                        size_before = packed.size();
@@ -852,16 +851,13 @@ inline size_t comm::pack_lambda_generic(std::vector<std::byte> &packed,
   uint16_t lid = m_lambda_map.register_lambda(remote_dispatch_lambda);
 
   {
-    size_t size_before = packed.size();
-    packed.resize(size_before + sizeof(lid));
-    std::memcpy(packed.data() + size_before, &lid, sizeof(lid));
+    packed.push_bytes(&lid, sizeof(lid));
   }
 
   if constexpr (!std::is_empty<Lambda>::value) {
     // oarchive.saveBinary(&l, sizeof(Lambda));
     size_t size_before = packed.size();
-    packed.resize(size_before + sizeof(Lambda));
-    std::memcpy(packed.data() + size_before, &l, sizeof(Lambda));
+    packed.push_bytes(&l, sizeof(Lambda));
   }
 
   if constexpr (!std::is_empty<std::tuple<PackArgs...>>::value) {
@@ -877,8 +873,8 @@ inline size_t comm::pack_lambda_generic(std::vector<std::byte> &packed,
  * destination. Does not modify packed message to add headers for routing.
  *
  */
-inline void comm::queue_message_bytes(const std::vector<std::byte> &packed,
-                                      const int                     dest) {
+inline void comm::queue_message_bytes(const ygm::detail::byte_vector            &packed,
+                                      const int                    dest) {
   m_send_count++;
 
   //
@@ -888,7 +884,7 @@ inline void comm::queue_message_bytes(const std::vector<std::byte> &packed,
     m_vec_send_buffers[dest].reserve(config.buffer_size / m_layout.node_size());
   }
 
-  std::vector<std::byte> &send_buff = m_vec_send_buffers[dest];
+  ygm::detail::byte_vector &send_buff = m_vec_send_buffers[dest];
 
   // Add dummy header with dest of -1 and size of 0.
   // This is to avoid peeling off and replacing the dest as messages are
@@ -898,16 +894,14 @@ inline void comm::queue_message_bytes(const std::vector<std::byte> &packed,
     m_send_buffer_bytes += header_bytes;
   }
 
-  size_t size_before = send_buff.size();
-  send_buff.resize(size_before + packed.size());
-  std::memcpy(send_buff.data() + size_before, packed.data(), packed.size());
+  send_buff.push_bytes(packed.data(), packed.size());
 
   m_send_buffer_bytes += packed.size();
 }
 
-inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
+inline void comm::handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> &buffer,
                                       const size_t buffer_size) {
-  cereal::YGMInputArchive iarchive(buffer.get(), buffer_size);
+  cereal::YGMInputArchive iarchive(buffer.get()->data(), buffer_size);
   while (!iarchive.empty()) {
     if (config.routing != detail::routing_type::NONE) {
       header_t h;
