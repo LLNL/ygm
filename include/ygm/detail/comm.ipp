@@ -619,7 +619,7 @@ inline void comm::check_completed_sends() {
 
 inline void comm::check_if_production_halt_required() {
   while (m_enable_interrupts && !m_in_process_receive_queue &&
-         m_pending_isend_bytes > config.remote_buffer_size) {
+         m_pending_isend_bytes > (config.local_buffer_size + config.remote_buffer_size)) {
     process_receive_queue();
   }
 }
