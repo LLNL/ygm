@@ -27,7 +27,7 @@ struct comm::header_t {
 };
 
 inline comm::comm(int *argc, char ***argv)
-    : pimpl_if(std::make_shared<detail::mpi_init_finalize>(argc, argv)),
+    : pimpl_if (std::make_shared<detail::mpi_init_finalize>(argc, argv)),
       m_layout(MPI_COMM_WORLD),
       m_router(m_layout, config.routing) {
   // pimpl_if = std::make_shared<detail::mpi_init_finalize>(argc, argv);
@@ -938,7 +938,7 @@ inline void comm::queue_message_bytes(const ygm::detail::byte_vector            
   // forwarded in a bcast
   if (config.routing != detail::routing_type::NONE) {
     size_t header_bytes = pack_header(send_buff, -1, 0);
-    if(local) {
+    if (local) {
       m_send_local_buffer_bytes += header_bytes;
     } else {
       m_send_remote_buffer_bytes += header_bytes;
@@ -946,7 +946,7 @@ inline void comm::queue_message_bytes(const ygm::detail::byte_vector            
   }
 
   send_buff.push_bytes(packed.data(), packed.size());
-  if(local) {
+  if (local) {
     m_send_local_buffer_bytes += packed.size();
   } else {
     m_send_remote_buffer_bytes += packed.size();
