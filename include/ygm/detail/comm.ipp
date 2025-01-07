@@ -130,8 +130,10 @@ inline comm::~comm() {
   YGM_ASSERT_RELEASE(MPI_Barrier(m_comm_async) == MPI_SUCCESS);
 
   YGM_ASSERT_RELEASE(m_send_queue.empty());
-  YGM_ASSERT_RELEASE(m_send_dest_queue.empty());
-  YGM_ASSERT_RELEASE(m_send_buffer_bytes == 0);
+  YGM_ASSERT_RELEASE(m_send_local_dest_queue.empty());
+  YGM_ASSERT_RELEASE(m_send_local_buffer_bytes == 0);
+  YGM_ASSERT_RELEASE(m_send_remote_dest_queue.empty());
+  YGM_ASSERT_RELEASE(m_send_remote_buffer_bytes == 0);
   YGM_ASSERT_RELEASE(m_pending_isend_bytes == 0);
 
   for (size_t i = 0; i < m_recv_queue.size(); ++i) {
@@ -162,25 +164,40 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
     // next_dest = next_hop(dest);
     next_dest = m_router.next_hop(dest);
   }
+  bool local = m_layout.is_local(next_dest);
 
   //
   // add data to the to dest buffer
   if (m_vec_send_buffers[next_dest].empty()) {
-    m_send_dest_queue.push_back(next_dest);
-    m_vec_send_buffers[next_dest].reserve(config.buffer_size /
-                                          m_layout.node_size());
+    if (local) {
+      m_send_local_dest_queue.push_back(next_dest);
+      m_vec_send_buffers[next_dest].reserve(config.local_buffer_size /
+                                            m_layout.local_size());
+    } else {
+      m_send_remote_dest_queue.push_back(next_dest);
+      m_vec_send_buffers[next_dest].reserve(config.remote_buffer_size /
+                                            m_layout.node_size());
+    }
   }
 
   // // Add header without message size
   size_t header_bytes = 0;
   if (config.routing != detail::routing_type::NONE) {
     header_bytes = pack_header(m_vec_send_buffers[next_dest], dest, 0);
-    m_send_buffer_bytes += header_bytes;
+    if (local) {
+      m_send_local_buffer_bytes += header_bytes;
+    } else {
+      m_send_remote_buffer_bytes += header_bytes;
+    }
   }
 
   uint32_t bytes = pack_lambda(m_vec_send_buffers[next_dest], fn,
                                std::forward<const SendArgs>(args)...);
-  m_send_buffer_bytes += bytes;
+  if (local) {
+    m_send_local_buffer_bytes += bytes;
+  } else {
+    m_send_remote_buffer_bytes += bytes;
+  }
 
   // // Add message size to header
   if (config.routing != detail::routing_type::NONE) {
@@ -250,7 +267,8 @@ inline void comm::barrier() {
     }
   }
   YGM_ASSERT_RELEASE(m_pre_barrier_callbacks.empty());
-  YGM_ASSERT_RELEASE(m_send_dest_queue.empty());
+  YGM_ASSERT_RELEASE(m_send_local_dest_queue.empty());
+  YGM_ASSERT_RELEASE(m_send_remote_dest_queue.empty());
 
   cf_barrier();
 }
@@ -474,7 +492,8 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
   uint64_t global_counts[2] = {0, 0};
 
   YGM_ASSERT_RELEASE(m_pending_isend_bytes == 0);
-  YGM_ASSERT_RELEASE(m_send_buffer_bytes == 0);
+  YGM_ASSERT_RELEASE(m_send_local_buffer_bytes == 0);
+  YGM_ASSERT_RELEASE(m_send_remote_buffer_bytes == 0);
 
   MPI_Request req = MPI_REQUEST_NULL;
   YGM_ASSERT_MPI(MPI_Iallreduce(local_counts, global_counts, 2, MPI_UINT64_T,
@@ -545,11 +564,26 @@ inline void comm::flush_send_buffer(int dest) {
     }
     stats.isend(dest, request.buffer->size());
     m_pending_isend_bytes += request.buffer->size();
-    m_send_buffer_bytes -= request.buffer->size();
+
+    if (m_layout.is_local(dest)) {
+      m_send_local_buffer_bytes -= request.buffer->size();
+    } else {
+      m_send_remote_buffer_bytes -= request.buffer->size();
+    }
+    
     m_send_queue.push_back(request);
     if (!m_in_process_receive_queue) {
       process_receive_queue();
     }
+  }
+}
+
+
+inline void comm::queue_next_send(std::deque<int> &dest_queue) {
+  if (!dest_queue.empty()) {
+    int dest = dest_queue.front();
+    dest_queue.pop_front();
+    flush_send_buffer(dest);
   }
 }
 
@@ -585,7 +619,7 @@ inline void comm::check_completed_sends() {
 
 inline void comm::check_if_production_halt_required() {
   while (m_enable_interrupts && !m_in_process_receive_queue &&
-         m_pending_isend_bytes > config.buffer_size) {
+         m_pending_isend_bytes > config.remote_buffer_size) {
     process_receive_queue();
   }
 }
@@ -598,10 +632,11 @@ inline void comm::local_progress() {
   if (not m_in_process_receive_queue) {
     process_receive_queue();
   }
-  if (not m_send_dest_queue.empty()) {
-    int dest = m_send_dest_queue.front();
-    m_send_dest_queue.pop_front();
-    flush_send_buffer(dest);
+  if (not m_send_local_dest_queue.empty()) {
+    queue_next_send(m_send_local_dest_queue);
+  }
+  if (not m_send_remote_dest_queue.empty()) {
+    queue_next_send(m_send_remote_dest_queue);
   }
 }
 
@@ -638,11 +673,14 @@ inline void comm::flush_all_local_and_process_incoming() {
 
     //
     //  Flush each send buffer
-    while (!m_send_dest_queue.empty()) {
+    while (!m_send_local_dest_queue.empty()) {
       did_something = true;
-      int dest      = m_send_dest_queue.front();
-      m_send_dest_queue.pop_front();
-      flush_send_buffer(dest);
+      queue_next_send(m_send_local_dest_queue);
+      process_receive_queue();
+    }
+    while (!m_send_remote_dest_queue.empty()) {
+      did_something = true;
+      queue_next_send(m_send_remote_dest_queue);
       process_receive_queue();
     }
 
@@ -659,11 +697,13 @@ inline void comm::flush_all_local_and_process_incoming() {
  * capacity
  */
 inline void comm::flush_to_capacity() {
-  while (m_send_buffer_bytes > config.buffer_size) {
-    YGM_ASSERT_DEBUG(!m_send_dest_queue.empty());
-    int dest = m_send_dest_queue.front();
-    m_send_dest_queue.pop_front();
-    flush_send_buffer(dest);
+  while (m_send_local_buffer_bytes > config.local_buffer_size) {
+    YGM_ASSERT_DEBUG(!m_send_local_dest_queue.empty());
+    queue_next_send(m_send_local_dest_queue);
+  }
+  while (m_send_remote_buffer_bytes > config.remote_buffer_size) {
+    YGM_ASSERT_DEBUG(!m_send_remote_dest_queue.empty());
+    queue_next_send(m_send_remote_dest_queue);
   }
 }
 
@@ -876,12 +916,19 @@ inline size_t comm::pack_lambda_generic(ygm::detail::byte_vector &packed,
 inline void comm::queue_message_bytes(const ygm::detail::byte_vector            &packed,
                                       const int                    dest) {
   m_send_count++;
-
+  bool local = m_layout.is_local(dest);
   //
   // add data to the dest buffer
   if (m_vec_send_buffers[dest].empty()) {
-    m_send_dest_queue.push_back(dest);
-    m_vec_send_buffers[dest].reserve(config.buffer_size / m_layout.node_size());
+    if (local) {
+      m_send_local_dest_queue.push_back(dest);
+      m_vec_send_buffers[dest].reserve(config.local_buffer_size /
+                                       m_layout.local_size());
+    } else {
+      m_send_remote_dest_queue.push_back(dest);
+      m_vec_send_buffers[dest].reserve(config.remote_buffer_size /
+                                       m_layout.node_size());
+    }
   }
 
   ygm::detail::byte_vector &send_buff = m_vec_send_buffers[dest];
@@ -891,12 +938,19 @@ inline void comm::queue_message_bytes(const ygm::detail::byte_vector            
   // forwarded in a bcast
   if (config.routing != detail::routing_type::NONE) {
     size_t header_bytes = pack_header(send_buff, -1, 0);
-    m_send_buffer_bytes += header_bytes;
+    if(local) {
+      m_send_local_buffer_bytes += header_bytes;
+    } else {
+      m_send_remote_buffer_bytes += header_bytes;
+    }
   }
 
   send_buff.push_bytes(packed.data(), packed.size());
-
-  m_send_buffer_bytes += packed.size();
+  if(local) {
+    m_send_local_buffer_bytes += packed.size();
+  } else {
+    m_send_remote_buffer_bytes += packed.size();
+  }
 }
 
 inline void comm::handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> &buffer,
@@ -914,21 +968,33 @@ inline void comm::handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> 
         stats.rpc_execute();
       } else {
         int next_dest = m_router.next_hop(h.dest);
+        bool local = m_layout.is_local(next_dest);
 
         if (m_vec_send_buffers[next_dest].empty()) {
-          m_send_dest_queue.push_back(next_dest);
+          if (local) {
+            m_send_local_dest_queue.push_back(next_dest);
+          } else {
+            m_send_remote_dest_queue.push_back(next_dest);
+          }
         }
 
         size_t header_bytes =
             pack_header(m_vec_send_buffers[next_dest], h.dest, h.message_size);
-        m_send_buffer_bytes += header_bytes;
+        if (local) {
+          m_send_local_buffer_bytes += header_bytes;
+        } else {
+          m_send_remote_buffer_bytes += header_bytes;
+        }
 
         size_t precopy_size = m_vec_send_buffers[next_dest].size();
         m_vec_send_buffers[next_dest].resize(precopy_size + h.message_size);
         iarchive.loadBinary(&m_vec_send_buffers[next_dest][precopy_size],
                             h.message_size);
-
-        m_send_buffer_bytes += h.message_size;
+        if (local) {
+          m_send_local_buffer_bytes += h.message_size;
+        } else {
+          m_send_remote_buffer_bytes += h.message_size;
+        }
 
         flush_to_capacity();
       }
