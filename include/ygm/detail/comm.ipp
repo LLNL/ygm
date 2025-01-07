@@ -27,7 +27,7 @@ struct comm::header_t {
 };
 
 inline comm::comm(int *argc, char ***argv)
-    : pimpl_if (std::make_shared<detail::mpi_init_finalize>(argc, argv)),
+    : pimpl_if(std::make_shared<detail::mpi_init_finalize>(argc, argv)),
       m_layout(MPI_COMM_WORLD),
       m_router(m_layout, config.routing) {
   // pimpl_if = std::make_shared<detail::mpi_init_finalize>(argc, argv);
