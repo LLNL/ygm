@@ -41,7 +41,7 @@ jobs:
         if: steps.cache-boost.outputs.cache-hit != 'true'
         run: |
           cd ~
-          wget --no-verbose https://archives.boost.io/main/release/1.77.0/source/boost_1_77_0.tar.bz2
+          wget --no-verbose https://archives.boost.io/release/1.77.0/source/boost_1_77_0.tar.bz2
           tar -xjf boost_1_77_0.tar.bz2
       - name: Install Apache Arrow
         if: ${{ matrix.os == 'ubuntu-latest'}} # Skip on ubuntu-20.04 due to pyarrow's ABI incompatibility issue
