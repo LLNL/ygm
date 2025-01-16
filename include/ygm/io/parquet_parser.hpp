@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -30,6 +30,7 @@ namespace stdfs = std::filesystem;
 
 namespace ygm::io {
 
+namespace detail {
 struct parquet_data_type {
   parquet::Type::type type;
 
@@ -44,6 +45,7 @@ std::ostream& operator<<(std::ostream& os, const parquet_data_type& t) {
   os << parquet::TypeToString(t.type);
   return os;
 }
+}  // namespace detail
 
 // Parquet file parser
 // Only supports the plain encoding.
@@ -53,7 +55,7 @@ class parquet_parser {
   using self_type = parquet_parser;
   // 0: a column type, 1: column name
   using file_schema_container =
-      std::vector<std::tuple<parquet_data_type, std::string>>;
+      std::vector<std::tuple<detail::parquet_data_type, std::string>>;
   using parquet_stream_reader = parquet::StreamReader;
 
   parquet_parser(ygm::comm& _comm) : m_comm(_comm), pthis(this) {
@@ -262,7 +264,7 @@ class parquet_parser {
     for (size_t i = 0; i < field_count; ++i) {
       parquet::ColumnDescriptor const* const column = file_schema->Column(i);
       m_schema.emplace_back(std::forward_as_tuple(
-          parquet_data_type{column->physical_type()}, column->name()));
+          detail::parquet_data_type{column->physical_type()}, column->name()));
     }
     m_schema_string = file_schema->ToString();
   }

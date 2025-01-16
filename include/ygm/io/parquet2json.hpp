@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -23,10 +23,10 @@
 
 #include <ygm/io/parquet_parser.hpp>
 
-namespace ygm::io::detail {
+namespace ygm::io {
 inline boost::json::value read_parquet_element_as_json_value(
-    const ygm::io::parquet_data_type&            type_holder,
-    parquet_parser::parquet_stream_reader& stream) {
+    const ygm::io::detail::parquet_data_type& type_holder,
+    parquet_parser::parquet_stream_reader&    stream) {
   boost::json::value out_value;
   out_value.emplace_null();
 
@@ -83,8 +83,7 @@ inline boost::json::value read_parquet_element_as_json_value(
 template <typename key_container>
 inline boost::json::object read_parquet_as_json_helper(
     parquet_parser::parquet_stream_reader&       reader,
-    const parquet_parser::file_schema_container& schema,
-    const bool                                         read_all,
+    const parquet_parser::file_schema_container& schema, const bool read_all,
     const key_container& include_columns = key_container()) {
   boost::json::object object;
   for (size_t i = 0; i < schema.size(); ++i) {
@@ -123,7 +122,7 @@ template <typename key_container>
 inline boost::json::object read_parquet_as_json(
     parquet_parser::parquet_stream_reader&       reader,
     const parquet_parser::file_schema_container& schema,
-    const key_container&                               include_columns) {
+    const key_container&                         include_columns) {
   return read_parquet_as_json_helper(reader, schema, false, include_columns);
 }
-}  // namespace ygm::io::detail
+}  // namespace ygm::io

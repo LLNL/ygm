@@ -8,7 +8,7 @@
 #include <filesystem>
 #include <ygm/comm.hpp>
 #include <ygm/detail/cereal_boost_json.hpp>
-#include <ygm/io/detail/parquet2json.hpp>
+#include <ygm/io/parquet2json.hpp>
 #include <ygm/io/parquet_parser.hpp>
 
 int main(int argc, char** argv) {
@@ -22,12 +22,12 @@ int main(int argc, char** argv) {
   static size_t cnt2 = 0;
   static size_t cnt3 = 0;
 
-  // Test if ygm::io::detail::read_parquet_as_json can read all supported data
+  // Test if ygm::io::read_parquet_as_json can read all supported data
   // types correctly
   const auto& schema = parquetp.schema();
   parquetp.for_all([&schema, &world](auto& stream_reader, const auto&) {
     const auto obj =
-        ygm::io::detail::read_parquet_as_json(stream_reader, schema);
+        ygm::io::read_parquet_as_json(stream_reader, schema);
 
     world.async(
         0,
