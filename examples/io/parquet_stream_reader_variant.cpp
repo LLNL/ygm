@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
 
   world.cout0()
-      << "Arrow Parquet file parser example (reads data as JSON objects)"
+      << "Arrow Parquet file parser example (reads data as std::variant objects)"
       << std::endl;
 
   // assuming the build directory is inside the YGM root directory
