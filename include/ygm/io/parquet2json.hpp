@@ -24,6 +24,8 @@
 #include <ygm/io/parquet_parser.hpp>
 
 namespace ygm::io {
+
+namespace detail {
 inline boost::json::value read_parquet_element_as_json_value(
     const ygm::io::detail::parquet_data_type& type_holder,
     parquet_parser::parquet_stream_reader&    stream) {
@@ -100,6 +102,7 @@ inline boost::json::object read_parquet_as_json_helper(
   reader.EndRow();
   return object;
 }
+}  // namespace detail
 
 /**
  * @brief Reads a row data from a Parquet StreamReader and returns the read row
@@ -110,7 +113,7 @@ inline boost::json::object read_parquet_as_json_helper(
 inline boost::json::object read_parquet_as_json(
     parquet_parser::parquet_stream_reader&       reader,
     const parquet_parser::file_schema_container& schema) {
-  return read_parquet_as_json_helper<std::unordered_set<std::string>>(
+  return detail::read_parquet_as_json_helper<std::unordered_set<std::string>>(
       reader, schema, true);
 }
 
@@ -123,6 +126,7 @@ inline boost::json::object read_parquet_as_json(
     parquet_parser::parquet_stream_reader&       reader,
     const parquet_parser::file_schema_container& schema,
     const key_container&                         include_columns) {
-  return read_parquet_as_json_helper(reader, schema, false, include_columns);
+  return detail::read_parquet_as_json_helper(reader, schema, false,
+                                             include_columns);
 }
 }  // namespace ygm::io

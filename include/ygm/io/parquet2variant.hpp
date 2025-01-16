@@ -23,6 +23,7 @@ namespace ygm::io {
 using parquet_type_variant = std::variant<std::monostate, bool, int32_t,
                                           int64_t, float, double, std::string>;
 
+namespace detail {
 inline parquet_type_variant read_parquet_element_as_variant(
     const ygm::io::detail::parquet_data_type& type_holder,
     parquet_parser::parquet_stream_reader&    stream) {
@@ -96,6 +97,7 @@ inline std::vector<parquet_type_variant> read_parquet_as_variant_helper(
   reader.EndRow();
   return row;
 }
+}  // namespace detail
 
 /**
  * @brief Reads a row data from a Parquet StreamReader and returns the read row
@@ -106,7 +108,7 @@ inline std::vector<parquet_type_variant> read_parquet_as_variant_helper(
 inline std::vector<parquet_type_variant> read_parquet_as_variant(
     parquet_parser::parquet_stream_reader&       reader,
     const parquet_parser::file_schema_container& schema) {
-  return read_parquet_as_variant_helper(reader, schema);
+  return detail::read_parquet_as_variant_helper(reader, schema);
 }
 
 /**
@@ -117,6 +119,6 @@ inline std::vector<parquet_type_variant> read_parquet_as_variant(
     parquet_parser::parquet_stream_reader&       reader,
     const parquet_parser::file_schema_container& schema,
     const std::unordered_set<std::string>&       include_columns) {
-  return read_parquet_as_variant_helper(reader, schema, include_columns);
+  return detail::read_parquet_as_variant_helper(reader, schema, include_columns);
 }
 }  // namespace ygm::io
