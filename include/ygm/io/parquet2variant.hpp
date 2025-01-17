@@ -89,6 +89,12 @@ inline std::vector<parquet_type_variant> read_parquet_as_variant_helper(
     if (include_columns &&
         std::find(std::begin(*include_columns), std::end(*include_columns),
                   colum_name) == std::end(*include_columns)) {
+      reader.SkipColumns(1);
+      continue;
+    }
+    if (data_type.unsupported) {
+      // Skip unsupported columns instead of throwing an exception
+      reader.SkipColumns(1);
       continue;
     }
     row.emplace_back(read_parquet_element_as_variant(data_type, reader));

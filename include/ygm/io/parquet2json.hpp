@@ -94,6 +94,12 @@ inline boost::json::object read_parquet_as_json_helper(
     if (!read_all &&
         std::find(std::begin(include_columns), std::end(include_columns),
                   colum_name) == std::end(include_columns)) {
+      reader.SkipColumns(1);
+      continue;
+    }
+    if (data_type.unsupported) {
+      // Skip unsupported columns instead of throwing an exception
+      reader.SkipColumns(1);
       continue;
     }
     object[colum_name] = read_parquet_element_as_json_value(data_type, reader);

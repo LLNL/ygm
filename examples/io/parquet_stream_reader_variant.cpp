@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
   // Print column name
   world.cout0() << "Column names:" << std::endl;
   for (size_t i = 0; i < schema.size(); ++i) {
-    world.cout0() << std::get<1>(schema[i]);
+    world.cout0() << "[" << std::get<1>(schema[i]) << "]";
     if (i < schema.size() - 1) {
       world.cout0() << "\t";
     }
