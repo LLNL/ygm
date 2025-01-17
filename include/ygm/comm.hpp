@@ -181,8 +181,6 @@ class comm {
   template <typename... Args>
   void cerr0(Args &&...args) const;
 
-  void trace_message(std::string message);
-
   // Private member functions
  private:
   void comm_setup(MPI_Comm comm);
@@ -258,7 +256,6 @@ class comm {
 
   uint64_t m_recv_count      = 0;
   uint64_t m_send_count      = 0;
-  uint64_t m_next_message_id = 0;
 
   bool m_in_process_receive_queue = false;
 

@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: MIT
 
 #pragma once
-#include <iomanip>
 #include <ygm/detail/lambda_compliance.hpp>
 #include <ygm/detail/meta/functional.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
@@ -71,8 +70,7 @@ inline void comm::comm_setup(MPI_Comm c) {
   if (config.trace_ygm || config.trace_mpi) {
     if (rank0()) m_tracer.create_directory(config.trace_path);
     YGM_ASSERT_MPI(MPI_Barrier(c));
-    m_tracer.open_file(config.trace_path, rank());
-    m_next_message_id = rank();
+    m_tracer.open_file(config.trace_path, rank(), size());
   }
 }
 
@@ -140,16 +138,6 @@ inline void comm::stats_print(const std::string &name, std::ostream &os) {
 
 inline comm::~comm() {
   barrier();
-  for (int i = 0; i < m_layout.size(); i++) {
-    if (rank() == i) {
-      std::cout << "Rank " << rank() << std::setw(30)
-                << "i_send_counts = " << stats.get_isend_count() << std::setw(30)
-                << "i_recv_counts = " << stats.get_irecv_count() 
-                << std::setw(30)
-                << "async_counts = " << stats.get_async_count()
-                << std::endl;
-    }
-  }
 
   YGM_ASSERT_RELEASE(MPI_Barrier(m_comm_async) == MPI_SUCCESS);
 
@@ -171,8 +159,10 @@ inline comm::~comm() {
 
 template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
+
   TimeResolution event_time;
   if (config.trace_ygm) event_time = m_tracer.get_time();
+
   YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(AsyncFunction, "ygm::comm::async()");
 
   YGM_ASSERT_RELEASE(dest < m_layout.size());
@@ -204,12 +194,11 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
     m_send_buffer_bytes += header_bytes;
   }
 
-  // TODO: Add tracing header
   size_t trace_header_bytes = 0;
   if (config.trace_ygm) {
-    m_next_message_id += size();
+    int message_id = m_tracer.get_next_message_id();
     trace_header_bytes = pack_tracing_header(m_vec_send_buffers[next_dest],
-                                             m_next_message_id, 0);
+                                             message_id, 0);
     m_send_buffer_bytes += trace_header_bytes;
   }
 
@@ -224,8 +213,7 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
     if (config.trace_ygm) iter -= trace_header_bytes;
 
     std::memcpy(&*iter, &bytes,
-                sizeof(header_t::dest));  // TODO:: TYPO? should it be
-                                          // header_t::message_size
+                sizeof(header_t::message_size));                                  
   }
   //
   // Check if send buffer capacity has been exceeded
@@ -234,19 +222,7 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
   }
 
   if (config.trace_ygm) {
-    TimeResolution duration = m_tracer.get_time() - event_time;
-
-    std::unordered_map<std::string, std::any> metadata;
-    metadata["from"]         = rank();
-    metadata["to"]           = dest;
-    metadata["event_id"]     = m_next_message_id;
-    metadata["message_size"] = bytes;
-
-    ConstEventType event_name = "async";
-    ConstEventType action     = "send";
-
-    m_tracer.trace_event(m_next_message_id, action, event_name, rank(),
-                         event_time, metadata, 'X', duration);
+    m_tracer.trace_ygm_async(m_tracer.get_next_message_id(), dest, bytes, event_time);
   }
 }
 
@@ -310,18 +286,7 @@ inline void comm::barrier() {
   }
 
   if (config.trace_ygm || config.trace_mpi) {
-    m_next_message_id += size();
-    std::unordered_map<std::string, std::any> metadata;
-    metadata["m_pending_isend_bytes"] = m_pending_isend_bytes;
-    metadata["m_send_buffer_bytes"]   = m_send_buffer_bytes;
-    metadata["m_recv_count"]          = m_recv_count;
-    metadata["m_send_count"]          = m_send_count;
-    ConstEventType event_name         = "barrier";
-    ConstEventType action             = "barrier";
-    TimeResolution duration           = m_tracer.get_time() - start_time;
-
-    m_tracer.trace_event(m_next_message_id, action, event_name, rank(),
-                         start_time, metadata, 'X', duration);
+    m_tracer.trace_barrier(m_tracer.get_next_message_id(), start_time, m_send_count, m_recv_count, m_pending_isend_bytes, m_send_buffer_bytes);
   }
   YGM_ASSERT_RELEASE(m_pre_barrier_callbacks.empty());
   YGM_ASSERT_RELEASE(m_send_dest_queue.empty());
@@ -528,13 +493,6 @@ inline std::string comm::outstr(Args &&...args) const {
   return ss.str();
 }
 
-void comm::trace_message(std::string message) {
-  if (config.trace_ygm || config.trace_mpi) {
-    m_next_message_id += size();
-    m_tracer.trace_message(m_next_message_id, rank(), message);
-  }
-}
-
 inline size_t comm::pack_routing_header(std::vector<std::byte> &packed,
                                         const int dest, size_t size) {
   size_t size_before = packed.size();
@@ -608,17 +566,7 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
         stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
 
         if (config.trace_mpi) {
-          TimeResolution event_time = m_tracer.get_time();
-          std::unordered_map<std::string, std::any> metadata;
-          metadata["type"] = "barrier_reduce_counts";
-          metadata["from"] = twin_status[i].MPI_SOURCE;
-          metadata["size"] = buffer_size;
-
-          ConstEventType event_name = "mpi_receive";
-          ConstEventType action     = "mpi_receive";
-
-          m_tracer.trace_event(0, action, event_name, rank(), event_time,
-                              metadata);
+          m_tracer.trace_mpi_receive(0, twin_status[i].MPI_SOURCE, buffer_size);
         }
 
         handle_next_receive(req_buffer.buffer, buffer_size);
@@ -639,8 +587,13 @@ inline void comm::flush_send_buffer(int dest) {
   if (m_vec_send_buffers[dest].size() > 0) {
     mpi_isend_request request;
 
-    m_next_message_id += size();
-    request.id = m_next_message_id;
+    
+    if (config.trace_mpi) {
+        request.id = m_tracer.get_next_message_id();
+    }
+    else{
+        request.id = 0;
+    }
 
     if (m_free_send_buffers.empty()) {
       request.buffer = std::make_shared<std::vector<std::byte>>();
@@ -661,17 +614,7 @@ inline void comm::flush_send_buffer(int dest) {
     stats.isend(dest, request.buffer->size());
 
     if (config.trace_mpi) {
-      TimeResolution event_time = m_tracer.get_time();
-      std::unordered_map<std::string, std::any> metadata;
-      metadata["type"] = "mpi_send";
-      metadata["to"] = dest;
-      metadata["size"] = request.buffer->size();
-
-      ConstEventType event_name = "mpi_send";
-      ConstEventType action     = "mpi_send";
-
-      m_tracer.trace_event(m_next_message_id, action, event_name, rank(),
-                           event_time, metadata);
+      m_tracer.trace_mpi_send(m_tracer.get_next_message_id(), dest, request.buffer->size());
     }
 
     m_pending_isend_bytes += request.buffer->size();
@@ -1025,20 +968,8 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
         m_recv_count++;
         stats.rpc_execute();
 
-        // TODO: IMPLEMENTING Async 'e'
         if (config.trace_ygm) {
-          TimeResolution duration = m_tracer.get_time() - event_time;
-          std::unordered_map<std::string, std::any> metadata;
-          metadata["from"]         = trace_h.from;
-          metadata["to"]           = rank();
-          metadata["event_id"]     = trace_h.trace_id;
-          metadata["message_size"] = h.message_size;
-
-          ConstEventType event_name = "async";
-          ConstEventType action     = "receive";
-
-          m_tracer.trace_event(trace_h.trace_id, action, event_name, rank(),
-                               event_time, metadata, 'X', duration);
+          m_tracer.trace_ygm_async_recv(trace_h.trace_id, trace_h.from, h.message_size, event_time);
         }
 
       } else {
@@ -1052,9 +983,9 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
                                                   h.dest, h.message_size);
         m_send_buffer_bytes += header_bytes;
 
-        size_t traciing_header_bytes = pack_tracing_header(
+        size_t tracing_header_bytes = pack_tracing_header(
             m_vec_send_buffers[next_dest], trace_h.trace_id, 0);
-        m_send_buffer_bytes += traciing_header_bytes;
+        m_send_buffer_bytes += tracing_header_bytes;
 
         size_t precopy_size = m_vec_send_buffers[next_dest].size();
         m_vec_send_buffers[next_dest].resize(precopy_size + h.message_size);
@@ -1066,7 +997,6 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
         flush_to_capacity();
       }
     } else {
-      // TODO: load binary for tracing header if it exists
       trace_header_t trace_h;
       TimeResolution event_time;
       if (config.trace_ygm) {
@@ -1080,18 +1010,16 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
       m_recv_count++;
       stats.rpc_execute();
 
-      // TODO: IMPLEMENTING Async 'e'
       if (config.trace_ygm) {
         TimeResolution duration = m_tracer.get_time() - event_time;
         std::unordered_map<std::string, std::any> metadata;
         metadata["from"]     = trace_h.from;
         metadata["to"]       = rank();
-        metadata["event_id"] = trace_h.trace_id;
 
         ConstEventType event_name = "async";
         ConstEventType action     = "receive";
 
-        m_tracer.trace_event(trace_h.trace_id, action, event_name, rank(),
+        m_tracer.trace_event(trace_h.trace_id ,action, event_name, rank(),
                              event_time, metadata, 'X', duration);
       }
     }
@@ -1175,8 +1103,8 @@ inline bool comm::process_receive_queue() {
           metadata["type"]          = "mpi_send";
           ConstEventType event_name = "mpi";
           ConstEventType action     = "mpi_send";
-          m_tracer.trace_event(m_send_queue.front().id, action, event_name,
-                               rank(), event_time, metadata, 'e');
+          m_tracer.trace_event(0, action, event_name,
+                               rank(), event_time, metadata);
         }
         m_pending_isend_bytes -= m_send_queue.front().buffer->size();
         m_send_queue.front().buffer->clear();
