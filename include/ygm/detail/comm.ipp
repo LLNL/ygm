@@ -1010,17 +1010,9 @@ inline void comm::handle_next_receive(std::shared_ptr<std::byte[]> buffer,
       m_recv_count++;
       stats.rpc_execute();
 
+      // TODO:: What is this message size, temp value of 0 is placed
       if (config.trace_ygm) {
-        TimeResolution duration = m_tracer.get_time() - event_time;
-        std::unordered_map<std::string, std::any> metadata;
-        metadata["from"]     = trace_h.from;
-        metadata["to"]       = rank();
-
-        ConstEventType event_name = "async";
-        ConstEventType action     = "receive";
-
-        m_tracer.trace_event(trace_h.trace_id ,action, event_name, rank(),
-                             event_time, metadata, 'X', duration);
+          m_tracer.trace_ygm_async_recv(trace_h.trace_id, trace_h.from, 0, event_time);
       }
     }
   }
@@ -1073,18 +1065,9 @@ inline bool comm::process_receive_queue() {
         YGM_ASSERT_MPI(MPI_Get_count(&twin_status[i], MPI_BYTE, &buffer_size));
         stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
 
+
         if (config.trace_mpi) {
-          TimeResolution event_time = m_tracer.get_time();
-          std::unordered_map<std::string, std::any> metadata;
-          metadata["type"] = "local_process_incoming";
-          metadata["from"] = twin_status[i].MPI_SOURCE;
-          metadata["size"] = buffer_size;
-
-          ConstEventType event_name = "mpi_receive";
-          ConstEventType action     = "mpi_receive";
-
-          m_tracer.trace_event(0, action, event_name, rank(), event_time,
-                              metadata);
+          m_tracer.trace_mpi_receive(0, twin_status[i].MPI_SOURCE, buffer_size);
         }
   
         handle_next_receive(req_buffer.buffer, buffer_size);
@@ -1097,14 +1080,9 @@ inline bool comm::process_receive_queue() {
           MPI_Test(&(m_send_queue.front().request), &flag, MPI_STATUS_IGNORE));
       stats.isend_test();
       if (flag) {
+        // TODO: Do not know if this is correct, m_send_queue.front().id
         if (config.trace_mpi) {
-          TimeResolution event_time = m_tracer.get_time();
-          std::unordered_map<std::string, std::any> metadata;
-          metadata["type"]          = "mpi_send";
-          ConstEventType event_name = "mpi";
-          ConstEventType action     = "mpi_send";
-          m_tracer.trace_event(0, action, event_name,
-                               rank(), event_time, metadata);
+          m_tracer.trace_mpi_send(m_tracer.get_next_message_id(), m_send_queue.front().id,  m_send_queue.front().buffer->size());
         }
         m_pending_isend_bytes -= m_send_queue.front().buffer->size();
         m_send_queue.front().buffer->clear();
@@ -1137,17 +1115,7 @@ inline bool comm::local_process_incoming() {
       stats.irecv(status.MPI_SOURCE, buffer_size);
 
       if (config.trace_mpi) {
-        TimeResolution event_time = m_tracer.get_time();
-        std::unordered_map<std::string, std::any> metadata;
-        metadata["type"] = "local_process_incoming";
-        metadata["from"] = status.MPI_SOURCE;
-        metadata["size"] = buffer_size;
-
-        ConstEventType event_name = "mpi_receive";
-        ConstEventType action     = "mpi_receive";
-
-        m_tracer.trace_event(0, action, event_name, rank(), event_time,
-                             metadata);
+        m_tracer.trace_mpi_receive(0, status.MPI_SOURCE, buffer_size);
       }
 
       handle_next_receive(req_buffer.buffer, buffer_size);
