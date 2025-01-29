@@ -266,6 +266,8 @@ class comm {
 
   detail::lambda_map<void (*)(comm *, cereal::YGMInputArchive *), uint16_t>
       m_lambda_map;
+
+  int buffer_capacity_multiple = 0;
 };
 
 }  // end namespace ygm

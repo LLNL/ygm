@@ -189,6 +189,13 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
     std::memcpy(&*iter, &bytes, sizeof(header_t::dest));
   }
 
+  // Debugging buffer capacity reached
+  if (m_send_buffer_bytes / config.buffer_size > buffer_capacity_multiple) {
+    buffer_capacity_multiple = m_send_buffer_bytes / config.buffer_size;
+    cout() << "buffer capacity multiple: " << buffer_capacity_multiple
+           << std::endl;
+  }
+
   //
   // Check if send buffer capacity has been exceeded
   if (!m_in_process_receive_queue) {
