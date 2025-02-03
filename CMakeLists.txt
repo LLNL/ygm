@@ -143,7 +143,8 @@ endif ()
 #
 #
 include(FindArrowParquet)
-option(YGM_REQUIRE_ARROW_PARQUET "YGM requires Apache Arrow Parquet." OFF)
+option(YGM_REQUIRE_PARQUET "YGM requires Arrow Parquet." OFF)
+option(YGM_INSTALL_PARQUET "YGM installs Arrow Parquet if it is not found." OFF)
 find_or_install_arrow_parquet()
 
 #

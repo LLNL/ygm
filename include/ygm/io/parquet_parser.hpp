@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -30,8 +30,12 @@ namespace stdfs = std::filesystem;
 
 namespace ygm::io {
 
+namespace detail {
 struct parquet_data_type {
-  parquet::Type::type type;
+  parquet::Type::type type{parquet::Type::type::UNDEFINED};
+
+  // If true, the data type is not supported by this parser.
+  bool unsupported{false};
 
   bool equal(const parquet::Type::type other_type) const {
     return other_type == type;
@@ -44,6 +48,7 @@ std::ostream& operator<<(std::ostream& os, const parquet_data_type& t) {
   os << parquet::TypeToString(t.type);
   return os;
 }
+}  // namespace detail
 
 // Parquet file parser
 // Only supports the plain encoding.
@@ -53,7 +58,7 @@ class parquet_parser {
   using self_type = parquet_parser;
   // 0: a column type, 1: column name
   using file_schema_container =
-      std::vector<std::tuple<parquet_data_type, std::string>>;
+      std::vector<std::tuple<detail::parquet_data_type, std::string>>;
   using parquet_stream_reader = parquet::StreamReader;
 
   parquet_parser(ygm::comm& _comm) : m_comm(_comm), pthis(this) {
@@ -120,9 +125,12 @@ class parquet_parser {
       const stdfs::path& input_filename) {
     // Open the Parquet file
     std::shared_ptr<arrow::io::ReadableFile> input_file;
-    PARQUET_ASSIGN_OR_THROW(input_file,
-                            arrow::io::ReadableFile::Open(input_filename));
-
+    try {
+      PARQUET_ASSIGN_OR_THROW(input_file,
+                              arrow::io::ReadableFile::Open(input_filename));
+    } catch (...) {
+      return nullptr;
+    }
     // Create a ParquetFileReader object
     return parquet::ParquetFileReader::Open(input_file);
   }
@@ -225,7 +233,6 @@ class parquet_parser {
   template <typename Function>
   void read_files(Function fn) {
     m_comm.barrier();
-
     if (ARROW_VERSION_MAJOR < 14) {
       // Due to a bug in parquet::StreamReader::SkipRows() in < v14,
       // we can not read a single file using multiple ranks.
@@ -236,12 +243,10 @@ class parquet_parser {
       }
     } else {
       assign_read_range();
-
       // If n is 0, fno and offset could contain invalid values
       ssize_t n      = ssize_t(m_read_range.num_rows);
       size_t  fno    = m_read_range.begin_file_no;
       size_t  offset = m_read_range.begin_row_offset;
-
       while (n > 0) {
         n -= read_parquet_stream(m_paths[fno], fn, offset, n);
         assert(n >= 0);
@@ -253,6 +258,10 @@ class parquet_parser {
 
   void read_file_schema() {
     auto reader = open_file(m_paths[0]);
+    if (reader == nullptr) {
+      throw std::runtime_error("Failed to open the file: " +
+                               m_paths[0].string());
+    }
 
     // Get the file schema
     parquet::SchemaDescriptor const* const file_schema =
@@ -261,8 +270,15 @@ class parquet_parser {
     const size_t field_count = file_schema->num_columns();
     for (size_t i = 0; i < field_count; ++i) {
       parquet::ColumnDescriptor const* const column = file_schema->Column(i);
-      m_schema.emplace_back(std::forward_as_tuple(
-          parquet_data_type{column->physical_type()}, column->name()));
+      auto ptype = detail::parquet_data_type{column->physical_type()};
+      if (column->max_definition_level() != 1 ||
+          column->max_repetition_level() != 0) {
+        // The column is not flat, which is not supported by this parser.
+        ptype.unsupported = true;
+        // Memo: for definition and repetition levels, see
+        // https://blog.x.com/engineering/en_us/a/2013/dremel-made-simple-with-parquet
+      }
+      m_schema.emplace_back(std::forward_as_tuple(ptype, column->name()));
     }
     m_schema_string = file_schema->ToString();
   }
@@ -276,9 +292,12 @@ class parquet_parser {
   size_t read_parquet_stream(const stdfs::path& input_filename, Function fn,
                              const size_t  offset           = 0,
                              const ssize_t num_rows_to_read = -1) {
-    auto                  reader = open_file(input_filename);
+    auto reader = open_file(input_filename);
+    if (reader == nullptr) {
+      throw std::runtime_error("Failed to open the file: " +
+                               input_filename.string());
+    }
     parquet_stream_reader stream{std::move(reader)};
-
     if (offset > 0) {
       // SkipRows() has a bug in < v14
       assert(ARROW_VERSION_MAJOR >= 14);
@@ -309,7 +328,7 @@ class parquet_parser {
 
       const size_t total_num_rows =
           std::accumulate(num_rows.begin(), num_rows.end(), size_t(0));
-      // std::cout << total_num_rows << std::endl; //DB
+      // std::cerr << total_num_rows << std::endl; //DB
 
       size_t file_no           = 0;
       size_t row_no_offset     = 0;

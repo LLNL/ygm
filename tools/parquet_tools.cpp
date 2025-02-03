@@ -16,8 +16,8 @@
 
 #include <ygm/comm.hpp>
 #include <ygm/io/csv_parser.hpp>
-#include <ygm/io/detail/parquet2json.hpp>
-#include <ygm/io/detail/parquet2variant.hpp>
+#include <ygm/io/parquet2json.hpp>
+#include <ygm/io/parquet2variant.hpp>
 #include <ygm/io/parquet_parser.hpp>
 #include <ygm/utility.hpp>
 
@@ -207,13 +207,13 @@ void count_rows(const options_t& opt, ygm::comm& world) {
                          auto& stream_reader, const auto&) {
       if (opt.variant) {
         try {
-          ygm::io::detail::read_parquet_as_variant(stream_reader, schema);
+          ygm::io::read_parquet_as_variant(stream_reader, schema);
         } catch (...) {
           ++num_error_lines;
         }
       } else if (opt.json) {
         try {
-          ygm::io::detail::read_parquet_as_json(stream_reader, schema);
+          ygm::io::read_parquet_as_json(stream_reader, schema);
         } catch (...) {
           ++num_error_lines;
         }
@@ -264,15 +264,13 @@ void dump(const options_t& opt, ygm::comm& world) {
                        auto& stream_reader, const auto&) {
     if (opt.json) {
       try {
-        const auto row =
-            ygm::io::detail::read_parquet_as_json(stream_reader, schema);
+        const auto row = ygm::io::read_parquet_as_json(stream_reader, schema);
         ofs << row << std::endl;
       } catch (...) {
         ++num_error_lines;
       }
     } else {
-      auto row =
-          ygm::io::detail::read_parquet_as_variant(stream_reader, schema);
+      auto row = ygm::io::read_parquet_as_variant(stream_reader, schema);
       for (const auto& v : row) {
         std::visit(
             [&ofs](auto&& arg) {
