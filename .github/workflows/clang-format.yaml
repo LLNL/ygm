@@ -2,12 +2,12 @@ name: Run clang-format Linter
 
 on:
   pull_request:
-    types: enqueued
+    types: closed
 
 jobs:
-  build:
-    runs-on: ubuntu-24.04
-
+  if_merged:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - uses: DoozyX/clang-format-lint-action@v0.18.1
