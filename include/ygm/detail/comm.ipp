@@ -191,9 +191,7 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
 
   //
   // Check if send buffer capacity has been exceeded
-  if (!m_in_process_receive_queue) {
-    flush_to_capacity();
-  }
+  flush_to_capacity();
 }
 
 template <typename AsyncFunction, typename... SendArgs>
@@ -206,9 +204,7 @@ inline void comm::async_bcast(AsyncFunction fn, const SendArgs &...args) {
 
   //
   // Check if send buffer capacity has been exceeded
-  if (!m_in_process_receive_queue) {
-    flush_to_capacity();
-  }
+  flush_to_capacity();
 }
 
 template <typename AsyncFunction, typename... SendArgs>
