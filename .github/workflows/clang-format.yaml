@@ -13,7 +13,8 @@ jobs:
         source: 'include examples test tools'
         extensions: 'hpp,cpp,ipp,h,c'
         clangFormatVersion: 14
-        inplace: True
+        inplace: False
+        style: file
         #- uses: EndBug/add-and-commit@v9
         #with:
         #author_name: Clang Robot
