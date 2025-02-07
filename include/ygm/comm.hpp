@@ -33,7 +33,7 @@ class comm_router;
 
 class comm {
  private:
-  class mpi_irecv_request;
+    class mpi_irecv_request;
   class mpi_isend_request;
   class header_t;
   friend class detail::interrupt_mask;
