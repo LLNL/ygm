@@ -214,11 +214,11 @@ class comm {
   size_t pack_lambda_generic(ygm::detail::byte_vector &packed, Lambda l,
                              RemoteLogicLambda rll, const PackArgs &...args);
 
-  void queue_message_bytes(const ygm::detail::byte_vector             &packed,
-                           const int                     dest);
+  void queue_message_bytes(const ygm::detail::byte_vector &packed,
+                           const int                       dest);
 
   void handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> &buffer,
-                           const size_t                 buffer_size);
+                           const size_t buffer_size);
 
   bool process_receive_queue();
 
@@ -241,11 +241,11 @@ class comm {
   MPI_Comm m_comm_other;
 
   std::vector<ygm::detail::byte_vector> m_vec_send_buffers;
-  size_t                              m_send_buffer_bytes = 0;
-  std::deque<int>                     m_send_dest_queue;
+  size_t                                m_send_buffer_bytes = 0;
+  std::deque<int>                       m_send_dest_queue;
 
-  std::deque<mpi_irecv_request>                        m_recv_queue;
-  std::deque<mpi_isend_request>                        m_send_queue;
+  std::deque<mpi_irecv_request>                          m_recv_queue;
+  std::deque<mpi_isend_request>                          m_send_queue;
   std::vector<std::shared_ptr<ygm::detail::byte_vector>> m_free_send_buffers;
 
   size_t m_pending_isend_bytes = 0;
