@@ -26,8 +26,7 @@ int main(int argc, char** argv) {
   // types correctly
   const auto& schema = parquetp.schema();
   parquetp.for_all([&schema, &world](auto& stream_reader, const auto&) {
-    const auto obj =
-        ygm::io::read_parquet_as_json(stream_reader, schema);
+    const auto obj = ygm::io::read_parquet_as_json(stream_reader, schema);
 
     world.async(
         0,

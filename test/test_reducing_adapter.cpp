@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
             YGM_ASSERT_RELEASE(value == num_reductions - 1);
           } else if (key == "sum") {
             YGM_ASSERT_RELEASE(value == world.size() * num_reductions *
-                                        (num_reductions - 1) / 2);
+                                            (num_reductions - 1) / 2);
           } else {
             YGM_ASSERT_RELEASE(false);
           }

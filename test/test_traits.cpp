@@ -77,7 +77,6 @@ int main(int argc, char** argv) {
   // static_assert(
   //     not ygm::detail::is_for_all_invocable<ygm::container::map<int, int>,
   //                                           decltype(l_pair_int_int)>::value);
-  
 
   return 0;
 }

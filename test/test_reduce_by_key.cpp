@@ -6,8 +6,8 @@
 #undef NDEBUG
 
 #include <ygm/comm.hpp>
-#include <ygm/container/reduce_by_key.hpp>
 #include <ygm/container/bag.hpp>
+#include <ygm/container/reduce_by_key.hpp>
 
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
@@ -22,7 +22,8 @@ int main(int argc, char** argv) {
 
     YGM_ASSERT_RELEASE(test.size() == 1);
     test.async_visit(
-        0, [](int key, int value, int size) { YGM_ASSERT_RELEASE(value == size); },
+        0,
+        [](int key, int value, int size) { YGM_ASSERT_RELEASE(value == size); },
         world.size());
   }
 

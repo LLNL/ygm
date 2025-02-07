@@ -13,12 +13,12 @@ namespace ygm {
 
 struct comm::mpi_irecv_request {
   std::shared_ptr<ygm::detail::byte_vector> buffer;
-  MPI_Request                             request;
+  MPI_Request                               request;
 };
 
 struct comm::mpi_isend_request {
   std::shared_ptr<ygm::detail::byte_vector> buffer;
-  MPI_Request                             request;
+  MPI_Request                               request;
 };
 
 struct comm::header_t {
@@ -57,7 +57,8 @@ inline void comm::comm_setup(MPI_Comm c) {
   }
 
   for (size_t i = 0; i < config.num_irecvs; ++i) {
-    std::shared_ptr<ygm::detail::byte_vector> recv_buffer{new ygm::detail::byte_vector(config.irecv_size)};
+    std::shared_ptr<ygm::detail::byte_vector> recv_buffer{
+        new ygm::detail::byte_vector(config.irecv_size)};
     post_new_irecv(recv_buffer);
   }
 }
@@ -335,7 +336,7 @@ inline T comm::all_reduce(const T &in, MergeFunction merge) const {
 template <typename T>
 inline void comm::mpi_send(const T &data, int dest, int tag,
                            MPI_Comm comm) const {
-  ygm::detail::byte_vector        packed;
+  ygm::detail::byte_vector packed;
   cereal::YGMOutputArchive oarchive(packed);
   oarchive(data);
   size_t packed_size = packed.size();
@@ -364,7 +365,7 @@ inline T comm::mpi_recv(int source, int tag, MPI_Comm comm) const {
 
 template <typename T>
 inline T comm::mpi_bcast(const T &to_bcast, int root, MPI_Comm comm) const {
-  ygm::detail::byte_vector        packed;
+  ygm::detail::byte_vector packed;
   cereal::YGMOutputArchive oarchive(packed);
   if (rank() == root) {
     oarchive(to_bcast);
@@ -450,8 +451,8 @@ inline std::string comm::outstr(Args &&...args) const {
   return ss.str();
 }
 
-inline size_t comm::pack_header(ygm::detail::byte_vector &packed, const int dest,
-                                size_t size) {
+inline size_t comm::pack_header(ygm::detail::byte_vector &packed,
+                                const int dest, size_t size) {
   size_t size_before = packed.size();
 
   header_t h;
@@ -663,15 +664,16 @@ inline void comm::flush_to_capacity() {
   }
 }
 
-inline void comm::post_new_irecv(std::shared_ptr<ygm::detail::byte_vector> &recv_buffer) {
+inline void comm::post_new_irecv(
+    std::shared_ptr<ygm::detail::byte_vector> &recv_buffer) {
   recv_buffer->clear();
   mpi_irecv_request recv_req;
   recv_req.buffer = recv_buffer;
 
   //::madvise(recv_req.buffer.get(), config.irecv_size, MADV_DONTNEED);
-  YGM_ASSERT_MPI(MPI_Irecv(recv_req.buffer.get()->data(), config.irecv_size, MPI_BYTE,
-                       MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_async,
-                       &(recv_req.request)));
+  YGM_ASSERT_MPI(MPI_Irecv(recv_req.buffer.get()->data(), config.irecv_size,
+                           MPI_BYTE, MPI_ANY_SOURCE, MPI_ANY_TAG, m_comm_async,
+                           &(recv_req.request)));
   m_recv_queue.push_back(recv_req);
 }
 
@@ -846,9 +848,7 @@ inline size_t comm::pack_lambda_generic(ygm::detail::byte_vector &packed,
 
   uint16_t lid = m_lambda_map.register_lambda(remote_dispatch_lambda);
 
-  {
-    packed.push_bytes(&lid, sizeof(lid));
-  }
+  { packed.push_bytes(&lid, sizeof(lid)); }
 
   if constexpr (!std::is_empty<Lambda>::value) {
     // oarchive.saveBinary(&l, sizeof(Lambda));
@@ -869,8 +869,8 @@ inline size_t comm::pack_lambda_generic(ygm::detail::byte_vector &packed,
  * destination. Does not modify packed message to add headers for routing.
  *
  */
-inline void comm::queue_message_bytes(const ygm::detail::byte_vector            &packed,
-                                      const int                    dest) {
+inline void comm::queue_message_bytes(const ygm::detail::byte_vector &packed,
+                                      const int                       dest) {
   m_send_count++;
 
   //
@@ -895,8 +895,9 @@ inline void comm::queue_message_bytes(const ygm::detail::byte_vector            
   m_send_buffer_bytes += packed.size();
 }
 
-inline void comm::handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> &buffer,
-                                      const size_t buffer_size) {
+inline void comm::handle_next_receive(
+    std::shared_ptr<ygm::detail::byte_vector> &buffer,
+    const size_t                               buffer_size) {
   cereal::YGMInputArchive iarchive(buffer.get()->data(), buffer_size);
   while (!iarchive.empty()) {
     if (config.routing != detail::routing_type::NONE) {

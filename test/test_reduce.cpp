@@ -22,9 +22,8 @@ int main(int argc, char** argv) {
     int sum = ibag.reduce(std::plus<int>());
     YGM_ASSERT_RELEASE(sum = 124);
 
-
-    int even_sum = ibag.filter([](int i){return i%2==0;}).reduce(std::plus<int>());
+    int even_sum =
+        ibag.filter([](int i) { return i % 2 == 0; }).reduce(std::plus<int>());
     YGM_ASSERT_RELEASE(even_sum = 108);
   }
-
 }

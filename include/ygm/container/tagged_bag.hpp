@@ -103,7 +103,8 @@ class tagged_bag {
   //   return m_tagged_bag.all_gather(tags);
   // }
 
-  std::map<tag_type, value_type> gather_keys(const std::vector<tag_type> &tags) {
+  std::map<tag_type, value_type> gather_keys(
+      const std::vector<tag_type> &tags) {
     return m_tagged_bag.gather_keys(tags);
   }
   template <typename Function>

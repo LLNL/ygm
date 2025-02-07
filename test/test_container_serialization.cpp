@@ -174,11 +174,11 @@ smap.serialize("serialization_test.mmap");
     YGM_ASSERT_RELEASE(cset.size() == 3);
 
     auto count_map = cset.all_gather({"dog", "cat", "apple"});
-    YGM_ASSERT_RELEASE(count_map["dog"] == (size_t) world.size());
-    YGM_ASSERT_RELEASE(count_map["apple"] == (size_t) world.size());
+    YGM_ASSERT_RELEASE(count_map["dog"] == (size_t)world.size());
+    YGM_ASSERT_RELEASE(count_map["apple"] == (size_t)world.size());
     YGM_ASSERT_RELEASE(cset.count("cat") == 0);
 
-    YGM_ASSERT_RELEASE(cset.count_all() == 3 * (size_t) world.size());
+    YGM_ASSERT_RELEASE(cset.count_all() == 3 * (size_t)world.size());
 
     cset.serialize("serialization_test.cset");
   }
@@ -188,17 +188,17 @@ smap.serialize("serialization_test.mmap");
     ygm::container::counting_set<std::string> reloaded_cset(world);
     reloaded_cset.deserialize("serialization_test.cset");
 
-    YGM_ASSERT_RELEASE(reloaded_cset.count("dog") == (size_t) world.size());
-    YGM_ASSERT_RELEASE(reloaded_cset.count("apple") == (size_t) world.size());
-    YGM_ASSERT_RELEASE(reloaded_cset.count("red") == (size_t) world.size());
+    YGM_ASSERT_RELEASE(reloaded_cset.count("dog") == (size_t)world.size());
+    YGM_ASSERT_RELEASE(reloaded_cset.count("apple") == (size_t)world.size());
+    YGM_ASSERT_RELEASE(reloaded_cset.count("red") == (size_t)world.size());
     YGM_ASSERT_RELEASE(reloaded_cset.size() == 3);
 
     auto count_map = reloaded_cset.all_gather({"dog", "cat", "apple"});
-    YGM_ASSERT_RELEASE(count_map["dog"] == (size_t) world.size());
-    YGM_ASSERT_RELEASE(count_map["apple"] == (size_t) world.size());
+    YGM_ASSERT_RELEASE(count_map["dog"] == (size_t)world.size());
+    YGM_ASSERT_RELEASE(count_map["apple"] == (size_t)world.size());
     YGM_ASSERT_RELEASE(reloaded_cset.count("cat") == 0);
 
-    YGM_ASSERT_RELEASE(reloaded_cset.count_all() == 3 * (size_t) world.size());
+    YGM_ASSERT_RELEASE(reloaded_cset.count_all() == 3 * (size_t)world.size());
   }
 }
 return 0;

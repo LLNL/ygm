@@ -13,10 +13,8 @@ namespace ygm::container::detail {
 
 template <typename derived_type, typename for_all_args>
 struct base_async_insert_value {
-  void async_insert(
-      const typename std::tuple_element<0, for_all_args>::type& value)
-    requires SingleItemTuple<for_all_args>
-  {
+  void async_insert(const typename std::tuple_element<0, for_all_args>::type&
+                        value) requires SingleItemTuple<for_all_args> {
     derived_type* derived_this = static_cast<derived_type*>(this);
 
     int dest = derived_this->partitioner.owner(value);
@@ -36,9 +34,8 @@ template <typename derived_type, typename for_all_args>
 struct base_async_insert_key_value {
   void async_insert(
       const typename std::tuple_element<0, for_all_args>::type& key,
-      const typename std::tuple_element<1, for_all_args>::type& value)
-    requires DoubleItemTuple<for_all_args>
-  {
+      const typename std::tuple_element<1, for_all_args>::type& value) requires
+      DoubleItemTuple<for_all_args> {
     derived_type* derived_this = static_cast<derived_type*>(this);
 
     int dest = derived_this->partitioner.owner(key);
@@ -55,9 +52,8 @@ struct base_async_insert_key_value {
 
   void async_insert(
       const std::pair<const typename std::tuple_element<0, for_all_args>::type,
-                      typename std::tuple_element<1, for_all_args>::type>& kvp)
-    requires DoubleItemTuple<for_all_args>
-  {
+                      typename std::tuple_element<1, for_all_args>::type>&
+          kvp) requires DoubleItemTuple<for_all_args> {
     async_insert(kvp.first, kvp.second);
   }
 };

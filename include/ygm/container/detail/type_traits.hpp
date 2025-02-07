@@ -25,8 +25,8 @@ struct is_tuple
     : is_specialization_of<std::tuple, typename std::decay<T>::type> {};
 
 template <typename T>
-struct is_pair
-    : is_specialization_of<std::pair, typename std::decay<T>::type> {};
+struct is_pair : is_specialization_of<std::pair, typename std::decay<T>::type> {
+};
 
 template <class T, bool isTuple>
 struct tuple_wrapper_helper  // T is not a tuple

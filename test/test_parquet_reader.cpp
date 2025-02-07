@@ -76,8 +76,8 @@ int main(int argc, char** argv) {
     auto row_count = world.all_reduce_sum(rows.size());
     YGM_ASSERT_RELEASE(row_count == 12);
 
-    YGM_ASSERT_RELEASE(world.all_reduce_sum(strings.count("Hennessey Venom F5")) ==
-                   1);
+    YGM_ASSERT_RELEASE(
+        world.all_reduce_sum(strings.count("Hennessey Venom F5")) == 1);
   }
 
   //

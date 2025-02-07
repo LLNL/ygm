@@ -101,8 +101,8 @@ int main(int argc, char** argv) {
       YGM_ASSERT_RELEASE(min == 0);
 
       auto sum = world.all_reduce_sum(size_t(world.rank()));
-      YGM_ASSERT_RELEASE(sum ==
-                     (((size_t)world.size() - 1) * (size_t)world.size()) / 2);
+      YGM_ASSERT_RELEASE(
+          sum == (((size_t)world.size() - 1) * (size_t)world.size()) / 2);
 
       size_t id  = world.rank();
       auto   red = world.all_reduce(id, [](size_t a, size_t b) {
