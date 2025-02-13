@@ -43,6 +43,7 @@ class comm_environment {
  public:
   comm_environment(const ygm::detail::layout& layout) {
     size_t nodes = layout.node_size();
+    // We have to determine the routing type first as it changes the ratio between local and remote buffers
     if (const char* cc = std::getenv("YGM_COMM_ROUTING")) {
       if (std::string(cc) == "NONE") {
         routing = routing_type::NONE;
@@ -54,6 +55,8 @@ class comm_environment {
         throw std::runtime_error("comm_enviornment -- unknown routing type");
       }
     }
+
+    // Now we can calculate the buffere sizes based off of the expected traffic from the routing scheme
     if (const char* cc = std::getenv("YGM_COM_BUFFER_SIZE_KB")) {
       total_buffer_size = convert<size_t>(cc) * 1024;
     }
