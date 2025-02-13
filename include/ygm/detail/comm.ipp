@@ -579,7 +579,7 @@ inline void comm::flush_send_buffer(int dest) {
 }
 
 
-inline void comm::queue_next_send(std::deque<int> &dest_queue) {
+inline void comm::flush_next_send(std::deque<int> &dest_queue) {
   if (!dest_queue.empty()) {
     int dest = dest_queue.front();
     dest_queue.pop_front();
@@ -633,10 +633,10 @@ inline void comm::local_progress() {
     process_receive_queue();
   }
   if (not m_send_local_dest_queue.empty()) {
-    queue_next_send(m_send_local_dest_queue);
+    flush_next_send(m_send_local_dest_queue);
   }
   if (not m_send_remote_dest_queue.empty()) {
-    queue_next_send(m_send_remote_dest_queue);
+    flush_next_send(m_send_remote_dest_queue);
   }
 }
 
@@ -675,12 +675,12 @@ inline void comm::flush_all_local_and_process_incoming() {
     //  Flush each send buffer
     while (!m_send_local_dest_queue.empty()) {
       did_something = true;
-      queue_next_send(m_send_local_dest_queue);
+      flush_next_send(m_send_local_dest_queue);
       process_receive_queue();
     }
     while (!m_send_remote_dest_queue.empty()) {
       did_something = true;
-      queue_next_send(m_send_remote_dest_queue);
+      flush_next_send(m_send_remote_dest_queue);
       process_receive_queue();
     }
 
@@ -699,11 +699,11 @@ inline void comm::flush_all_local_and_process_incoming() {
 inline void comm::flush_to_capacity() {
   while (m_send_local_buffer_bytes > config.local_buffer_size) {
     YGM_ASSERT_DEBUG(!m_send_local_dest_queue.empty());
-    queue_next_send(m_send_local_dest_queue);
+    flush_next_send(m_send_local_dest_queue);
   }
   while (m_send_remote_buffer_bytes > config.remote_buffer_size) {
     YGM_ASSERT_DEBUG(!m_send_remote_dest_queue.empty());
-    queue_next_send(m_send_remote_dest_queue);
+    flush_next_send(m_send_remote_dest_queue);
   }
 }
 

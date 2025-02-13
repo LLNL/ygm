@@ -10,6 +10,7 @@
 #include <sstream>
 #include <string>
 #include <cmath>
+#include <ygm/detail/layout.hpp>
 
 namespace ygm {
 
@@ -17,8 +18,8 @@ namespace detail {
 
 enum class routing_type { NONE, NR, NLNR };
 
-  size_t round_to_nearest_kb(size_t number) {
-    return std::ceil(static_cast<double>(number) / 1024) * 1024;
+  size_t round_to_nearest_kb(float number) {
+    return std::ceil(static_cast<float>(number) / 1024) * 1024;
   }
   
 /**
@@ -40,7 +41,8 @@ class comm_environment {
   }
 
  public:
-  comm_environment(size_t nodes) {
+  comm_environment(const ygm::detail::layout& layout) {
+    size_t nodes = layout.node_size();
     if (const char* cc = std::getenv("YGM_COMM_ROUTING")) {
       if (std::string(cc) == "NONE") {
         routing = routing_type::NONE;
@@ -57,27 +59,27 @@ class comm_environment {
     }
     switch (routing) {
       case routing_type::NONE :
-        local_buffer_size  = round_to_nearest_kb(total_buffer_size / nodes);
+        local_buffer_size  = round_to_nearest_kb((float) total_buffer_size / nodes);
         remote_buffer_size = total_buffer_size - local_buffer_size;
         break;
       case routing_type::NR :
-        local_buffer_size  = round_to_nearest_kb(total_buffer_size / 2);
+        local_buffer_size  = round_to_nearest_kb((float) total_buffer_size / 2);
         remote_buffer_size = local_buffer_size;
         break;
       case routing_type::NLNR :
-        local_buffer_size  = round_to_nearest_kb(2 * total_buffer_size / 3);
-        remote_buffer_size = round_to_nearest_kb(total_buffer_size / 3);
+        local_buffer_size  = round_to_nearest_kb(2 * (float) total_buffer_size / 3);
+        remote_buffer_size = round_to_nearest_kb((float) total_buffer_size / 3);
         break;
     }
     if (const char* cc = std::getenv("YGM_COMM_LOCAL_BUFFER_SIZE_KB")) {
       local_buffer_size = convert<size_t>(cc) * 1024;
       if (std::getenv("YGM_COMM_REMOTE_BUFFER_SIZE_KB") == nullptr)
-        std::cerr << "YGM_COMM_REMOTE_BUFFER_SIZE_KB not set, using default  of" << remote_buffer_size << "\n";
+        std::cerr << "YGM_COMM_REMOTE_BUFFER_SIZE_KB not set, using recommended value of" << remote_buffer_size << "\n";
     }
     if (const char* cc = std::getenv("YGM_COMM_REMOTE_BUFFER_SIZE_KB")) {
       remote_buffer_size = convert<size_t>(cc) * 1024;
       if (std::getenv("YGM_COMM_LOCAL_BUFFER_SIZE_KB") == nullptr)
-        std::cerr << "YGM_COMM_LOCAL_BUFFER_SIZE_KB not set, using default  of" << local_buffer_size << "\n";
+        std::cerr << "YGM_COMM_LOCAL_BUFFER_SIZE_KB not set, using recommended value of" << local_buffer_size << "\n";
     }
     if (const char* cc = std::getenv("YGM_COMM_NUM_IRECVS")) {
       num_irecvs = convert<size_t>(cc);

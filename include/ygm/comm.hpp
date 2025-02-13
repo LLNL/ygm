@@ -189,7 +189,7 @@ class comm {
 
   std::pair<uint64_t, uint64_t> barrier_reduce_counts();
 
-  void queue_next_send(std::deque<int> &dest_queue);
+  void flush_next_send(std::deque<int> &dest_queue);
   
   void flush_send_buffer(int dest);
 
@@ -266,7 +266,7 @@ class comm {
 
   detail::comm_stats             stats;
   const detail::layout           m_layout;
-  const detail::comm_environment config = detail::comm_environment(m_layout.node_size());
+  const detail::comm_environment config = detail::comm_environment(m_layout);
   detail::comm_router            m_router;
 
   detail::lambda_map<void (*)(comm *, cereal::YGMInputArchive *), uint16_t>
