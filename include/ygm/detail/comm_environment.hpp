@@ -56,7 +56,13 @@ class comm_environment {
       }
     }
 
-    // Now we can calculate the buffere sizes based off of the expected traffic from the routing scheme
+    // Calculate local and remote buffer sizes based on heuristics for the routing scheme being used 
+    // assuming a uniform communication pattern.
+    // NONE - All messages are sent directly, so the fraction of local messages is 1/(num_nodes)
+    // NR - Most remote messages generate a single remote message followed by a single local message.
+    //      In high-node count situations, this will give roughly equal local and remote communication.
+    // NLNR - Most remote messages generate one remote message and two local messages. In high node-count
+    //      situations, this will give roughly 1/3 of communication as remote and 2/3 as local.
     if (const char* cc = std::getenv("YGM_COM_BUFFER_SIZE_KB")) {
       total_buffer_size = convert<size_t>(cc) * 1024;
     }
