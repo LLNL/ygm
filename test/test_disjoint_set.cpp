@@ -219,7 +219,7 @@ int main(int argc, char** argv) {
           if (union_result) {
             successful_counter++;
           } else {
-            ++unsuccessful_counter;
+            unsuccessful_counter++;
           }
         });
     dset.async_union_and_execute(
@@ -227,7 +227,7 @@ int main(int argc, char** argv) {
           if (union_result) {
             successful_counter++;
           } else {
-            ++unsuccessful_counter;
+            unsuccessful_counter++;
           }
         });
     dset.async_union_and_execute(
@@ -235,7 +235,7 @@ int main(int argc, char** argv) {
           if (union_result) {
             successful_counter++;
           } else {
-            ++unsuccessful_counter;
+            unsuccessful_counter++;
           }
         });
     dset.async_union_and_execute(
@@ -245,7 +245,7 @@ int main(int argc, char** argv) {
           if (union_result) {
             successful_counter++;
           } else {
-            ++unsuccessful_counter;
+            unsuccessful_counter++;
           }
         },
         0);
@@ -253,6 +253,7 @@ int main(int argc, char** argv) {
     world.barrier();
 
     YGM_ASSERT_RELEASE(ygm::sum(successful_counter, world) == 3);
-    YGM_ASSERT_RELEASE(ygm::sum(unsuccessful_counter, world) == 1);
+    YGM_ASSERT_RELEASE(ygm::sum(unsuccessful_counter, world) ==
+                       world.size() * 4 - 3);
   }
 }
