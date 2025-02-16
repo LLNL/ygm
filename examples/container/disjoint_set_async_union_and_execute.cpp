@@ -13,9 +13,12 @@ int main(int argc, char **argv) {
 
   ygm::container::disjoint_set<int> dset(world);
 
-  auto union_lambda = [](const int a, const int b, const int originator) {
-    std::cout << a << " and " << b << " union occurred originating from "
-              << originator << std::endl;
+  auto union_lambda = [](const int a, const int b, const bool union_result,
+                         const int originator) {
+    if (union_result) {
+      std::cout << a << " and " << b << " union occurred originating from "
+                << originator << std::endl;
+    }
   };
 
   if (world.rank() % 2) {
