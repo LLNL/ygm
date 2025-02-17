@@ -14,10 +14,6 @@ project(
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-# Controls whether to set up install boilerplate for project and depencencies.
-# Expects CMAKE_INSTALL_PREFIX to be set to a suitable directory.
-option(YGM_INSTALL "Generate the install target" ${YGM_MAIN_PROJECT})
-
 #
 # Configuration options for YGM
 #
@@ -80,7 +76,7 @@ if (NOT cereal_FOUND)
         # Do not compile any cereal tests
         set(JUST_INSTALL_CEREAL ON)
         # Install cereal at ${CMAKE_INSTALL_PREFIX}
-        set(CEREAL_INSTALL ${YGM_INSTALL})
+        set(CEREAL_INSTALL ON)
         # Populate cereal
         FetchContent_Populate(cereal)
         # Include cereal root cmake boilerplate
@@ -156,6 +152,7 @@ include(CMakePackageConfigHelpers)
 set(YGM_EXPORT_TARGETS ygm)
 
 message(STATUS "YGM_CEREAL_TARGET " ${YGM_CEREAL_TARGET})
+message(STATUS "YGMTargets: " ${ygmTargets})
 install(
     TARGETS ${PROJECT_NAME}
     EXPORT ${PROJECT_NAME}Targets
