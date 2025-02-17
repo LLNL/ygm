@@ -69,7 +69,7 @@ jobs:
           if [ "$ENABLE_PARQUET_TEST" ]; then
             ARROW_CMAKE_OPTION="-DPIP_PYARROW_ROOT=$PIP_PYARROW_ROOT -DYGM_REQUIRE_PARQUET=ON"
           fi
-          cmake ../ -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_CXX_COMPILER=g++-${{ matrix.gcc-version }} -DBOOST_ROOT=~/boost_1_77_0 ${ARROW_CMAKE_OPTION}
+          cmake ../ -DYGM_BUILD_TESTS -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_CXX_COMPILER=g++-${{ matrix.gcc-version }} -DBOOST_ROOT=~/boost_1_77_0 ${ARROW_CMAKE_OPTION}
           make -j
       - name: Make test (mpich)
         if: matrix.mpi-type == 'mpich'
