@@ -151,8 +151,6 @@ include(CMakePackageConfigHelpers)
 # List libraries to be installed
 set(YGM_EXPORT_TARGETS ygm)
 
-message(STATUS "YGM_CEREAL_TARGET " ${YGM_CEREAL_TARGET})
-message(STATUS "YGMTargets: " ${ygmTargets})
 install(
     TARGETS ${PROJECT_NAME}
     EXPORT ${PROJECT_NAME}Targets
