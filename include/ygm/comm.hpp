@@ -187,7 +187,7 @@ class comm {
  private:
   void comm_setup(MPI_Comm comm);
 
-  size_t pack_routing_header(ygm::detail::byte_vector &packed, const int dest,
+  size_t pack_header(ygm::detail::byte_vector &packed, const int dest,
                              size_t size);
 
   size_t pack_tracing_header(ygm::detail::byte_vector &packed, const int trace_id,

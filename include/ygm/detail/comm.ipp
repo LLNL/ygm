@@ -27,11 +27,6 @@ struct comm::header_t {
   int32_t  dest;
 };
 
-struct comm::trace_header_t {
-  int32_t from;
-  int32_t trace_id;
-};
-
 inline comm::comm(int *argc, char ***argv)
     : pimpl_if(std::make_shared<detail::mpi_init_finalize>(argc, argv)),
       m_layout(MPI_COMM_WORLD),
@@ -187,16 +182,8 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
   // // Add header without message size
   size_t header_bytes = 0;
   if (config.routing != detail::routing_type::NONE) {
-    header_bytes = pack_routing_header(m_vec_send_buffers[next_dest], dest, 0);
+    header_bytes = pack_header(m_vec_send_buffers[next_dest], dest, 0);
     m_send_buffer_bytes += header_bytes;
-  }
-
-  size_t trace_header_bytes = 0;
-  if (config.trace_ygm) {
-    int message_id = m_tracer.get_next_message_id();
-    trace_header_bytes = pack_tracing_header(m_vec_send_buffers[next_dest],
-                                             message_id, 0);
-    m_send_buffer_bytes += trace_header_bytes;
   }
 
   uint32_t bytes = pack_lambda(m_vec_send_buffers[next_dest], fn,
@@ -207,7 +194,6 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
   if (config.routing != detail::routing_type::NONE) {
     auto iter = m_vec_send_buffers[next_dest].end();
     iter -= (header_bytes + bytes);
-    if (config.trace_ygm) iter -= trace_header_bytes;
 
     std::memcpy(&*iter, &bytes,
                 sizeof(header_t::message_size));                                  
@@ -490,7 +476,7 @@ inline std::string comm::outstr(Args &&...args) const {
   return ss.str();
 }
 
-inline size_t comm::pack_routing_header(ygm::detail::byte_vector &packed,
+inline size_t comm::pack_header(ygm::detail::byte_vector &packed,
                                         const int dest, size_t size) {
   size_t size_before = packed.size();
 
@@ -501,20 +487,6 @@ inline size_t comm::pack_routing_header(ygm::detail::byte_vector &packed,
   packed.push_bytes(&h, sizeof(header_t));
   // cereal::YGMOutputArchive oarchive(packed);
   // oarchive(h);
-
-  return packed.size() - size_before;
-}
-
-inline size_t comm::pack_tracing_header(ygm::detail::byte_vector &packed,
-                                        const int trace_id, size_t size) {
-  size_t size_before = packed.size();
-
-  trace_header_t h;
-  h.from     = rank();
-  h.trace_id = trace_id;
-
-  packed.resize(size_before + sizeof(trace_header_t));
-  std::memcpy(packed.data() + size_before, &h, sizeof(trace_header_t));
 
   return packed.size() - size_before;
 }
@@ -962,7 +934,7 @@ inline void comm::queue_message_bytes(const ygm::detail::byte_vector            
   // This is to avoid peeling off and replacing the dest as messages are
   // forwarded in a bcast
   if (config.routing != detail::routing_type::NONE) {
-    size_t header_bytes = pack_routing_header(send_buff, -1, 0);
+    size_t header_bytes = pack_header(send_buff, -1, 0);
     m_send_buffer_bytes += header_bytes;
   }
 
@@ -979,11 +951,6 @@ inline void comm::handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> 
       header_t h;
       iarchive.loadBinary(&h, sizeof(header_t));
 
-      trace_header_t trace_h;
-      if (config.trace_ygm) {
-        iarchive.loadBinary(&trace_h, sizeof(trace_header_t));
-      }
-
       if (h.dest == m_layout.rank() || (h.dest == -1 && h.message_size == 0)) {
         uint16_t lid;
         iarchive.loadBinary(&lid, sizeof(lid));
@@ -997,13 +964,9 @@ inline void comm::handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> 
           m_send_dest_queue.push_back(next_dest);
         }
 
-        size_t header_bytes = pack_routing_header(m_vec_send_buffers[next_dest],
+        size_t header_bytes = pack_header(m_vec_send_buffers[next_dest],
                                                   h.dest, h.message_size);
         m_send_buffer_bytes += header_bytes;
-
-        size_t tracing_header_bytes = pack_tracing_header(
-            m_vec_send_buffers[next_dest], trace_h.trace_id, 0);
-        m_send_buffer_bytes += tracing_header_bytes;
 
         size_t precopy_size = m_vec_send_buffers[next_dest].size();
         m_vec_send_buffers[next_dest].resize(precopy_size + h.message_size);
@@ -1015,11 +978,6 @@ inline void comm::handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> 
         flush_to_capacity();
       }
     } else {
-      trace_header_t trace_h;
-      if (config.trace_ygm) {
-        iarchive.loadBinary(&trace_h, sizeof(trace_header_t));
-      }
-
       uint16_t lid;
       iarchive.loadBinary(&lid, sizeof(lid));
       m_lambda_map.execute(lid, this, &iarchive);
