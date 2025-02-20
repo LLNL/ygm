@@ -10,66 +10,74 @@
 
 namespace ygm::detail {
 
-  // YGM Async
-  struct ygm_async {
-    uint64_t event_id;
-    int to;
-    uint32_t message_size;
+// YGM Async
+struct ygm_async_event {
+  uint64_t event_id;
+  int to;
+  uint32_t message_size;
 
-    template <class Archive>
-    void serialize(Archive & ar) {
-        ar(event_id to, message_size);
-    }
-  };
-
-  // MPI Send
-  struct YGMEvent {
-    uint64_t event_id;
-    int to;
-    uint32_t buffer_size;
-
-    template <class Archive>
-    void serialize(Archive & ar) {
-        ar(event_id, to, buffer_size);
-    }
-  };
-
-  // MPI Receive
-
-  // Barrier Begin
-
-  // Barrier End
-
-  struct YGMEvent {
-    uint64_t event_id;
-    int from;
-    int to;
-    uint32_t message_size;
-    char type; // TODO: Get rid of
-    char action;
-
-    template <class Archive>
-    void serialize(Archive & ar) {
-        ar(event_id, from, to, message_size, type, action);
-    }
+  template <class Archive>
+  void serialize(Archive & ar) {
+      ar(event_id, to, message_size);
+  }
 };
 
-struct YGMBarrierEvent {
-    uint64_t event_id;
-    int rank; // TODO: get rid of
-    uint64_t send_count;
-    uint64_t recv_count;
-    size_t pending_isend_bytes; // 
-    size_t send_buffer_bytes;
+// MPI Send
+struct mpi_send_event {
+  uint64_t event_id;
+  int to;
+  uint32_t buffer_size;
 
-    template <class Archive>
-    void serialize(Archive & ar) {
-        ar(event_id, rank, send_count, recv_count, pending_isend_bytes, send_buffer_bytes);
-    }
+  template <class Archive>
+  void serialize(Archive & ar) {
+      ar(event_id, to, buffer_size);
+  }
 };
 
-struct VariantEvent {
-  std::variant<YGMEvent, YGMBarrierEvent> data {};
+// MPI Receive
+struct mpi_recv_event {
+  uint64_t event_id;
+  int from;
+  uint32_t buffer_size;
+
+  template <class Archive>
+  void serialize(Archive & ar) {
+      ar(event_id, from, buffer_size);
+  }
+};
+
+// Barrier Begin
+struct barrier_begin_event {
+  uint64_t event_id;
+  uint64_t send_count;
+  uint64_t recv_count;
+  size_t pending_isend_bytes;
+  size_t send_buffer_bytes;
+
+  template <class Archive>
+  void serialize(Archive & ar) {
+      ar(event_id, send_count, recv_count, pending_isend_bytes, send_buffer_bytes);
+  }
+};
+  
+
+// Barrier End
+struct barrier_end_event {
+  uint64_t event_id;
+  uint64_t send_count;
+  uint64_t recv_count;
+  size_t pending_isend_bytes;
+  size_t send_buffer_bytes;
+
+  template <class Archive>
+  void serialize(Archive & ar) {
+      ar(event_id, send_count, recv_count, pending_isend_bytes, send_buffer_bytes);
+  }
+};
+
+
+struct variant_event {
+  std::variant<ygm_async_event, mpi_send_event, mpi_recv_event, barrier_begin_event, barrier_end_event> data {};
   template< class Archive >
   void serialize( Archive & archive ) {
       archive( data );
@@ -118,78 +126,59 @@ class tracer {
   template <typename EventType>
   void log_event(const EventType& event) {
     cereal::BinaryOutputArchive oarchive(output_file);
-    VariantEvent variant_event {event};  
+    variant_event variant_event {event};  
     oarchive(variant_event);
   }
 
-  // Trace functions for specific event types
   void trace_ygm_async(uint64_t id, int dest, uint32_t bytes) {
-    YGMEvent event;
+    ygm_async_event event;
     event.event_id = id;
-
-    event.from = m_rank;
     event.to = dest;
     event.message_size = bytes;
-
-    event.type = 'y';
-    event.action = 's' ;
-
-    log_event(event);
-  }
-
-  void trace_ygm_async_recv(uint64_t id, int from, uint32_t bytes) {
-    YGMEvent event;
-    event.event_id = id;
-
-    event.from = from;
-    event.to = m_rank;
-    event.message_size = bytes;
-
-    event.type = 'y';
-    event.action = 'r' ;
 
     log_event(event);
   }
 
   void trace_mpi_send(uint64_t id, int dest, uint32_t bytes) {
-    YGMEvent event;
-    event.event_id = id;
+      mpi_send_event event;
+      event.event_id = id;
+      event.to = dest;
+      event.buffer_size = bytes;
 
-    event.from = m_rank;
-    event.to = dest;
-    event.message_size = bytes;
-
-    event.type = 'm';
-    event.action = 's' ;
-
-    log_event(event);
+      log_event(event);
   }
 
   void trace_mpi_recv(uint64_t id, int from, uint32_t bytes) {
-    YGMEvent event;
-    event.event_id = id;
+      mpi_recv_event event;
+      event.event_id = id;
+      event.from = from;
+      event.buffer_size = bytes;
 
-    event.from = from;
-    event.to = m_rank;
-    event.message_size = bytes;
-
-    event.type = 'm';
-    event.action = 'r' ;
-
-    log_event(event);
+      log_event(event);
   }
 
-  void trace_barrier(uint64_t id, uint64_t send_count,
-                     uint64_t recv_count, size_t pending_isend_bytes, size_t send_buffer_bytes) {
-    YGMBarrierEvent event;
-    event.event_id = id;
-    event.rank = m_rank;
-    event.send_count = send_count;
-    event.recv_count = recv_count;
-    event.pending_isend_bytes = pending_isend_bytes;
-    event.send_buffer_bytes = send_buffer_bytes;
+  void trace_barrier_begin(uint64_t id, uint64_t send_count,
+                      uint64_t recv_count, size_t pending_isend_bytes, size_t send_buffer_bytes) {
+      barrier_begin_event event;
+      event.event_id = id;
+      event.send_count = send_count;
+      event.recv_count = recv_count;
+      event.pending_isend_bytes = pending_isend_bytes;
+      event.send_buffer_bytes = send_buffer_bytes;
 
-    log_event(event);
+      log_event(event);
+  }
+
+  void trace_barrier_end(uint64_t id, uint64_t send_count,
+      uint64_t recv_count, size_t pending_isend_bytes, size_t send_buffer_bytes) {
+      barrier_end_event event;
+      event.event_id = id;
+      event.send_count = send_count;
+      event.recv_count = recv_count;
+      event.pending_isend_bytes = pending_isend_bytes;
+      event.send_buffer_bytes = send_buffer_bytes;
+
+      log_event(event);
   }
 
  private:

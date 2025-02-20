@@ -6,42 +6,9 @@
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/variant.hpp>
 #include <cereal/types/string.hpp>
+#include <ygm/detail/tracer.hpp>
 
-struct YGMEvent {
-    uint64_t event_id;
-    int from;
-    int to;
-    uint32_t message_size;
-    char type;
-    char action;
-
-    template <class Archive>
-    void serialize(Archive & ar) {
-        ar(event_id, from, to, message_size, type, action);
-    }
-};
-
-struct YGMBarrierEvent {
-    uint64_t event_id;
-    int rank;
-    uint64_t send_count;
-    uint64_t recv_count;
-    size_t pending_isend_bytes;
-    size_t send_buffer_bytes;
-
-    template <class Archive>
-    void serialize(Archive & ar) {
-        ar(event_id, rank, send_count, recv_count, pending_isend_bytes, send_buffer_bytes);
-    }
-};
-
-struct VariantEvent {
-    std::variant<YGMEvent, YGMBarrierEvent> data {};
-    template< class Archive >
-    void serialize( Archive & archive ) {
-        archive( data );
-    }
-};
+using namespace ygm::detail;
 
 // Function to deserialize the object from a file and print it
 void deserializeFromFile(const std::string& filename) {
@@ -52,23 +19,35 @@ void deserializeFromFile(const std::string& filename) {
     }
 
     cereal::BinaryInputArchive iarchive(is);
-    VariantEvent variant_event {};
-    iarchive(variant_event);
+    variant_event variant_event {};
 
-    // Use std::visit to determine the type and print it
-    std::visit([](auto&& arg) {
-        using T = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same_v<T, YGMEvent>) {
-            std::cout << "YGMEvent - Event ID: " << arg.event_id << ", From: " << arg.from 
-                      << ", To: " << arg.to << ", Message Size: " << arg.message_size 
-                      << ", Type: " << arg.type << ", Action: " << arg.action << std::endl;
-        } else if constexpr (std::is_same_v<T, YGMBarrierEvent>) {
-            std::cout << "YGMBarrierEvent - Event ID: " << arg.event_id << ", Rank: " << arg.rank 
-                      << ", Send Count: " << arg.send_count << ", Recv Count: " << arg.recv_count 
-                      << ", Pending ISend Bytes: " << arg.pending_isend_bytes 
-                      << ", Send Buffer Bytes: " << arg.send_buffer_bytes << std::endl;
-        }
-    }, variant_event.data);
+    // Loop to deserialize and print events until the end of the file
+    while (is.peek() != EOF) {  // Check if there is more data to read
+        iarchive(variant_event);
+
+        // Use std::visit to determine the type and print it
+        std::visit([](auto&& arg) {
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, ygm_async_event>) {
+                std::cout << "YGM Async Event - Event ID: " << arg.event_id << ", To: " << arg.to 
+                          << ", Message Size: " << arg.message_size << std::endl;
+            } else if constexpr (std::is_same_v<T, mpi_send_event>) {
+                std::cout << "MPI Send Event - Event ID: " << arg.event_id << ", To: " << arg.to 
+                          << ", Buffer Size: " << arg.buffer_size << std::endl;
+            } else if constexpr (std::is_same_v<T, mpi_recv_event>) {
+                std::cout << "MPI Receive Event - Event ID: " << arg.event_id << ", From: " << arg.from 
+                          << ", Buffer Size: " << arg.buffer_size << std::endl;
+            } else if constexpr (std::is_same_v<T, barrier_begin_event>) {
+                std::cout << "Barrier Begin Event - Event ID: " << arg.event_id << ", Send Count: " << arg.send_count 
+                          << ", Recv Count: " << arg.recv_count << ", Pending ISend Bytes: " << arg.pending_isend_bytes
+                          << ", Send Buffer Bytes: " << arg.send_buffer_bytes << std::endl;
+            } else if constexpr (std::is_same_v<T, barrier_end_event>) {
+                std::cout << "Barrier End Event - Event ID: " << arg.event_id << ", Send Count: " << arg.send_count 
+                          << ", Recv Count: " << arg.recv_count << ", Pending ISend Bytes: " << arg.pending_isend_bytes
+                          << ", Send Buffer Bytes: " << arg.send_buffer_bytes << std::endl;
+            }
+        }, variant_event.data);
+    }
 }
 
 int main() {

@@ -265,6 +265,9 @@ inline MPI_Comm comm::get_mpi_comm() const { return m_comm_other; }
  *
  */
 inline void comm::barrier() {
+  if (config.trace_ygm || config.trace_mpi) {
+    m_tracer.trace_barrier_begin(m_tracer.get_next_message_id(), m_send_count, m_recv_count, m_pending_isend_bytes, m_send_buffer_bytes);
+  }
 
   flush_all_local_and_process_incoming();
   std::pair<uint64_t, uint64_t> previous_counts{1, 2};
@@ -277,14 +280,15 @@ inline void comm::barrier() {
       flush_all_local_and_process_incoming();
     }
   }
-
-  if (config.trace_ygm || config.trace_mpi) {
-    m_tracer.trace_barrier(m_tracer.get_next_message_id(), m_send_count, m_recv_count, m_pending_isend_bytes, m_send_buffer_bytes);
-  }
+  
   YGM_ASSERT_RELEASE(m_pre_barrier_callbacks.empty());
   YGM_ASSERT_RELEASE(m_send_dest_queue.empty());
 
   cf_barrier();
+
+  if (config.trace_ygm || config.trace_mpi) {
+    m_tracer.trace_barrier_end(0, m_send_count, m_recv_count, m_pending_isend_bytes, m_send_buffer_bytes);
+  }
 }
 
 /**
@@ -986,11 +990,6 @@ inline void comm::handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> 
         m_lambda_map.execute(lid, this, &iarchive);
         m_recv_count++;
         stats.rpc_execute();
-
-        if (config.trace_ygm) {
-          m_tracer.trace_ygm_async_recv(trace_h.trace_id, trace_h.from, h.message_size);
-        }
-
       } else {
         int next_dest = m_router.next_hop(h.dest);
 
@@ -1026,11 +1025,6 @@ inline void comm::handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> 
       m_lambda_map.execute(lid, this, &iarchive);
       m_recv_count++;
       stats.rpc_execute();
-
-      // TODO:: What is this message size, temp value of 0 is placed
-      if (config.trace_ygm) {
-          m_tracer.trace_ygm_async_recv(trace_h.trace_id, trace_h.from, 0);
-      }
     }
   }
   post_new_irecv(buffer);
