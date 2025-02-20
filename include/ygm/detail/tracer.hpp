@@ -1,48 +1,96 @@
 #pragma once
 
-#include <sys/time.h>
-#include <syscall.h>
-#include <unistd.h>
-#include <atomic>
-#include <filesystem>
-#include <fstream>
 #include <iostream>
-#include <stack>
-#include <string>
-#include <unordered_map>
-
-#include <any>
-
-using ProcessID      = unsigned long int;
-using ThreadID       = unsigned long int;
-using TimeResolution = unsigned long long int;
-using EventType      = char *;
-using ConstEventType = const char *;
+#include <fstream>
+#include <filesystem>
+#include <variant>
+#include <cereal/types/variant.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/string.hpp>
 
 namespace ygm::detail {
 
+  // YGM Async
+  struct ygm_async {
+    uint64_t event_id;
+    int to;
+    uint32_t message_size;
+
+    template <class Archive>
+    void serialize(Archive & ar) {
+        ar(event_id to, message_size);
+    }
+  };
+
+  // MPI Send
+  struct YGMEvent {
+    uint64_t event_id;
+    int to;
+    uint32_t buffer_size;
+
+    template <class Archive>
+    void serialize(Archive & ar) {
+        ar(event_id, to, buffer_size);
+    }
+  };
+
+  // MPI Receive
+
+  // Barrier Begin
+
+  // Barrier End
+
+  struct YGMEvent {
+    uint64_t event_id;
+    int from;
+    int to;
+    uint32_t message_size;
+    char type; // TODO: Get rid of
+    char action;
+
+    template <class Archive>
+    void serialize(Archive & ar) {
+        ar(event_id, from, to, message_size, type, action);
+    }
+};
+
+struct YGMBarrierEvent {
+    uint64_t event_id;
+    int rank; // TODO: get rid of
+    uint64_t send_count;
+    uint64_t recv_count;
+    size_t pending_isend_bytes; // 
+    size_t send_buffer_bytes;
+
+    template <class Archive>
+    void serialize(Archive & ar) {
+        ar(event_id, rank, send_count, recv_count, pending_isend_bytes, send_buffer_bytes);
+    }
+};
+
+struct VariantEvent {
+  std::variant<YGMEvent, YGMBarrierEvent> data {};
+  template< class Archive >
+  void serialize( Archive & archive ) {
+      archive( data );
+  }
+};
+
+// Tracer class with simplified event handling
 class tracer {
  public:
-  tracer() {}
+  tracer() = default;
 
   ~tracer() {
     if (output_file.is_open()) {
       output_file.close();
       if (output_file.fail()) {
         std::cerr << "Error closing trace file!" << std::endl;
-        // Handle failure to close the file
       }
     }
   }
 
-  inline TimeResolution get_time() {
-    struct timeval tv {};
-    gettimeofday(&tv, NULL);
-    TimeResolution t = 1000000 * tv.tv_sec + tv.tv_usec;
-    return t;
-  }
-
-  void create_directory(std::string trace_path) {
+  void create_directory(const std::string& trace_path) {
     if (!std::filesystem::is_directory(trace_path)) {
       if (!std::filesystem::create_directories(trace_path)) {
         std::cerr << "Error creating directory!" << std::endl;
@@ -50,194 +98,105 @@ class tracer {
     }
   }
 
-  void open_file(std::string trace_path, int comm_rank, int comm_size) {
-    m_next_message_id = comm_rank;
-    m_comm_size = comm_size; 
+  void open_file(const std::string& trace_path, int comm_rank, int comm_size) {
+    m_comm_size = comm_size;
     m_rank = comm_rank;
-    std::string file_path =
-        trace_path + "/trace_" + std::to_string(comm_rank) + ".txt";
-    ;
-
-    output_file.open(file_path);
+    std::string file_path = trace_path + "/trace_" + std::to_string(comm_rank) + ".bin";
+    output_file.open(file_path, std::ios::binary);
 
     if (!output_file.is_open()) {
-      std::cerr << "Error opening " << file_path << " for writing!"
-                << std::endl;
+      std::cerr << "Error opening " << file_path << " for writing!" << std::endl;
     }
   }
 
-  int get_next_message_id(){ 
-    return m_next_message_id += m_comm_size;
+  // Function to generate the next unique message id
+  int get_next_message_id() { 
+    return m_next_message_id += m_comm_size; 
   }
 
-  void trace_event(uint64_t event_id, ConstEventType action,
-                   ConstEventType event_name, int rank,
-                   TimeResolution                            start_time,
-                   std::unordered_map<std::string, std::any> metadata,
-                   char event_type = 'X', TimeResolution duration = 0) {
-
-    ConstEventType category = "ygm";
-
-    metadata["event_id"] = event_id;
-    std::string meta_str = stream_metadata(metadata);
-
-    size = snprintf(
-        data, MAX_LINE_SIZE,
-        "{\"id\":\"%lu\",\"name\":\"%s\",\"cat\":\"%s\",\"pid\":\"%lu\","
-        "\"tid\":\"%s\",\"ts\":\"%llu\",\"dur\":\"%llu\",\"ph\":\"%c\","
-        "\"args\":{%s}},\n",
-        event_id, event_name, category, rank, action, start_time, duration,
-        event_type, meta_str.c_str());
-
-    output_file.write(data, size); 
+  // Loging an event
+  template <typename EventType>
+  void log_event(const EventType& event) {
+    cereal::BinaryOutputArchive oarchive(output_file);
+    VariantEvent variant_event {event};  
+    oarchive(variant_event);
   }
 
-  void trace_ygm_async(u_int64_t id, int dest, u_int32_t bytes, TimeResolution event_time){
-    TimeResolution duration = get_time() - event_time;
+  // Trace functions for specific event types
+  void trace_ygm_async(uint64_t id, int dest, uint32_t bytes) {
+    YGMEvent event;
+    event.event_id = id;
 
-    std::unordered_map<std::string, std::any> metadata;
-    metadata["from"]         = m_rank;
-    metadata["to"]           = dest;
-    metadata["message_size"] = bytes;
+    event.from = m_rank;
+    event.to = dest;
+    event.message_size = bytes;
 
-    ConstEventType event_name = "async";
-    ConstEventType action     = "send";
+    event.type = 'y';
+    event.action = 's' ;
 
-    trace_event(id, action, event_name, m_rank,
-                event_time, metadata, 'X', duration);
+    log_event(event);
   }
 
-  void trace_ygm_async_recv(u_int64_t id, int from, u_int32_t bytes, TimeResolution event_time){
-    TimeResolution duration = get_time() - event_time;
+  void trace_ygm_async_recv(uint64_t id, int from, uint32_t bytes) {
+    YGMEvent event;
+    event.event_id = id;
 
-    std::unordered_map<std::string, std::any> metadata;
-    metadata["from"]         = from;
-    metadata["to"]           = m_rank;
-    metadata["message_size"] = bytes;
+    event.from = from;
+    event.to = m_rank;
+    event.message_size = bytes;
 
-    ConstEventType event_name = "async";
-    ConstEventType action     = "receive";
+    event.type = 'y';
+    event.action = 'r' ;
 
-    trace_event(id ,action, event_name, m_rank,
-                        event_time, metadata, 'X', duration);    
+    log_event(event);
   }
 
+  void trace_mpi_send(uint64_t id, int dest, uint32_t bytes) {
+    YGMEvent event;
+    event.event_id = id;
 
+    event.from = m_rank;
+    event.to = dest;
+    event.message_size = bytes;
 
-  void trace_barrier(u_int64_t id, TimeResolution start_time, u_int64_t send_count ,u_int64_t recv_count, size_t pending_isend_bytes, size_t send_buffer_bytes){
-    TimeResolution duration = get_time() - start_time;
+    event.type = 'm';
+    event.action = 's' ;
 
-    std::unordered_map<std::string, std::any> metadata;
-    metadata["m_send_count"]          = send_count;
-    metadata["m_recv_count"]          = recv_count;
-    metadata["m_pending_isend_bytes"] = pending_isend_bytes;
-    metadata["m_send_buffer_bytes"]   = send_buffer_bytes;
-    ConstEventType event_name         = "barrier";
-    ConstEventType action             = "barrier";
-
-    trace_event(id, action, event_name, m_rank,
-                start_time, metadata, 'X', duration);
+    log_event(event);
   }
 
-  void trace_mpi_receive(u_int64_t id, int from, int buffer_size){
-    TimeResolution event_time = get_time();
+  void trace_mpi_recv(uint64_t id, int from, uint32_t bytes) {
+    YGMEvent event;
+    event.event_id = id;
 
-    std::unordered_map<std::string, std::any> metadata;
-    metadata["type"] = "barrier_reduce_counts";
-    metadata["from"] = from;
-    metadata["size"] = buffer_size;
+    event.from = from;
+    event.to = m_rank;
+    event.message_size = bytes;
 
-    ConstEventType event_name = "mpi_receive";
-    ConstEventType action     = "mpi_receive";
+    event.type = 'm';
+    event.action = 'r' ;
 
-    trace_event(0, action, event_name, m_rank, event_time,
-                        metadata);
+    log_event(event);
   }
 
-  void trace_mpi_send(u_int64_t id, int to, int buffer_size){
-    TimeResolution event_time = get_time();
+  void trace_barrier(uint64_t id, uint64_t send_count,
+                     uint64_t recv_count, size_t pending_isend_bytes, size_t send_buffer_bytes) {
+    YGMBarrierEvent event;
+    event.event_id = id;
+    event.rank = m_rank;
+    event.send_count = send_count;
+    event.recv_count = recv_count;
+    event.pending_isend_bytes = pending_isend_bytes;
+    event.send_buffer_bytes = send_buffer_bytes;
 
-    std::unordered_map<std::string, std::any> metadata;
-    metadata["type"] = "mpi_send";
-    metadata["to"] = to;
-    metadata["size"] = buffer_size;
-
-    ConstEventType event_name = "mpi_send";
-    ConstEventType action     = "mpi_send";
-
-    trace_event(id, action, event_name, m_rank,
-                        event_time, metadata);
+    log_event(event);
   }
-  
 
  private:
   std::ofstream output_file;
   int m_comm_size = 0;
   int m_rank = -1;
   int m_next_message_id = 0;
-
-  static const int MAX_LINE_SIZE      = 4096;
-  static const int MAX_META_LINE_SIZE = 3000;
-
-  char data[MAX_LINE_SIZE];
-  int  size = 0;
-
-  std::string stream_metadata(
-      const std::unordered_map<std::string, std::any> &metadata) {
-    std::stringstream meta_stream;
-    bool              has_meta = false;
-    size_t            i        = 0;
-
-    for (const auto &item : metadata) {
-      if (has_meta) {
-        meta_stream << ",";
-      }
-
-      try {
-        meta_stream << "\"" << item.first << "\":\"";
-
-        if (item.second.type() == typeid(unsigned int)) {
-          const auto &value = std::any_cast<unsigned int>(item.second);
-          meta_stream << value;
-        } else if (item.second.type() == typeid(int)) {
-          const auto &value = std::any_cast<int>(item.second);
-          meta_stream << value;
-        } else if (item.second.type() == typeid(const char *)) {
-          const auto &value = std::any_cast<const char *>(item.second);
-          meta_stream << value;
-        } else if (item.second.type() == typeid(std::string)) {
-          const auto &value = std::any_cast<std::string>(item.second);
-          meta_stream << value;
-        } else if (item.second.type() == typeid(size_t)) {
-          const auto &value = std::any_cast<size_t>(item.second);
-          meta_stream << value;
-        } else if (item.second.type() == typeid(long)) {
-          const auto &value = std::any_cast<long>(item.second);
-          meta_stream << value;
-        } else if (item.second.type() == typeid(ssize_t)) {
-          const auto &value = std::any_cast<ssize_t>(item.second);
-          meta_stream << value;
-        } else if (item.second.type() == typeid(off_t)) {
-          const auto &value = std::any_cast<off_t>(item.second);
-          meta_stream << value;
-        } else if (item.second.type() == typeid(off64_t)) {
-          const auto &value = std::any_cast<off64_t>(item.second);
-          meta_stream << value;
-        } else if (item.second.type() == typeid(float)) {
-          const auto &value = std::any_cast<float>(item.second);
-          meta_stream << value;
-        } else {
-          meta_stream << "No conversion for " << item.first << "'s type";
-        }
-
-      } catch (const std::bad_any_cast &) {
-        meta_stream << "No conversion for type";
-      }
-      meta_stream << "\"";
-      has_meta = true;
-      ++i;
-    }
-    return meta_stream.str();
-  }
 };
-};  // namespace ygm::detail
+
+}  // namespace ygm::detail

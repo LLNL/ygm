@@ -160,9 +160,6 @@ inline comm::~comm() {
 template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
 
-  TimeResolution event_time;
-  if (config.trace_ygm) event_time = m_tracer.get_time();
-
   YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(AsyncFunction, "ygm::comm::async()");
 
   YGM_ASSERT_RELEASE(dest < m_layout.size());
@@ -222,7 +219,7 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
   }
 
   if (config.trace_ygm) {
-    m_tracer.trace_ygm_async(m_tracer.get_next_message_id(), dest, bytes, event_time);
+    m_tracer.trace_ygm_async(m_tracer.get_next_message_id(), dest, bytes);
   }
 }
 
@@ -268,10 +265,6 @@ inline MPI_Comm comm::get_mpi_comm() const { return m_comm_other; }
  *
  */
 inline void comm::barrier() {
-  TimeResolution start_time;
-  if (config.trace_ygm || config.trace_mpi) {
-    start_time = m_tracer.get_time();
-  }
 
   flush_all_local_and_process_incoming();
   std::pair<uint64_t, uint64_t> previous_counts{1, 2};
@@ -286,7 +279,7 @@ inline void comm::barrier() {
   }
 
   if (config.trace_ygm || config.trace_mpi) {
-    m_tracer.trace_barrier(m_tracer.get_next_message_id(), start_time, m_send_count, m_recv_count, m_pending_isend_bytes, m_send_buffer_bytes);
+    m_tracer.trace_barrier(m_tracer.get_next_message_id(), m_send_count, m_recv_count, m_pending_isend_bytes, m_send_buffer_bytes);
   }
   YGM_ASSERT_RELEASE(m_pre_barrier_callbacks.empty());
   YGM_ASSERT_RELEASE(m_send_dest_queue.empty());
@@ -564,7 +557,7 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
         stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
 
         if (config.trace_mpi) {
-          m_tracer.trace_mpi_receive(0, twin_status[i].MPI_SOURCE, buffer_size);
+          m_tracer.trace_mpi_recv(0, twin_status[i].MPI_SOURCE, buffer_size);
         }
 
         handle_next_receive(req_buffer.buffer, buffer_size);
@@ -983,9 +976,7 @@ inline void comm::handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> 
       iarchive.loadBinary(&h, sizeof(header_t));
 
       trace_header_t trace_h;
-      TimeResolution event_time;
       if (config.trace_ygm) {
-        event_time = m_tracer.get_time();
         iarchive.loadBinary(&trace_h, sizeof(trace_header_t));
       }
 
@@ -997,7 +988,7 @@ inline void comm::handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> 
         stats.rpc_execute();
 
         if (config.trace_ygm) {
-          m_tracer.trace_ygm_async_recv(trace_h.trace_id, trace_h.from, h.message_size, event_time);
+          m_tracer.trace_ygm_async_recv(trace_h.trace_id, trace_h.from, h.message_size);
         }
 
       } else {
@@ -1026,9 +1017,7 @@ inline void comm::handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> 
       }
     } else {
       trace_header_t trace_h;
-      TimeResolution event_time;
       if (config.trace_ygm) {
-        event_time = m_tracer.get_time();
         iarchive.loadBinary(&trace_h, sizeof(trace_header_t));
       }
 
@@ -1040,7 +1029,7 @@ inline void comm::handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> 
 
       // TODO:: What is this message size, temp value of 0 is placed
       if (config.trace_ygm) {
-          m_tracer.trace_ygm_async_recv(trace_h.trace_id, trace_h.from, 0, event_time);
+          m_tracer.trace_ygm_async_recv(trace_h.trace_id, trace_h.from, 0);
       }
     }
   }
@@ -1093,7 +1082,7 @@ inline bool comm::process_receive_queue() {
 
 
         if (config.trace_mpi) {
-          m_tracer.trace_mpi_receive(0, twin_status[i].MPI_SOURCE, buffer_size);
+          m_tracer.trace_mpi_recv(0, twin_status[i].MPI_SOURCE, buffer_size);
         }
   
         handle_next_receive(req_buffer.buffer, buffer_size);
@@ -1126,7 +1115,7 @@ inline bool comm::local_process_incoming() {
       stats.irecv(status.MPI_SOURCE, buffer_size);
 
       if (config.trace_mpi) {
-        m_tracer.trace_mpi_receive(0, status.MPI_SOURCE, buffer_size);
+        m_tracer.trace_mpi_recv(0, status.MPI_SOURCE, buffer_size);
       }
 
       handle_next_receive(req_buffer.buffer, buffer_size);
