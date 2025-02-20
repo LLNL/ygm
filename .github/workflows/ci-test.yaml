@@ -2,7 +2,7 @@ name: CI Test
 
 on:
   pull_request:
-    branches: [ master, develop ]
+    branches: [ master, '**-dev' ]
   push:
     branches: [ 'feature/**', 'hotfix/**']
 
@@ -14,17 +14,25 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-20.04]
-        gcc-version: [8, 9, 10]
+        os: [ubuntu-24.04, ubuntu-22.04]
+        gcc-version: [11, 12, 13, 14]
         mpi-type: [mpich, openmpi]
         exclude:
-          - os: ubuntu-latest
-            gcc-version: 8
+          - os: ubuntu-22.04
+            gcc-version: 13
+          - os: ubuntu-22.04
+            gcc-version: 14
+          - os: ubuntu-24.04
+            mpi-type: mpich
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      - name: Update apt
+        run: |
+          sudo add-apt-repository -y universe
+          sudo apt-get update
       - name: Cache boost
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: cache-boost
         with:
           path: "~/boost_1_77_0"
@@ -33,15 +41,15 @@ jobs:
         if: steps.cache-boost.outputs.cache-hit != 'true'
         run: |
           cd ~
-          wget --no-verbose https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.bz2
+          wget --no-verbose https://archives.boost.io/release/1.77.0/source/boost_1_77_0.tar.bz2
           tar -xjf boost_1_77_0.tar.bz2
       - name: Install Apache Arrow
+        if: ${{ matrix.os == 'ubuntu-latest'}} # Skip on ubuntu-20.04 due to pyarrow's ABI incompatibility issue
         run: |
-          cd ~
-          wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-          sudo apt-get install ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-          sudo apt-get update
-          sudo apt-get install libarrow-dev libparquet-dev
+          python -m pip install pyarrow==16.1.*
+          PIP_PYARROW_ROOT=$(python -c "import pyarrow as pa; print(pa.get_library_dirs()[0])")
+          echo "PIP_PYARROW_ROOT=${PIP_PYARROW_ROOT}" >> $GITHUB_ENV
+          echo "ENABLE_PARQUET_TEST=true" >> $GITHUB_ENV
       - name: Install mpich
         if: matrix.mpi-type == 'mpich'
         run: sudo apt-get install mpich
@@ -49,8 +57,8 @@ jobs:
         if: matrix.mpi-type == 'openmpi'
         run: sudo apt-get install openmpi-bin libopenmpi-dev
       - name: Install GCC-${{ matrix.gcc-version }}
-        if: matrix.gcc-version == '8'
-        run: sudo apt-get install gcc-8 g++-8
+        if: (matrix.gcc-version == '11' && matrix.os == 'ubuntu-24.04')
+        run: sudo apt-get install gcc-11 g++-11
       - name: Make
         run: |
           echo Run 'make'
@@ -58,7 +66,10 @@ jobs:
           g++-${{ matrix.gcc-version }} --version
           mkdir build
           cd build
-          cmake ../ -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_CXX_COMPILER=g++-${{ matrix.gcc-version }} -DBOOST_ROOT=~/boost_1_77_0 -DYGM_REQUIRE_ARROW=ON
+          if [ "$ENABLE_PARQUET_TEST" ]; then
+            ARROW_CMAKE_OPTION="-DPIP_PYARROW_ROOT=$PIP_PYARROW_ROOT -DYGM_REQUIRE_PARQUET=ON"
+          fi
+          cmake ../ -DYGM_BUILD_TESTS=On -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_CXX_COMPILER=g++-${{ matrix.gcc-version }} -DBOOST_ROOT=~/boost_1_77_0 ${ARROW_CMAKE_OPTION}
           make -j
       - name: Make test (mpich)
         if: matrix.mpi-type == 'mpich'

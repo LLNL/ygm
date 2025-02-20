@@ -24,13 +24,13 @@ int main(int argc, char** argv) {
 
     world.cf_barrier();
 
-    ASSERT_RELEASE(count == 0);
+    YGM_ASSERT_RELEASE(count == 0);
   }
 
   world.barrier();
 
   if (world.rank0()) {
-    ASSERT_RELEASE(count == num_sends * world.size());
+    YGM_ASSERT_RELEASE(count == num_sends * world.size());
   }
 
   return 0;

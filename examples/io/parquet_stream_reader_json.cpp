@@ -5,7 +5,7 @@
 
 // Usage:
 // cd /ygm/build/dir
-// mpirun -np 2 ./arrow_parquet_stream_reader_json \
+// mpirun -np 2 ./parquet_stream_reader_json \
 //  [(option) /path/to/parquet/file/or/dir]
 
 #include <algorithm>
@@ -19,7 +19,7 @@
 
 #include <ygm/comm.hpp>
 #include <ygm/detail/cereal_boost_json.hpp>
-#include <ygm/io/detail/arrow_parquet_json_converter.hpp>
+#include <ygm/io/parquet2json.hpp>
 
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
     dir_name = argv[1];
   }
 
-  ygm::io::arrow_parquet_parser parquetp(world, {dir_name});
+  ygm::io::parquet_parser parquetp(world, {dir_name});
 
   world.cout0() << "Schema:\n" << parquetp.schema_to_string() << std::endl;
 
@@ -42,8 +42,7 @@ int main(int argc, char** argv) {
   const auto& schema = parquetp.schema();
   parquetp.for_all([&schema, &world](auto& stream_reader, const auto&) {
     // obj's type is boost::json::object
-    const auto obj =
-        ygm::io::detail::read_parquet_as_json(stream_reader, schema);
+    const auto obj = ygm::io::read_parquet_as_json(stream_reader, schema);
 
     world.async(
         0, [](auto, const auto& obj) { std::cout << obj << std::endl; }, obj);

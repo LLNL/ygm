@@ -23,8 +23,11 @@ int main(int argc, char **argv) {
 
   ygm::container::disjoint_set<int> dset(world);
 
-  auto add_spanning_tree_edges_lambda = [](const int u, const int v) {
-    local_spanning_tree_edges.push_back(std::make_pair(u, v));
+  auto add_spanning_tree_edges_lambda = [](const int u, const int v,
+                                           const bool union_result) {
+    if (union_result) {
+      local_spanning_tree_edges.push_back(std::make_pair(u, v));
+    }
   };
 
   for (const auto &[u, v] : graph_edges) {

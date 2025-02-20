@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -21,12 +21,14 @@
 #endif
 #include <boost/json/src.hpp>
 
-#include <ygm/io/arrow_parquet_parser.hpp>
+#include <ygm/io/parquet_parser.hpp>
 
-namespace ygm::io::detail {
+namespace ygm::io {
+
+namespace detail {
 inline boost::json::value read_parquet_element_as_json_value(
-    const ygm::io::parquet_data_type&            type_holder,
-    arrow_parquet_parser::parquet_stream_reader& stream) {
+    const ygm::io::detail::parquet_data_type& type_holder,
+    parquet_parser::parquet_stream_reader&    stream) {
   boost::json::value out_value;
   out_value.emplace_null();
 
@@ -82,9 +84,8 @@ inline boost::json::value read_parquet_element_as_json_value(
 
 template <typename key_container>
 inline boost::json::object read_parquet_as_json_helper(
-    arrow_parquet_parser::parquet_stream_reader&       reader,
-    const arrow_parquet_parser::file_schema_container& schema,
-    const bool                                         read_all,
+    parquet_parser::parquet_stream_reader&       reader,
+    const parquet_parser::file_schema_container& schema, const bool read_all,
     const key_container& include_columns = key_container()) {
   boost::json::object object;
   for (size_t i = 0; i < schema.size(); ++i) {
@@ -93,6 +94,12 @@ inline boost::json::object read_parquet_as_json_helper(
     if (!read_all &&
         std::find(std::begin(include_columns), std::end(include_columns),
                   colum_name) == std::end(include_columns)) {
+      reader.SkipColumns(1);
+      continue;
+    }
+    if (data_type.unsupported) {
+      // Skip unsupported columns instead of throwing an exception
+      reader.SkipColumns(1);
       continue;
     }
     object[colum_name] = read_parquet_element_as_json_value(data_type, reader);
@@ -101,6 +108,7 @@ inline boost::json::object read_parquet_as_json_helper(
   reader.EndRow();
   return object;
 }
+}  // namespace detail
 
 /**
  * @brief Reads a row data from a Parquet StreamReader and returns the read row
@@ -109,9 +117,9 @@ inline boost::json::object read_parquet_as_json_helper(
  * columns.
  */
 inline boost::json::object read_parquet_as_json(
-    arrow_parquet_parser::parquet_stream_reader&       reader,
-    const arrow_parquet_parser::file_schema_container& schema) {
-  return read_parquet_as_json_helper<std::unordered_set<std::string>>(
+    parquet_parser::parquet_stream_reader&       reader,
+    const parquet_parser::file_schema_container& schema) {
+  return detail::read_parquet_as_json_helper<std::unordered_set<std::string>>(
       reader, schema, true);
 }
 
@@ -121,9 +129,10 @@ inline boost::json::object read_parquet_as_json(
  */
 template <typename key_container>
 inline boost::json::object read_parquet_as_json(
-    arrow_parquet_parser::parquet_stream_reader&       reader,
-    const arrow_parquet_parser::file_schema_container& schema,
-    const key_container&                               include_columns) {
-  return read_parquet_as_json_helper(reader, schema, false, include_columns);
+    parquet_parser::parquet_stream_reader&       reader,
+    const parquet_parser::file_schema_container& schema,
+    const key_container&                         include_columns) {
+  return detail::read_parquet_as_json_helper(reader, schema, false,
+                                             include_columns);
 }
-}  // namespace ygm::io::detail
+}  // namespace ygm::io

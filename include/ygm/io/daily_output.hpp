@@ -5,7 +5,7 @@
 
 #pragma once
 
-//#include <chrono>
+// #include <chrono>
 #include <ctime>
 #include <filesystem>
 #include <ygm/io/multi_output.hpp>
@@ -13,7 +13,7 @@
 namespace ygm::io {
 
 template <typename Partitioner =
-              ygm::container::detail::hash_partitioner<std::string>>
+              ygm::container::detail::old_hash_partitioner<std::string>>
 class daily_output {
  public:
   using self_type = daily_output<Partitioner>;
@@ -23,7 +23,7 @@ class daily_output {
       : m_multi_output(comm, filename_prefix, buffer_length, append) {}
 
   template <typename... Args>
-  void async_write_line(const uint64_t timestamp, Args &&... args) {
+  void async_write_line(const uint64_t timestamp, Args &&...args) {
     // std::chrono::time_point<std::chrono::seconds> t(timestamp);
     std::time_t t(timestamp);
 

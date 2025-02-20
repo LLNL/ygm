@@ -5,7 +5,7 @@
 
 // Usage:
 // cd /ygm/build/dir
-// mpirun -np 2 ./arrow_parquet_stream_reader_variant \
+// mpirun -np 2 ./parquet_stream_reader_variant \
 //  [(option) /path/to/parquet/file/or/dir]
 
 #include <algorithm>
@@ -17,14 +17,14 @@
 #include <vector>
 
 #include <ygm/comm.hpp>
-#include <ygm/io/detail/arrow_parquet_variant_converter.hpp>
+#include <ygm/io/parquet2variant.hpp>
 
 int main(int argc, char** argv) {
   ygm::comm world(&argc, &argv);
 
-  world.cout0()
-      << "Arrow Parquet file parser example (reads data as JSON objects)"
-      << std::endl;
+  world.cout0() << "Arrow Parquet file parser example (reads data as "
+                   "std::variant objects)"
+                << std::endl;
 
   // assuming the build directory is inside the YGM root directory
   std::string dir_name = "../test/data/parquet_files_json/";
@@ -32,14 +32,14 @@ int main(int argc, char** argv) {
     dir_name = argv[1];
   }
 
-  ygm::io::arrow_parquet_parser parquetp(world, {dir_name});
+  ygm::io::parquet_parser parquetp(world, {dir_name});
 
   const auto& schema = parquetp.schema();
 
   // Print column name
   world.cout0() << "Column names:" << std::endl;
   for (size_t i = 0; i < schema.size(); ++i) {
-    world.cout0() << std::get<1>(schema[i]);
+    world.cout0() << "[" << std::get<1>(schema[i]) << "]";
     if (i < schema.size() - 1) {
       world.cout0() << "\t";
     }
@@ -52,8 +52,8 @@ int main(int argc, char** argv) {
   std::size_t num_invalids = 0;
   parquetp.for_all([&schema, &num_valids, &num_invalids, &num_rows](
                        auto& stream_reader, const auto&) {
-    const std::vector<ygm::io::detail::parquet_type_variant> row =
-        ygm::io::detail::read_parquet_as_variant(stream_reader, schema);
+    const std::vector<ygm::io::parquet_type_variant> row =
+        ygm::io::read_parquet_as_variant(stream_reader, schema);
     ++num_rows;
     for (const auto& field : row) {
       if (std::holds_alternative<std::monostate>(field)) {

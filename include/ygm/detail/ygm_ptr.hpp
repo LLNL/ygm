@@ -17,7 +17,8 @@ class ygm_ptr {
  public:
   ygm_ptr(){};
 
-  T *operator->() const { return sptrs[idx]; }
+  T       *operator->() { return sptrs[idx]; }
+  T *const operator->() const { return sptrs[idx]; }
 
   T &operator*() const { return *sptrs[idx]; }
 
@@ -43,7 +44,7 @@ class ygm_ptr {
 
   template <typename Comm>
   void check(Comm &c) const {
-    ASSERT_RELEASE(idx == c.all_reduce_min(idx));
+    YGM_ASSERT_RELEASE(idx == c.all_reduce_min(idx));
   }
 
   template <class Archive>

@@ -18,7 +18,7 @@ inline void release_assert_fail(const char *assertion, const char *file,
   throw std::runtime_error(ss.str());
 }
 
-#define ASSERT_MPI(a)                                     \
+#define YGM_ASSERT_MPI(a)                                     \
   {                                                       \
     if (a != MPI_SUCCESS) {                               \
       char *error_string = NULL;                          \
@@ -32,9 +32,9 @@ inline void release_assert_fail(const char *assertion, const char *file,
     }                                                     \
   }
 
-#define ASSERT_DEBUG(expr) assert(expr)
+#define YGM_ASSERT_DEBUG(expr) assert(expr)
 
-#define ASSERT_RELEASE(expr) \
+#define YGM_ASSERT_RELEASE(expr) \
   (static_cast<bool>(expr)   \
        ? void(0)             \
        : release_assert_fail(#expr, __FILE__, __LINE__, ""))

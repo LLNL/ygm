@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Lawrence Livermore National Security, LLC and other YGM
+// Copyright 2019-2025 Lawrence Livermore National Security, LLC and other YGM
 // Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: MIT
@@ -16,16 +16,17 @@
 
 #include <parquet/types.h>
 
-#include <ygm/io/arrow_parquet_parser.hpp>
+#include <ygm/io/parquet_parser.hpp>
 
-namespace ygm::io::detail {
+namespace ygm::io {
 
 using parquet_type_variant = std::variant<std::monostate, bool, int32_t,
                                           int64_t, float, double, std::string>;
 
+namespace detail {
 inline parquet_type_variant read_parquet_element_as_variant(
-    const ygm::io::parquet_data_type&            type_holder,
-    arrow_parquet_parser::parquet_stream_reader& stream) {
+    const ygm::io::detail::parquet_data_type& type_holder,
+    parquet_parser::parquet_stream_reader&    stream) {
   parquet_type_variant out_value = std::monostate{};
 
   // Note: there is no uint types in Parquet
@@ -77,8 +78,8 @@ inline parquet_type_variant read_parquet_element_as_variant(
 }
 
 inline std::vector<parquet_type_variant> read_parquet_as_variant_helper(
-    arrow_parquet_parser::parquet_stream_reader&          reader,
-    const arrow_parquet_parser::file_schema_container&    schema,
+    parquet_parser::parquet_stream_reader&                reader,
+    const parquet_parser::file_schema_container&          schema,
     const std::optional<std::unordered_set<std::string>>& include_columns =
         std::nullopt) {
   std::vector<parquet_type_variant> row;
@@ -88,6 +89,12 @@ inline std::vector<parquet_type_variant> read_parquet_as_variant_helper(
     if (include_columns &&
         std::find(std::begin(*include_columns), std::end(*include_columns),
                   colum_name) == std::end(*include_columns)) {
+      reader.SkipColumns(1);
+      continue;
+    }
+    if (data_type.unsupported) {
+      // Skip unsupported columns instead of throwing an exception
+      reader.SkipColumns(1);
       continue;
     }
     row.emplace_back(read_parquet_element_as_variant(data_type, reader));
@@ -96,6 +103,7 @@ inline std::vector<parquet_type_variant> read_parquet_as_variant_helper(
   reader.EndRow();
   return row;
 }
+}  // namespace detail
 
 /**
  * @brief Reads a row data from a Parquet StreamReader and returns the read row
@@ -104,9 +112,9 @@ inline std::vector<parquet_type_variant> read_parquet_as_variant_helper(
  * columns.
  */
 inline std::vector<parquet_type_variant> read_parquet_as_variant(
-    arrow_parquet_parser::parquet_stream_reader&       reader,
-    const arrow_parquet_parser::file_schema_container& schema) {
-  return read_parquet_as_variant_helper(reader, schema);
+    parquet_parser::parquet_stream_reader&       reader,
+    const parquet_parser::file_schema_container& schema) {
+  return detail::read_parquet_as_variant_helper(reader, schema);
 }
 
 /**
@@ -114,9 +122,9 @@ inline std::vector<parquet_type_variant> read_parquet_as_variant(
  * (string) to include.
  */
 inline std::vector<parquet_type_variant> read_parquet_as_variant(
-    arrow_parquet_parser::parquet_stream_reader&       reader,
-    const arrow_parquet_parser::file_schema_container& schema,
-    const std::unordered_set<std::string>&             include_columns) {
-  return read_parquet_as_variant_helper(reader, schema, include_columns);
+    parquet_parser::parquet_stream_reader&       reader,
+    const parquet_parser::file_schema_container& schema,
+    const std::unordered_set<std::string>&       include_columns) {
+  return detail::read_parquet_as_variant_helper(reader, schema, include_columns);
 }
-}  // namespace ygm::io::detail
+}  // namespace ygm::io

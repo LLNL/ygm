@@ -10,6 +10,7 @@
 #endif
 
 #include <ygm/comm.hpp>
+#include <ygm/container/detail/base_iteration.hpp>
 #include <ygm/detail/cereal_boost_json.hpp>
 #include <ygm/io/line_parser.hpp>
 
@@ -36,8 +37,10 @@ std::size_t json_filter(boost::json::object            &obj,
   return json_erase(obj, keys_to_erase);
 }
 
-class ndjson_parser {
+class ndjson_parser : public ygm::container::detail::base_iteration_value<
+                          ndjson_parser, std::tuple<boost::json::object>> {
  public:
+  using for_all_args = std::tuple<boost::json::object>;
   template <typename... Args>
   ndjson_parser(Args &&...args) : m_lp(std::forward<Args>(args)...) {}
 
@@ -53,6 +56,10 @@ class ndjson_parser {
       fn(boost::json::parse(line).as_object());
     });
   }
+
+  ygm::comm &comm() { return m_lp.comm(); }
+
+  const ygm::comm &comm() const { return m_lp.comm(); }
 
  private:
   line_parser m_lp;
