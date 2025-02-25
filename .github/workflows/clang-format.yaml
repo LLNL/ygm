@@ -2,11 +2,10 @@ name: Run clang-format Linter
 
 on:
   pull_request:
-    types: closed
+    types: [ opened, reopened, synchronize ]
 
 jobs:
-  if_merged:
-    if: github.event.pull_request.merged == true
+  format_code:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
