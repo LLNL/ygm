@@ -383,6 +383,11 @@ class disjoint_set_impl {
         }
 
         if (my_parent == other_parent || my_parent == other_item) {
+          // Perform user function for unsuccessful merge
+          Function *f = nullptr;
+          ygm::meta::apply_optional(
+              *f, std::make_tuple(p_dset),
+              std::forward_as_tuple(orig_a, orig_b, false, args...));
           return;
         }
 
@@ -397,11 +402,25 @@ class disjoint_set_impl {
             my_item_data.second.set_parent(
                 other_parent, other_rank);  // Safe to attach to other path
 
-            // Perform user function after merge
+            // Perform user function after successful merge
             Function *f = nullptr;
-            ygm::meta::apply_optional(
-                *f, std::make_tuple(p_dset),
-                std::forward_as_tuple(orig_a, orig_b, args...));
+            if constexpr (std::is_invocable<decltype(fn), const value_type &,
+                                            const value_type &, const bool,
+                                            FunctionArgs &...>() ||
+                          std::is_invocable<decltype(fn), self_ygm_ptr_type,
+                                            const value_type &,
+                                            const value_type &, const bool,
+                                            FunctionArgs &...>()) {
+              ygm::meta::apply_optional(
+                  *f, std::make_tuple(p_dset),
+                  std::forward_as_tuple(orig_a, orig_b, true, args...));
+            } else {
+              static_assert(
+                  ygm::detail::always_false<>,
+                  "remote disjoint_set lambda signature must be invocable "
+                  "with (const value_type &, const value_type &, const bool) "
+                  "signature");
+            }
 
             return;
 
@@ -427,23 +446,24 @@ class disjoint_set_impl {
               // parent's rank has been updated
               my_item_data.second.set_parent(other_parent, my_rank);
 
-              // Perform user function after merge
+              // Perform user function after successful merge
               Function *f = nullptr;
               if constexpr (std::is_invocable<decltype(fn), const value_type &,
-                                              const value_type &,
+                                              const value_type &, const bool,
                                               FunctionArgs &...>() ||
                             std::is_invocable<decltype(fn), self_ygm_ptr_type,
                                               const value_type &,
-                                              const value_type &,
+                                              const value_type &, const bool,
                                               FunctionArgs &...>()) {
                 ygm::meta::apply_optional(
                     *f, std::make_tuple(p_dset),
-                    std::forward_as_tuple(orig_a, orig_b, args...));
+                    std::forward_as_tuple(orig_a, orig_b, true, args...));
               } else {
                 static_assert(
                     ygm::detail::always_false<>,
                     "remote disjoint_set lambda signature must be invocable "
-                    "with (const value_type &, const value_type &) signature");
+                    "with (const value_type &, const value_type &, const bool) "
+                    "signature");
               }
 
               p_dset->async_visit(other_parent, resolve_merge_lambda, my_item,
