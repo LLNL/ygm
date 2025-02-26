@@ -21,7 +21,7 @@ jobs:
         style: file
     - uses: EndBug/add-and-commit@v9
       with:
-        author_name: YGM clang-format bot
+        #author_name: YGM clang-format bot
         message: 'Committing clang-format changes'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
