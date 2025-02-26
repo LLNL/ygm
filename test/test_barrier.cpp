@@ -16,7 +16,8 @@ int main(int argc, char **argv) {
     static int round      = 0;
     for (int i = 0; i < num_rounds; ++i) {
       world.async_bcast(
-          [](int curr_round) { YGM_ASSERT_RELEASE(curr_round == round); }, round);
+          [](int curr_round) { YGM_ASSERT_RELEASE(curr_round == round); },
+          round);
 
       world.barrier();
 

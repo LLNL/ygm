@@ -3,7 +3,6 @@
 //
 // SPDX-License-Identifier: MIT
 
-
 #undef NDEBUG
 
 #include <vector>
@@ -19,9 +18,9 @@ int main() {
   // Currently, we only support boost::container::vector
 
   boost::container::vector<int> original_value = {1, 2, 3, 4, 5};
-  ygm::detail::byte_vector cereal_buffer;
+  ygm::detail::byte_vector      cereal_buffer;
   {
-    cereal::YGMOutputArchive      archive(cereal_buffer);
+    cereal::YGMOutputArchive archive(cereal_buffer);
     archive(original_value);
   }
 

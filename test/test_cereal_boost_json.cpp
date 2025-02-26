@@ -8,9 +8,9 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <ygm/detail/assert.hpp>
 #include <ygm/detail/byte_vector.hpp>
 #include <ygm/detail/cereal_boost_json.hpp>
-#include <ygm/detail/assert.hpp>
 #include <ygm/detail/ygm_cereal_archive.hpp>
 
 namespace bj = boost::json;
@@ -30,7 +30,7 @@ std::string json_string = R"(
 )";
 
 int main() {
-  ygm::detail::byte_vector   buffer;
+  ygm::detail::byte_vector buffer;
   {
     const bj::value          value = bj::parse(json_string);
     cereal::YGMOutputArchive archive(buffer);

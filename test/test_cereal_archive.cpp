@@ -4,12 +4,12 @@
 // SPDX-License-Identifier: MIT
 
 #undef NDEBUG
-#include <ygm/detail/ygm_cereal_archive.hpp>
-#include <ygm/detail/byte_vector.hpp>
 #include <fstream>
 #include <iostream>
-#include <vector>
 #include <string>
+#include <vector>
+#include <ygm/detail/byte_vector.hpp>
+#include <ygm/detail/ygm_cereal_archive.hpp>
 
 int main() {
   std::vector<std::string> vec_sentences = {
@@ -20,11 +20,13 @@ int main() {
   ygm::detail::byte_vector buffer;
   {
     cereal::YGMOutputArchive archive(buffer);
-    for (const auto& s : vec_sentences) { archive(s); }
+    for (const auto& s : vec_sentences) {
+      archive(s);
+    }
   }
 
   {
-    std::ifstream is("out.cereal", std::ios::binary);
+    std::ifstream           is("out.cereal", std::ios::binary);
     cereal::YGMInputArchive archive(buffer.data(), buffer.size());
 
     std::vector<std::string> out_sentences;

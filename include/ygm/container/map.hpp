@@ -76,10 +76,10 @@ class map
   }
 
   template <typename STLContainer>
-  map(ygm::comm& comm, const STLContainer& cont)
-    requires detail::STLContainer<STLContainer> &&
-                 std::convertible_to<typename STLContainer::value_type,
-                                     std::pair<Key, Value>>
+  map(ygm::comm&          comm,
+      const STLContainer& cont) requires detail::STLContainer<STLContainer> &&
+      std::convertible_to<typename STLContainer::value_type,
+                          std::pair<Key, Value>>
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
     pthis.check(m_comm);
 
@@ -90,9 +90,9 @@ class map
   }
 
   template <typename YGMContainer>
-  map(ygm::comm& comm, const YGMContainer& yc)
-    requires detail::HasForAll<YGMContainer> &&
-                 detail::SingleItemTuple<typename YGMContainer::for_all_args>
+  map(ygm::comm&          comm,
+      const YGMContainer& yc) requires detail::HasForAll<YGMContainer> &&
+      detail::SingleItemTuple<typename YGMContainer::for_all_args>
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
     pthis.check(m_comm);
 
@@ -402,10 +402,9 @@ class multimap
   }
 
   template <typename STLContainer>
-  multimap(ygm::comm& comm, const STLContainer& cont)
-    requires detail::STLContainer<STLContainer> &&
-                 std::convertible_to<typename STLContainer::value_type,
-                                     std::pair<Key, Value>>
+  multimap(ygm::comm& comm, const STLContainer& cont) requires
+      detail::STLContainer<STLContainer> && std::convertible_to<
+          typename STLContainer::value_type, std::pair<Key, Value>>
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
     pthis.check(m_comm);
 
@@ -416,9 +415,9 @@ class multimap
   }
 
   template <typename YGMContainer>
-  multimap(ygm::comm& comm, const YGMContainer& yc)
-    requires detail::HasForAll<YGMContainer> &&
-                 detail::SingleItemTuple<typename YGMContainer::for_all_args>
+  multimap(ygm::comm&          comm,
+           const YGMContainer& yc) requires detail::HasForAll<YGMContainer> &&
+      detail::SingleItemTuple<typename YGMContainer::for_all_args>
       : m_comm(comm), pthis(this), partitioner(comm), m_default_value() {
     pthis.check(m_comm);
 

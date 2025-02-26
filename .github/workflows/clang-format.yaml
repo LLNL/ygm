@@ -1,0 +1,27 @@
+name: Run clang-format Linter
+
+on:
+  pull_request:
+    types: [ opened, reopened, synchronize ]
+
+jobs:
+  format_code:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.pull_request.head.repo.full_name }}
+        ref: ${{ github.event.pull_request.head.ref }}
+    - uses: DoozyX/clang-format-lint-action@v0.18.1
+      with:
+        source: 'include examples test tools'
+        extensions: 'hpp,cpp,ipp,h,c'
+        clangFormatVersion: 14
+        inplace: True
+        style: file
+    - uses: EndBug/add-and-commit@v9
+      with:
+        #author_name: YGM clang-format bot
+        message: 'Committing clang-format changes'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -68,10 +68,9 @@ struct base_iteration_value {
   }
 
   template <typename Compare = std::greater<value_type>>
-  std::vector<value_type> gather_topk(
-      size_t k, Compare comp = std::greater<value_type>()) const
-    requires SingleItemTuple<for_all_args>
-  {
+  std::vector<value_type> gather_topk(size_t  k,
+                                      Compare comp = std::greater<value_type>())
+      const requires SingleItemTuple<for_all_args> {
     const auto*      derived_this = static_cast<const derived_type*>(this);
     const ygm::comm& mycomm       = derived_this->comm();
     std::vector<value_type> local_topk;
@@ -169,13 +168,13 @@ struct base_iteration_value {
 
  private:
   template <typename STLContainer, typename Value>
-    requires requires(STLContainer stc, Value v) { stc.push_back(v); }
+  requires requires(STLContainer stc, Value v) { stc.push_back(v); }
   static void generic_insert(STLContainer& stc, const Value& value) {
     stc.push_back(value);
   }
 
   template <typename STLContainer, typename Value>
-    requires requires(STLContainer stc, Value v) { stc.insert(v); }
+  requires requires(STLContainer stc, Value v) { stc.insert(v); }
   static void generic_insert(STLContainer& stc, const Value& value) {
     stc.insert(value);
   }
@@ -343,13 +342,13 @@ struct base_iteration_key_value {
 
  private:
   template <typename STLContainer, typename Value>
-    requires requires(STLContainer stc, Value v) { stc.push_back(v); }
+  requires requires(STLContainer stc, Value v) { stc.push_back(v); }
   static void generic_insert(STLContainer& stc, const Value& value) {
     stc.push_back(value);
   }
 
   template <typename STLContainer, typename Value>
-    requires requires(STLContainer stc, Value v) { stc.insert(v); }
+  requires requires(STLContainer stc, Value v) { stc.insert(v); }
   static void generic_insert(STLContainer& stc, const Value& value) {
     stc.insert(value);
   }

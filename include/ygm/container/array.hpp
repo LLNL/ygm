@@ -129,10 +129,9 @@ class array
   }
 
   template <typename T>
-  array(ygm::comm& comm, const T& t)
-    requires detail::HasForAll<T> &&
-                 detail::SingleItemTuple<typename T::for_all_args> &&
-                 std::same_as<typename T::for_all_args, std::tuple<mapped_type>>
+  array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
+      detail::SingleItemTuple<typename T::for_all_args> &&
+      std::same_as<typename T::for_all_args, std::tuple<mapped_type>>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     pthis.check(m_comm);
 
@@ -148,19 +147,17 @@ class array
   }
 
   template <typename T>
-  array(ygm::comm& comm, const T& t)
-    requires detail::HasForAll<T> &&
-                 detail::SingleItemTuple<typename T::for_all_args> &&
-                 detail::DoubleItemTuple<
-                     std::tuple_element_t<0, typename T::for_all_args>> &&
-                 std::convertible_to<
-                     std::tuple_element_t<
-                         0, std::tuple_element_t<0, typename T::for_all_args>>,
-                     key_type> &&
-                 std::convertible_to<
-                     std::tuple_element_t<
-                         1, std::tuple_element_t<0, typename T::for_all_args>>,
-                     mapped_type>
+  array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
+      detail::SingleItemTuple<typename T::for_all_args> && detail::
+          DoubleItemTuple<std::tuple_element_t<0, typename T::for_all_args>> &&
+      std::convertible_to<
+          std::tuple_element_t<
+              0, std::tuple_element_t<0, typename T::for_all_args>>,
+          key_type> &&
+      std::convertible_to<
+          std::tuple_element_t<
+              1, std::tuple_element_t<0, typename T::for_all_args>>,
+          mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     pthis.check(m_comm);
 
@@ -181,15 +178,11 @@ class array
   }
 
   template <typename T>
-  array(ygm::comm& comm, const T& t)
-    requires detail::HasForAll<T> &&
-                 detail::DoubleItemTuple<typename T::for_all_args> &&
-                 std::convertible_to<
-                     std::tuple_element_t<0, typename T::for_all_args>,
-                     key_type> &&
-                 std::convertible_to<
-                     std::tuple_element_t<0, typename T::for_all_args>,
-                     mapped_type>
+  array(ygm::comm& comm, const T& t) requires detail::HasForAll<T> &&
+      detail::DoubleItemTuple<typename T::for_all_args> && std::convertible_to<
+          std::tuple_element_t<0, typename T::for_all_args>, key_type> &&
+      std::convertible_to<std::tuple_element_t<0, typename T::for_all_args>,
+                          mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     pthis.check(m_comm);
 
@@ -210,10 +203,9 @@ class array
   }
 
   template <typename T>
-  array(ygm::comm& comm, const T& t)
-    requires detail::STLContainer<T> &&
-                 (not detail::SingleItemTuple<typename T::value_type>) &&
-                 std::convertible_to<typename T::value_type, mapped_type>
+  array(ygm::comm& comm, const T& t) requires detail::STLContainer<T> &&
+      (not detail::SingleItemTuple<typename T::value_type>)&&std::
+          convertible_to<typename T::value_type, mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     pthis.check(m_comm);
 
@@ -231,15 +223,11 @@ class array
   }
 
   template <typename T>
-  array(ygm::comm& comm, const T& t)
-    requires detail::STLContainer<T> &&
-                 detail::DoubleItemTuple<typename T::value_type> &&
-                 std::convertible_to<
-                     std::tuple_element_t<0, typename T::value_type>,
-                     key_type> &&
-                 std::convertible_to<
-                     std::tuple_element_t<1, typename T::value_type>,
-                     mapped_type>
+  array(ygm::comm& comm, const T& t) requires detail::STLContainer<T> &&
+      detail::DoubleItemTuple<typename T::value_type> && std::convertible_to<
+          std::tuple_element_t<0, typename T::value_type>, key_type> &&
+      std::convertible_to<std::tuple_element_t<1, typename T::value_type>,
+                          mapped_type>
       : m_comm(comm), pthis(this), m_default_value{}, partitioner(comm, 0) {
     pthis.check(m_comm);
 

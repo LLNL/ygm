@@ -125,6 +125,7 @@ inline std::vector<parquet_type_variant> read_parquet_as_variant(
     parquet_parser::parquet_stream_reader&       reader,
     const parquet_parser::file_schema_container& schema,
     const std::unordered_set<std::string>&       include_columns) {
-  return detail::read_parquet_as_variant_helper(reader, schema, include_columns);
+  return detail::read_parquet_as_variant_helper(reader, schema,
+                                                include_columns);
 }
 }  // namespace ygm::io

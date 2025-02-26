@@ -38,7 +38,7 @@ class layout {
     // local ranks
     MPI_Comm comm_local;
     YGM_ASSERT_MPI(MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, m_comm_rank,
-                                   MPI_INFO_NULL, &comm_local));
+                                       MPI_INFO_NULL, &comm_local));
     YGM_ASSERT_MPI(MPI_Comm_size(comm_local, &m_local_size));
     YGM_ASSERT_MPI(MPI_Comm_rank(comm_local, &m_local_id));
 
@@ -159,7 +159,7 @@ class layout {
   void _mpi_allgather(T &_t, std::vector<T> &out_vec, int size, MPI_Comm comm) {
     out_vec.resize(size);
     YGM_ASSERT_MPI(MPI_Allgather(&_t, sizeof(_t), MPI_BYTE, &(out_vec[0]),
-                             sizeof(_t), MPI_BYTE, comm));
+                                 sizeof(_t), MPI_BYTE, comm));
   }
 
   inline void _check_world_rank(const int rank) const {

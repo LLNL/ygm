@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
     cs.async_insert("blue");
     cs.async_insert("fish");
 
-    std::vector< std::pair<std::string, size_t> > top1 = cs.gather_topk(
+    std::vector<std::pair<std::string, size_t> > top1 = cs.gather_topk(
         1, [](auto p1, auto p2) { return p1.second > p2.second; });
 
     YGM_ASSERT_RELEASE(top1[0].first == "fish");
