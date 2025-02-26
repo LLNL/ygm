@@ -32,6 +32,16 @@ if (JUST_INSTALL_YGM_HEADERS)
   return()
 endif ()
 
+#
+# Doxygen and Read the Docs (RTD) Documentation
+#
+if (YGM_DOXYGEN OR YGM_RTD_ONLY)
+    add_subdirectory(docs)
+    if (YGM_RTD_ONLY)
+        return()
+    endif ()
+endif ()
+
 # Require out-of-source builds
 file(TO_CMAKE_PATH "${PROJECT_BINARY_DIR}/CMakeLists.txt" LOC_PATH)
 if (EXISTS "${LOC_PATH}")
