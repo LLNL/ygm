@@ -16,7 +16,6 @@ endfunction ()
 add_ygm_example(howdy_world)
 add_ygm_example(howdy_world_recursive)
 add_ygm_example(lambda_optional_arguments)
-add_ygm_example(read_trace)
 
 add_subdirectory(container)
 add_subdirectory(io)

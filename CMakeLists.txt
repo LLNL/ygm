@@ -7,46 +7,29 @@ cmake_minimum_required(VERSION 3.14)
 
 project(
     ygm
-    VERSION 0.6
+    VERSION 0.7
     DESCRIPTION "HPC Communication Library"
     LANGUAGES CXX
 )
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-    set(YGM_MAIN_PROJECT ON)
-endif ()
+#
+# Configuration options for YGM
+#
+option(JUST_INSTALL_YGM_HEADERS "Install YGM header files without building anything" OFF)
+option(YGM_BUILD_TESTS "Build tests" OFF)
+option(YGM_BUILD_TOOLS "Build tools" OFF)
+option(YGM_DOXYGEN "Adds targets for generating Doxygen documentation" OFF)
+option(YGM_RTD_ONLY "Run Cmake for only generating documentation for Read the Docs" OFF)
+option(YGM_REQUIRE_PARQUET "YGM requires Arrow Parquet." OFF)
+option(YGM_INSTALL_PARQUET "YGM installs Arrow Parquet if it is not found." OFF)
 
-# Controls whether to set up install boilerplate for project and depencencies.
-# Expects CMAKE_INSTALL_PREFIX to be set to a suitable directory.
-option(YGM_INSTALL "Generate the install target" ${YGM_MAIN_PROJECT})
-
-# Only do these if this is the main project, and not if it is included through
-# add_subdirectory
-if (YGM_MAIN_PROJECT)
-
-    # Let's nicely support folders in IDE's
-    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-
-    # Testing only available if this is the main app Note this needs to be done
-    # in the main CMakeLists since it calls enable_testing, which must be in the
-    # main CMakeLists.
-    include(CTest)
-
-    #
-    # Doxygen and Read the Docs (RTD) Documentation
-    #
-    option(YGM_DOXYGEN "Add targets for generating documentations" OFF)
-    # Generate documentation for Read the Docs
-    option(YGM_RTD_ONLY
-            "Run CMake for only generating documentations for Read the Docs" OFF)
-    if (YGM_DOXYGEN OR YGM_RTD_ONLY)
-        add_subdirectory(docs)
-        if (YGM_RTD_ONLY)
-            return()
-        endif ()
-    endif()
+#
+# Early exit if only installing headers
+#
+if (JUST_INSTALL_YGM_HEADERS)
+  return()
 endif ()
 
 # Require out-of-source builds
@@ -93,7 +76,7 @@ if (NOT cereal_FOUND)
         # Do not compile any cereal tests
         set(JUST_INSTALL_CEREAL ON)
         # Install cereal at ${CMAKE_INSTALL_PREFIX}
-        set(CEREAL_INSTALL ${YGM_INSTALL})
+        set(CEREAL_INSTALL ON)
         # Populate cereal
         FetchContent_Populate(cereal)
         # Include cereal root cmake boilerplate
@@ -143,7 +126,6 @@ endif ()
 #
 #
 include(FindArrowParquet)
-option(YGM_REQUIRE_ARROW_PARQUET "YGM requires Apache Arrow Parquet." OFF)
 find_or_install_arrow_parquet()
 
 #
@@ -163,67 +145,53 @@ target_link_libraries(
 option(TEST_WITH_SLURM "Run tests with Slurm" OFF)
 
 # Install ygm. Expects CMAKE_INSTALL_PREFIX to be set to a suitable directory.
-if (${YGM_INSTALL})
-    include(GNUInstallDirs)
-    include(CMakePackageConfigHelpers)
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
-    # List libraries to be installed
-    set(YGM_EXPORT_TARGETS ygm)
+# List libraries to be installed
+set(YGM_EXPORT_TARGETS ygm)
 
-    install(
-        TARGETS ${PROJECT_NAME}
-        EXPORT ${PROJECT_NAME}Targets
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    )
+install(
+    TARGETS ${PROJECT_NAME}
+    EXPORT ${PROJECT_NAME}Targets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
 
-    install(
-        EXPORT ${PROJECT_NAME}Targets
-        FILE ${PROJECT_NAME}Targets.cmake
-        NAMESPACE ${PROJECT_NAME}::
+install(
+    EXPORT ${PROJECT_NAME}Targets
+    FILE ${PROJECT_NAME}Targets.cmake
+    NAMESPACE ${PROJECT_NAME}::
+    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake
+)
+
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ygm
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+# create version file
+write_basic_package_version_file(
+    "${PROJECT_NAME}ConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY ExactVersion
+)
+
+# create config file
+configure_package_config_file(
+    "${PROJECT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in"
+    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake
+)
+
+install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+              "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
         DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake
-    )
+)
 
-    install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ygm
-            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    )
-
-    # create version file
-    write_basic_package_version_file(
-        "${PROJECT_NAME}ConfigVersion.cmake"
-        VERSION ${PROJECT_VERSION}
-        COMPATIBILITY ExactVersion
-    )
-
-    # create config file
-    configure_package_config_file(
-        "${PROJECT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in"
-        "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-        INSTALL_DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake
-    )
-
-    install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-                  "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
-            DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake
-    )
-
-endif ()
-
-option(JUST_INSTALL_YGM "Skip executable compilation" OFF)
-if (JUST_INSTALL_YGM)
-    return()
-endif ()
-
-if (NOT CMAKE_BUILD_TYPE)
-	set(CMAKE_BUILD_TYPE Release)
-	message(STATUS "CMAKE_BUILD_TYPE is set as Release")
-endif ()
-
-# Testing & examples are only available if this is the main app
-if (YGM_MAIN_PROJECT)
+if (YGM_BUILD_TESTS)
     add_subdirectory(test)
-    # Example codes are here.
-    add_subdirectory(examples)
+endif ()
+if (YGM_BUILD_TOOLS)
     add_subdirectory(tools)
 endif ()
