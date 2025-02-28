@@ -19,6 +19,7 @@ struct comm::mpi_irecv_request {
 struct comm::mpi_isend_request {
   std::shared_ptr<ygm::detail::byte_vector> buffer;
   MPI_Request                             request;
+  int32_t                                 id;
 };
 
 struct comm::header_t {
@@ -59,6 +60,12 @@ inline void comm::comm_setup(MPI_Comm c) {
   for (size_t i = 0; i < config.num_irecvs; ++i) {
     std::shared_ptr<ygm::detail::byte_vector> recv_buffer{new ygm::detail::byte_vector(config.irecv_size)};
     post_new_irecv(recv_buffer);
+  }
+
+  if (config.trace_ygm || config.trace_mpi) {
+    if (rank0()) m_tracer.create_directory(config.trace_path);
+    YGM_ASSERT_MPI(MPI_Barrier(c));
+    m_tracer.open_file(config.trace_path, rank(), size());
   }
 }
 
@@ -149,6 +156,7 @@ inline comm::~comm() {
 
 template <typename AsyncFunction, typename... SendArgs>
 inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
+
   YGM_CHECK_ASYNC_LAMBDA_COMPLIANCE(AsyncFunction, "ygm::comm::async()");
 
   YGM_ASSERT_RELEASE(dest < m_layout.size());
@@ -203,11 +211,15 @@ inline void comm::async(int dest, AsyncFunction fn, const SendArgs &...args) {
   if (config.routing != detail::routing_type::NONE) {
     auto iter = m_vec_send_buffers[next_dest].end();
     iter -= (header_bytes + bytes);
-    std::memcpy(&*iter, &bytes, sizeof(header_t::dest));
+
+    std::memcpy(&*iter, &bytes,
+                sizeof(header_t::message_size));                                  
   }
 
-  //
-  // Check if send buffer capacity has been exceeded
+  if (config.trace_ygm) {
+    m_tracer.trace_ygm_async(m_tracer.get_next_message_id(), dest, bytes);
+  }
+
   flush_to_capacity();
 }
 
@@ -251,6 +263,10 @@ inline MPI_Comm comm::get_mpi_comm() const { return m_comm_other; }
  *
  */
 inline void comm::barrier() {
+  if (config.trace_ygm || config.trace_mpi) {
+    m_tracer.trace_barrier_begin(m_tracer.get_next_message_id(), m_send_count, m_recv_count, m_pending_isend_bytes, m_send_local_buffer_bytes, m_send_remote_buffer_bytes);
+  }
+
   flush_all_local_and_process_incoming();
   std::pair<uint64_t, uint64_t> previous_counts{1, 2};
   std::pair<uint64_t, uint64_t> current_counts{3, 4};
@@ -262,11 +278,16 @@ inline void comm::barrier() {
       flush_all_local_and_process_incoming();
     }
   }
+  
   YGM_ASSERT_RELEASE(m_pre_barrier_callbacks.empty());
   YGM_ASSERT_RELEASE(m_send_local_dest_queue.empty());
   YGM_ASSERT_RELEASE(m_send_remote_dest_queue.empty());
 
   cf_barrier();
+
+  if (config.trace_ygm || config.trace_mpi) {
+    m_tracer.trace_barrier_end(0, m_send_count, m_recv_count, m_pending_isend_bytes, m_send_local_buffer_bytes, m_send_remote_buffer_bytes);
+  }
 }
 
 /**
@@ -468,8 +489,8 @@ inline std::string comm::outstr(Args &&...args) const {
   return ss.str();
 }
 
-inline size_t comm::pack_header(ygm::detail::byte_vector &packed, const int dest,
-                                size_t size) {
+inline size_t comm::pack_header(ygm::detail::byte_vector &packed,
+                                        const int dest, size_t size) {
   size_t size_before = packed.size();
 
   header_t h;
@@ -524,6 +545,11 @@ inline std::pair<uint64_t, uint64_t> comm::barrier_reduce_counts() {
         int buffer_size{0};
         YGM_ASSERT_MPI(MPI_Get_count(&twin_status[i], MPI_BYTE, &buffer_size));
         stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
+
+        if (config.trace_mpi) {
+          m_tracer.trace_mpi_recv(0, twin_status[i].MPI_SOURCE, buffer_size);
+        }
+
         handle_next_receive(req_buffer.buffer, buffer_size);
         flush_all_local_and_process_incoming();
       }
@@ -542,6 +568,15 @@ inline void comm::flush_send_buffer(int dest) {
   if (m_vec_send_buffers[dest].size() > 0) {
     check_completed_sends();
     mpi_isend_request request;
+
+    
+    if (config.trace_mpi) {
+        request.id = m_tracer.get_next_message_id();
+    }
+    else{
+        request.id = 0;
+    }
+
     if (m_free_send_buffers.empty()) {
       request.buffer = std::make_shared<ygm::detail::byte_vector>();
     } else {
@@ -559,6 +594,11 @@ inline void comm::flush_send_buffer(int dest) {
                                &(request.request)));
     }
     stats.isend(dest, request.buffer->size());
+
+    if (config.trace_mpi) {
+      m_tracer.trace_mpi_send(m_tracer.get_next_message_id(), dest, request.buffer->size());
+    }
+
     m_pending_isend_bytes += request.buffer->size();
 
     if (m_layout.is_local(dest)) {
@@ -606,6 +646,9 @@ inline void comm::check_completed_sends() {
           MPI_Test(&(m_send_queue.front().request), &flag, MPI_STATUS_IGNORE));
       stats.isend_test();
       if (flag) {
+        if (config.trace_mpi) {
+          m_tracer.trace_mpi_send(m_tracer.get_next_message_id(), m_send_queue.front().id,  m_send_queue.front().buffer->size());
+        }
         handle_completed_send(m_send_queue.front());
         m_send_queue.pop_front();
       }
@@ -956,6 +999,7 @@ inline void comm::handle_next_receive(std::shared_ptr<ygm::detail::byte_vector> 
     if (config.routing != detail::routing_type::NONE) {
       header_t h;
       iarchive.loadBinary(&h, sizeof(header_t));
+
       if (h.dest == m_layout.rank() || (h.dest == -1 && h.message_size == 0)) {
         uint16_t lid;
         iarchive.loadBinary(&lid, sizeof(lid));
@@ -1020,7 +1064,6 @@ inline bool comm::process_receive_queue() {
     m_in_process_receive_queue = false;
     return received_to_return;
   }
-
   //
   // if we have a pending iRecv, then we can issue a Testsome
   if (m_send_queue.size() > config.num_isends_wait) {
@@ -1049,6 +1092,12 @@ inline bool comm::process_receive_queue() {
         int buffer_size{0};
         YGM_ASSERT_MPI(MPI_Get_count(&twin_status[i], MPI_BYTE, &buffer_size));
         stats.irecv(twin_status[i].MPI_SOURCE, buffer_size);
+
+
+        if (config.trace_mpi) {
+          m_tracer.trace_mpi_recv(0, twin_status[i].MPI_SOURCE, buffer_size);
+        }
+  
         handle_next_receive(req_buffer.buffer, buffer_size);
       }
     }
@@ -1077,6 +1126,11 @@ inline bool comm::local_process_incoming() {
       int buffer_size{0};
       YGM_ASSERT_MPI(MPI_Get_count(&status, MPI_BYTE, &buffer_size));
       stats.irecv(status.MPI_SOURCE, buffer_size);
+
+      if (config.trace_mpi) {
+        m_tracer.trace_mpi_recv(0, status.MPI_SOURCE, buffer_size);
+      }
+
       handle_next_receive(req_buffer.buffer, buffer_size);
     } else {
       break;  // not ready yet

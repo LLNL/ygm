@@ -108,6 +108,26 @@ class comm_environment {
     if (const char* cc = std::getenv("YGM_COMM_SEND_BUFFER_FREE_LIST_LEN")) {
       send_buffer_free_list_len = convert<size_t>(cc);
     }
+    if (const char* cc = std::getenv("YGM_COMM_ROUTING")) {
+      if (std::string(cc) == "NONE") {
+        routing = routing_type::NONE;
+      } else if (std::string(cc) == "NR") {
+        routing = routing_type::NR;
+      } else if (std::string(cc) == "NLNR") {
+        routing = routing_type::NLNR;
+      } else {
+        throw std::runtime_error("comm_enviornment -- unknown routing type");
+      }
+    }
+    if (const char* cc = std::getenv("YGM_COMM_TRACE")) {
+      trace_ygm = convert<bool>(cc);
+    }
+    if (const char* cc = std::getenv("YGM_MPI_TRACE")) {
+      trace_mpi = convert<bool>(cc);
+    }
+    if (const char* cc = std::getenv("YGM_COMM_TRACE_PATH")) {
+      trace_path = std::string(cc);
+    }
   }
 
   void print(std::ostream& os = std::cout) const {
@@ -130,6 +150,8 @@ class comm_environment {
         os << "NLNR\n";
         break;
     }
+    os << "YGM_COMM_TRACE           = " << trace_ygm << "\n";
+    os << "YGM_MPI_TRACE           = " << trace_mpi << "\n";
     os << "======================================\n";
   }
 
@@ -149,6 +171,10 @@ class comm_environment {
   routing_type routing = routing_type::NONE;
 
   bool welcome = false;
+
+  bool        trace_ygm  = false;
+  bool        trace_mpi  = false;
+  std::string trace_path = "trace/";
 };
 
 }  // namespace detail
